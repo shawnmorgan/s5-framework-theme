@@ -66,6 +66,23 @@ Grammar (machine-parseable — the validator checks the pattern, not your intent
 - **Nobody adds scale slots.** Values are per-brand; slots are theme law.
 - **No inline `style=` attributes.** Ever. This is a hard gate.
 
+## 4b. Banned constructs (the validator rejects these outright)
+
+These are not style preferences — the lint exits non-zero on each. Know them
+before you write, not after:
+
+- **No `<ul>` / `<ol>`.** Express lists as div structures (`icon-list` +
+  `icon-list_item`).
+- **No inline `<svg>`.** Icons are `<span class="icon-slot icon--NAME"
+  data-icon="NAME">` — and the `icon--NAME` class must match `data-icon`.
+- **No bare text directly inside a `<div>`.** Wrap it in a text element.
+- **No child elements inside a heading, `<p>` or `<a>`** beyond inline
+  `strong` / `em` / `span` / `br`.
+- **No `style=` attribute.** Already stated in §4; repeated because it is the
+  most common violation by volume.
+- **Banned vocabulary:** `surface`, `ink`, `paper` — anywhere, including token
+  names and class names. Use `bg` / `text` / `dark` / `light`.
+
 ## 5. Parents own layout. Children own appearance.
 
 Alignment, distribution, flow and spacing-between live on **wrappers**.
