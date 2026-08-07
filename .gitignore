@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+
+# Node
+node_modules/
+
+# AgentsRoom local state — session files and caches churn constantly and are
+# machine-local. The memory/ mirror is a one-way sync of a server row, so it is
+# regenerated on open and must never be hand-edited or committed as truth.
+.agentsroom/sessions/
+.agentsroom/*-cache.json
+.agentsroom/memory/
+.agentsroom/agents-local.json
+
+# Build / import artifacts. dist/ is what `wp s5 import` consumes; it is
+# generated from pages/ + parts/ and is never the source of truth.
+dist/
+
+# Local environment
+.env
+.env.local
