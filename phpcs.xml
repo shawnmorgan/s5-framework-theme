@@ -4,6 +4,7 @@
 
 	<file>s5-theme</file>
 	<file>s5-plugin</file>
+	<file>tests</file>
 
 	<!-- Ignore build/vendor output. -->
 	<exclude-pattern>*/vendor/*</exclude-pattern>
@@ -15,7 +16,17 @@
 	<arg value="sp"/>
 
 	<!-- WordPress standard. -->
-	<rule ref="WordPress"/>
+	<rule ref="WordPress">
+		<!--
+			PSR-4 autoloading (Composer) requires StudlyCase class files named
+			after the class (Plugin.php, HelloCommand.php). That is mutually
+			exclusive with WPCS's legacy "class-*.php / lowercase-hyphenated"
+			file-naming sniffs, so they are disabled project-wide. This is the
+			standard reconciliation for a Composer/PSR-4 WordPress plugin.
+		-->
+		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+		<exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
+	</rule>
 
 	<!-- Text domain for i18n checks. -->
 	<config name="text_domain" value="s5"/>
@@ -24,7 +35,11 @@
 	<config name="testVersion" value="8.1-"/>
 	<rule ref="PHPCompatibilityWP"/>
 
-	<!-- Namespaced prefixes accepted for global symbols. -->
+	<!--
+		's5' / 'S5' is the deliberate placeholder product identity (PRD Open
+		Question #1). Allowlist it so PrefixAllGlobals accepts it despite the
+		<4-char default minimum.
+	-->
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
@@ -32,5 +47,27 @@
 				<element value="S5"/>
 			</property>
 		</properties>
+		<exclude name="WordPress.NamingConventions.PrefixAllGlobals.ShortPrefixPassed"/>
+	</rule>
+
+	<!--
+		WP-CLI command __invoke( $args, $assoc_args ) has a fixed signature;
+		unused positional/assoc args in a no-op command are required, not dead
+		code.
+	-->
+	<rule ref="Generic.CodeAnalysis.UnusedFunctionParameter">
+		<exclude-pattern>s5-plugin/cli/*</exclude-pattern>
+	</rule>
+
+	<!--
+		The test-only debug guard intentionally calls error_reporting() to make
+		notices visible to the acceptance test. It is never shipped, so the
+		path-disclosure / runtime-config warnings do not apply.
+	-->
+	<rule ref="WordPress.PHP.DevelopmentFunctions.prevent_path_disclosure_error_reporting">
+		<exclude-pattern>tests/mu-plugin-debug-guard.php</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.PHP.DiscouragedPHPFunctions.runtime_configuration_error_reporting">
+		<exclude-pattern>tests/mu-plugin-debug-guard.php</exclude-pattern>
 	</rule>
 </ruleset>

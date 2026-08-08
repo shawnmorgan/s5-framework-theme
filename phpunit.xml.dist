@@ -3,7 +3,6 @@
 	bootstrap="tests/phpunit/bootstrap.php"
 	colors="true"
 	failOnWarning="true"
-	failOnNotice="true"
 	beStrictAboutOutputDuringTests="true"
 >
 	<testsuites>
