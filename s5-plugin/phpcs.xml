@@ -5,6 +5,7 @@
 	<file>../s5-theme</file>
 	<file>src</file>
 	<file>cli</file>
+	<file>templates</file>
 	<file>s5-plugin.php</file>
 	<file>tests</file>
 	<file>../tests</file>

@@ -17,9 +17,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Wires the framework into WordPress.
  *
  * Step 0 scope: register the `wp s5` CLI namespace so the environment can be
- * proven end to end (a real WP-CLI command runs against real WordPress). No
- * storage, compiler, importer, or render behavior exists yet — those arrive in
- * later Build Order steps and hook in through this same class.
+ * proven end to end (a real WP-CLI command runs against real WordPress).
+ *
+ * Step 1 scope: register canonical-HTML storage (a page post-meta key) and the
+ * render path that serves that stored fragment through a plugin-owned canvas
+ * template, bypassing the theme and Gutenberg. Importer, compiler, media, and
+ * the canonical/render split arrive in later Build Order steps and hook in
+ * through this same class.
  */
 final class Plugin {
 
@@ -41,6 +45,8 @@ final class Plugin {
 		}
 		self::$booted = true;
 
+		Storage::register();
+		Render::register();
 		self::register_cli_commands();
 	}
 

@@ -2,7 +2,7 @@
   "name": "s5-framework",
   "version": "0.0.0",
   "private": true,
-  "description": "Agent-Native WordPress Framework (S5) — dev environment and test harness.",
+  "description": "Agent-Native WordPress Framework (S5) \u2014 dev environment and test harness.",
   "license": "GPL-2.0-or-later",
   "scripts": {
     "env:start": "wp-env start",
@@ -11,7 +11,8 @@
     "env:cli": "wp-env run cli wp",
     "test": "bash tests/acceptance.sh",
     "test:phpunit": "wp-env run tests-cli --env-cwd=wp-content/plugins/s5-plugin vendor/bin/phpunit",
-    "lint": "wp-env run cli --env-cwd=wp-content/plugins/s5-plugin composer lint"
+    "lint": "wp-env run cli --env-cwd=wp-content/plugins/s5-plugin composer lint",
+    "test:step1": "bash tests/acceptance-step1.sh"
   },
   "devDependencies": {
     "@wordpress/env": "^10.0.0"
