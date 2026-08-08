@@ -28,7 +28,7 @@ fail() { printf '%s✘%s %s\n' "$RED" "$NC" "$1" >&2; exit 1; }
 # wp-env is provided by the local devDependency.
 WP_ENV="npx wp-env"
 # Run WP-CLI inside the environment's cli container.
-wp() { $WP_ENV run --quiet cli wp "$@"; }
+wp() { $WP_ENV run cli wp "$@"; }
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"

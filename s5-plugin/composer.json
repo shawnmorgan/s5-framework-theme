@@ -16,8 +16,8 @@
     },
     "autoload": {
         "psr-4": {
-            "S5\\": "s5-plugin/src/",
-            "S5\\Cli\\": "s5-plugin/cli/"
+            "S5\\": "src/",
+            "S5\\Cli\\": "cli/"
         }
     },
     "autoload-dev": {

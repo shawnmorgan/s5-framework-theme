@@ -29,3 +29,7 @@ s5-plugin/vendor/
 
 # wp-env local state
 .wp-env/
+
+# PHPUnit local cache
+.phpunit.result.cache
+s5-plugin/.phpunit.result.cache

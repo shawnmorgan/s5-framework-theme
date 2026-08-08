@@ -24,13 +24,14 @@ What exists now, and nothing more:
 
 | Path | Purpose |
 |---|---|
-| `s5-theme/` | Shell theme. `style.css` (WP header), `functions.php` (enqueue stub), `index.php` (fallback template). |
-| `s5-plugin/` | Companion plugin. Bootstrap + PSR-4 autoload + the `wp s5` CLI namespace with one smoke command, `wp s5 hello`. |
+| `s5-theme/` | Shell theme. `style.css` (WP header), `functions.php` (enqueue stub), `index.php`/`header.php`/`footer.php` (minimal fallback templates). |
+| `s5-plugin/` | Companion plugin — the shippable unit. Owns its `composer.json` / `vendor/` (PSR-4 autoload), the `wp s5` CLI namespace with one smoke command (`wp s5 hello`), plus `phpcs.xml` and `phpunit.xml.dist`. |
 | `s5.config.json` | Machine-readable layout: paths, namespaces, `s5` prefix / text-domain. |
 | `.wp-env.json` | Docker dev environment (WordPress 6.7, PHP 8.2) mounting the theme + plugin. |
 | `tests/acceptance.sh` | **The Step 0 acceptance test** (bash). |
-| `tests/phpunit/` | PHPUnit bootstrap scaffold, reserved for Step 4 compiler units. |
-| `composer.json` / `phpcs.xml` | PSR-4 autoload + WordPress Coding Standards lint. |
+| `tests/mu-plugins/` | Test-only mu-plugin (`s5-debug-guard.php`) mounted into WordPress so notices surface to the acceptance test. |
+| `s5-plugin/tests/phpunit/` | PHPUnit bootstrap scaffold, reserved for Step 4 compiler units. |
+| `s5-plugin/composer.json` / `s5-plugin/phpcs.xml` | PSR-4 autoload + WordPress Coding Standards lint (live inside the plugin so `vendor/` mounts into the container). |
 
 Not built yet (later steps — see the Build Order): storage/meta, render path,
 importer (`wp s5 import`), compiler, media resolution, editor, components, MCP.
@@ -44,11 +45,16 @@ importer (`wp s5 import`), compiler, media resolution, editor, components, MCP.
 ## Setup and the test loop
 
 ```bash
-npm install                 # wp-env
-composer install            # plugin autoloader + phpcs/phpunit
-npm run env:start           # boot WordPress in Docker
-npm test                    # run the Step 0 acceptance test
+npm install                          # wp-env
+composer install -d s5-plugin        # plugin autoloader + phpcs/phpunit (builds s5-plugin/vendor/)
+npm run env:start                    # boot WordPress in Docker
+npm test                             # run the Step 0 acceptance test
 ```
+
+> **macOS note:** Docker Desktop cannot bind-mount paths under TCC-protected
+> folders (`~/Desktop`, `~/Documents`, `~/Downloads`). If the repo lives there,
+> either grant Docker **Full Disk Access** (System Settings → Privacy & Security)
+> or keep the working copy under a plain path such as `~/Projects`.
 
 `npm test` runs `tests/acceptance.sh`, which:
 
