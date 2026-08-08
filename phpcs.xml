@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<ruleset name="S5">
+	<description>Coding standard for the S5 framework (theme + plugin).</description>
+
+	<file>s5-theme</file>
+	<file>s5-plugin</file>
+
+	<!-- Ignore build/vendor output. -->
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/dist/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="colors"/>
+	<arg value="sp"/>
+
+	<!-- WordPress standard. -->
+	<rule ref="WordPress"/>
+
+	<!-- Text domain for i18n checks. -->
+	<config name="text_domain" value="s5"/>
+
+	<!-- Minimum supported PHP version for compatibility checks. -->
+	<config name="testVersion" value="8.1-"/>
+	<rule ref="PHPCompatibilityWP"/>
+
+	<!-- Namespaced prefixes accepted for global symbols. -->
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="s5"/>
+				<element value="S5"/>
+			</property>
+		</properties>
+	</rule>
+</ruleset>

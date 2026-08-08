@@ -1,0 +1,38 @@
+{
+    "name": "s5/framework",
+    "description": "Agent-Native WordPress Framework \u2014 companion plugin (theme + tooling live alongside).",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.1"
+    },
+    "require-dev": {
+        "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+        "php-stubs/wp-cli-stubs": "^2.10",
+        "phpcompatibility/phpcompatibility-wp": "^2.1",
+        "phpunit/phpunit": "^9.6",
+        "squizlabs/php_codesniffer": "^3.9",
+        "wp-coding-standards/wpcs": "^3.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "S5\\": "s5-plugin/src/",
+            "S5\\Cli\\": "s5-plugin/cli/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "S5\\Tests\\": "tests/phpunit/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "lint": "phpcs",
+        "lint:fix": "phpcbf"
+    }
+}

@@ -1,0 +1,21 @@
+/*
+Theme Name: S5
+Theme URI: https://series5technology.com
+Author: Shawn Morgan
+Author URI: https://series5technology.com
+Description: Shell theme for the Agent-Native WordPress Framework ("S5"). Runtime and design-system container; pages are authored as canonical HTML and served through the framework, not built with a page builder. See the PRD and Build Order in the repo root.
+Version: 0.0.0
+Requires at least: 6.5
+Tested up to: 6.7
+Requires PHP: 8.1
+License: GPL-2.0-or-later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: s5
+*/
+
+/*
+ * Step 0: this stylesheet carries only the WordPress theme header above.
+ * The design system (tokens.css, scales.css, generated.css, utilities.css,
+ * components/*.css per Authoring Contract Part A) is NOT part of Step 0 and
+ * arrives in later steps. Do not add design-system CSS here.
+ */

@@ -1,0 +1,22 @@
+{
+  "$comment": "Machine-readable layout for the S5 framework. Agents and tooling read paths and namespaces from here rather than hardcoding them. 'prefix' and 'textDomain' are the placeholder 's5' identity (PRD Open Question #1: product name is unresolved; rename here + find/replace when it lands).",
+  "name": "S5",
+  "prefix": "s5",
+  "textDomain": "s5",
+  "namespaces": {
+    "theme": "S5\\Theme",
+    "plugin": "S5"
+  },
+  "paths": {
+    "theme": "s5-theme",
+    "plugin": "s5-plugin",
+    "pluginSrc": "s5-plugin/src",
+    "pluginCli": "s5-plugin/cli",
+    "pagesSource": "pages",
+    "parts": "parts",
+    "dist": "dist"
+  },
+  "cli": {
+    "namespace": "s5"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://raw.githubusercontent.com/WordPress/gutenberg/trunk/schemas/json/wp-env.json",
+  "core": "WordPress/WordPress#6.7",
+  "phpVersion": "8.2",
+  "themes": [
+    "./s5-theme"
+  ],
+  "plugins": [
+    "./s5-plugin"
+  ],
+  "config": {
+    "WP_DEBUG": true,
+    "WP_DEBUG_LOG": true,
+    "WP_DEBUG_DISPLAY": false,
+    "SCRIPT_DEBUG": true
+  },
+  "mappings": {
+    "wp-content/mu-plugins/s5-debug-guard.php": "./tests/mu-plugin-debug-guard.php"
+  }
+}
