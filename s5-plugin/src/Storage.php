@@ -35,6 +35,14 @@ final class Storage {
 	public const META_KEY = '_s5_canonical_html';
 
 	/**
+	 * Meta key holding the extracted head blob (title, description, canonical,
+	 * OG/meta tags, and JSON-LD), stored as a single structured array.
+	 *
+	 * @var string
+	 */
+	public const HEAD_KEY = '_s5_head';
+
+	/**
 	 * Post type framework pages live on in Step 1.
 	 *
 	 * @var string
@@ -73,6 +81,20 @@ final class Storage {
 				},
 			)
 		);
+
+		register_post_meta(
+			self::POST_TYPE,
+			self::HEAD_KEY,
+			array(
+				'type'              => 'array',
+				'single'            => true,
+				'show_in_rest'      => false,
+				'sanitize_callback' => null, // Head artifacts are stored as extracted; no rewriting in Step 2.
+				'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
+					return current_user_can( 'edit_post', $post_id );
+				},
+			)
+		);
 	}
 
 	/**
@@ -95,5 +117,25 @@ final class Storage {
 	 */
 	public static function is_framework_page( int $post_id ): bool {
 		return '' !== self::get_canonical_html( $post_id );
+	}
+
+	/**
+	 * The extracted head blob for a post.
+	 *
+	 * Shape (all keys optional):
+	 * - `title`       string  Document title text.
+	 * - `description` string  Meta description content.
+	 * - `canonical`   string  Canonical URL.
+	 * - `tags`        array   List of raw <meta>/<link> tag strings (OG, etc.),
+	 *                         preserved verbatim in source order.
+	 * - `jsonld`      array   List of raw JSON-LD <script> block strings.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array<string, mixed> Head blob (empty array if none).
+	 */
+	public static function get_head( int $post_id ): array {
+		$head = get_post_meta( $post_id, self::HEAD_KEY, true );
+
+		return is_array( $head ) ? $head : array();
 	}
 }

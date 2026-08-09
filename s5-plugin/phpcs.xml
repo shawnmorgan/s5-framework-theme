@@ -64,6 +64,24 @@
 	</rule>
 
 	<!--
+		HtmlDocument reads PHP's built-in DOM API, whose property names
+		(childNodes, nodeName, textContent, ownerDocument) are fixed by the
+		engine and cannot be snake_case. The sniff misfires on these; scope it
+		out for that one file.
+	-->
+	<rule ref="WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase">
+		<exclude-pattern>src/HtmlDocument.php</exclude-pattern>
+	</rule>
+
+	<!--
+		The importer reads LOCAL source files with file_get_contents(); the
+		wp_remote_get() alternative is for remote URLs only and does not apply.
+	-->
+	<rule ref="WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents">
+		<exclude-pattern>cli/ImportCommand.php</exclude-pattern>
+	</rule>
+
+	<!--
 		The test-only debug guard intentionally calls error_reporting() to make
 		notices visible to the acceptance test. It is never shipped, so the
 		path-disclosure / runtime-config warnings do not apply.

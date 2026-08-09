@@ -46,6 +46,26 @@ final class Render {
 		// Framework pages are authored as HTML, not blocks — keep the block
 		// editor off so no block markup or editor assumptions attach to them.
 		add_filter( 'use_block_editor_for_post', array( self::class, 'disable_block_editor' ), 10, 2 );
+
+		// Emit the stored head artifacts on the canvas's wp_head seam, and wire
+		// the document <title> through the core title filter so there is exactly
+		// one title tag (wp_head prints it; we do not echo a second one).
+		add_action( 'wp_head', array( self::class, 'output_head' ), 1 );
+		add_filter( 'pre_get_document_title', array( self::class, 'filter_document_title' ) );
+
+		// Bypassing the theme means no theme declares title-tag support, so
+		// core wp_head() would not print a <title>. Declare it here so core
+		// prints exactly one title tag, populated by filter_document_title().
+		add_action( 'after_setup_theme', array( self::class, 'enable_title_tag' ) );
+	}
+
+	/**
+	 * Ensure core prints a single <title> in wp_head() for framework pages.
+	 *
+	 * @return void
+	 */
+	public static function enable_title_tag(): void {
+		add_theme_support( 'title-tag' );
 	}
 
 	/**
@@ -82,5 +102,58 @@ final class Render {
 		}
 
 		return $use_block_editor;
+	}
+
+	/**
+	 * Emit the stored head artifacts (description, canonical, OG/meta tags,
+	 * JSON-LD) for the current framework page. The <title> is handled by the
+	 * core title filter, not echoed here, to avoid a duplicate title tag.
+	 *
+	 * @return void
+	 */
+	public static function output_head(): void {
+		$post_id = get_queried_object_id();
+		if ( ! $post_id || ! Storage::is_framework_page( (int) $post_id ) ) {
+			return;
+		}
+
+		$head = Storage::get_head( (int) $post_id );
+
+		$lines = array();
+
+		if ( ! empty( $head['tags'] ) && is_array( $head['tags'] ) ) {
+			foreach ( $head['tags'] as $tag ) {
+				$lines[] = (string) $tag;
+			}
+		}
+		if ( ! empty( $head['jsonld'] ) && is_array( $head['jsonld'] ) ) {
+			foreach ( $head['jsonld'] as $block ) {
+				$lines[] = (string) $block;
+			}
+		}
+
+		if ( empty( $lines ) ) {
+			return;
+		}
+
+		// Stored verbatim from source; emitted as-is by design (Build Order Step 2).
+		echo "\n" . implode( "\n", $lines ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- canonical head artifacts, served verbatim by design.
+	}
+
+	/**
+	 * Provide the document title for a framework page from its stored head blob.
+	 *
+	 * @param string $title The default title.
+	 * @return string
+	 */
+	public static function filter_document_title( $title ) {
+		$post_id = get_queried_object_id();
+		if ( ! $post_id || ! Storage::is_framework_page( (int) $post_id ) ) {
+			return $title;
+		}
+
+		$head = Storage::get_head( (int) $post_id );
+
+		return ( isset( $head['title'] ) && '' !== $head['title'] ) ? (string) $head['title'] : $title;
 	}
 }

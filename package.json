@@ -12,7 +12,8 @@
     "test": "bash tests/acceptance.sh",
     "test:phpunit": "wp-env run tests-cli --env-cwd=wp-content/plugins/s5-plugin vendor/bin/phpunit",
     "lint": "wp-env run cli --env-cwd=wp-content/plugins/s5-plugin composer lint",
-    "test:step1": "bash tests/acceptance-step1.sh"
+    "test:step1": "bash tests/acceptance-step1.sh",
+    "test:step2": "bash tests/acceptance-step2.sh"
   },
   "devDependencies": {
     "@wordpress/env": "^10.0.0"
