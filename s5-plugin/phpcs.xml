@@ -71,6 +71,18 @@
 	-->
 	<rule ref="WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase">
 		<exclude-pattern>src/HtmlDocument.php</exclude-pattern>
+		<exclude-pattern>src/Validator.php</exclude-pattern>
+	</rule>
+
+	<!--
+		Grammar/Validator take a CSS class name as a parameter; `class` is by far
+		the clearest name for it, and these are not object contexts (no PHP
+		`class` keyword collision at the call site). Allow the reserved-word
+		parameter name in these two files only.
+	-->
+	<rule ref="Universal.NamingConventions.NoReservedKeywordParameterNames.classFound">
+		<exclude-pattern>src/Grammar.php</exclude-pattern>
+		<exclude-pattern>src/Validator.php</exclude-pattern>
 	</rule>
 
 	<!--
@@ -79,6 +91,8 @@
 	-->
 	<rule ref="WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents">
 		<exclude-pattern>cli/ImportCommand.php</exclude-pattern>
+		<exclude-pattern>cli/ValidateCommand.php</exclude-pattern>
+		<exclude-pattern>src/Stylesheet.php</exclude-pattern>
 		<exclude-pattern>../tests/lib/extract-head.php</exclude-pattern>
 	</rule>
 

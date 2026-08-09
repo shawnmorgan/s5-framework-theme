@@ -11,6 +11,7 @@ namespace S5\Cli;
 
 use S5\HtmlDocument;
 use S5\Storage;
+use S5\Validator;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -28,6 +29,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * - Idempotent: if canonical HTML and head blob are unchanged, write nothing.
  * - New pages publish immediately (dev-driven pipeline; no draft workflow yet).
  * - Any parse failure aborts with a nonzero exit, naming file + reason.
+ *
+ * Step 4 adds the Authoring Contract GATE: every page is validated before it is
+ * written. A page with any ERROR (unknown class, illegal inline style,
+ * unparseable HTML) is skipped — its diagnostics are printed — while valid pages
+ * still import; the command exits nonzero at the end if any page was blocked.
+ * WARNINGS print and the page proceeds. There is no --force flag; loud is the
+ * point.
  */
 final class ImportCommand {
 
@@ -63,9 +71,13 @@ final class ImportCommand {
 		}
 		sort( $files );
 
+		// Authoring Contract gate: load the class vocabulary once up front.
+		$vocab = ValidateCommand::load_vocabulary_or_die();
+
 		$created   = 0;
 		$updated   = 0;
 		$unchanged = 0;
+		$blocked   = 0;
 		$front_id  = 0;
 
 		foreach ( $files as $file ) {
@@ -77,8 +89,20 @@ final class ImportCommand {
 				\WP_CLI::error( sprintf( '%s: could not read file', $name ) );
 			}
 
+			// GATE: validate before writing. Errors block THIS page; import
+			// continues for the rest. Warnings print and the page proceeds.
+			$findings = Validator::validate( (string) $html, $vocab, $name );
+			if ( ! empty( $findings ) ) {
+				ValidateCommand::print_table( $findings );
+			}
+			if ( Validator::has_errors( $findings ) ) {
+				++$blocked;
+				\WP_CLI::warning( sprintf( '%-12s %s  (blocked by Authoring Contract errors; not written)', 'blocked', $name ) );
+				continue;
+			}
+
 			try {
-				$doc = HtmlDocument::parse( $html );
+				$doc = HtmlDocument::parse( (string) $html );
 			} catch ( \RuntimeException $e ) {
 				// Nonzero exit, naming file + reason.
 				\WP_CLI::error( sprintf( '%s: parse failed — %s', $name, $e->getMessage() ) );
@@ -114,6 +138,21 @@ final class ImportCommand {
 		if ( $front_id ) {
 			self::set_front_page( $front_id );
 			\WP_CLI::log( sprintf( 'front page set to #%d (index.html)', $front_id ) );
+		}
+
+		if ( $blocked > 0 ) {
+			// Some pages were valid and imported; others were blocked. Exit
+			// nonzero so the failure is loud, but keep the valid work.
+			\WP_CLI::error(
+				sprintf(
+					'Imported %d file(s): %d created, %d updated, %d unchanged; %d blocked by Authoring Contract errors.',
+					count( $files ) - $blocked,
+					$created,
+					$updated,
+					$unchanged,
+					$blocked
+				)
+			);
 		}
 
 		\WP_CLI::success(

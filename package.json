@@ -9,14 +9,16 @@
     "env:stop": "wp-env stop",
     "env:destroy": "wp-env destroy",
     "env:cli": "wp-env run cli wp",
-    "test": "npm run test:step0 && npm run test:step1 && npm run test:step2 && npm run test:roundtrip",
+    "test": "npm run test:step0 && npm run test:step1 && npm run test:step2 && npm run test:roundtrip && npm run test:step4",
     "test:phpunit": "wp-env run tests-cli --env-cwd=wp-content/plugins/s5-plugin vendor/bin/phpunit",
     "lint": "wp-env run cli --env-cwd=wp-content/plugins/s5-plugin composer lint",
     "test:step0": "bash tests/acceptance.sh",
     "test:step1": "bash tests/acceptance-step1.sh",
     "test:step2": "bash tests/acceptance-step2.sh",
     "test:step3": "bash tests/acceptance-step3.sh",
-    "test:roundtrip": "bash tests/acceptance-step3.sh"
+    "test:roundtrip": "bash tests/acceptance-step3.sh",
+    "test:step4": "bash tests/acceptance-step4.sh",
+    "validate": "wp-env run cli wp s5 validate wp-content/s5-pages"
   },
   "devDependencies": {
     "@wordpress/env": "^10.0.0"

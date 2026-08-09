@@ -67,5 +67,8 @@ final class Plugin {
 
 		// `wp s5 import` — Step 2: import a directory of HTML docs into pages.
 		\WP_CLI::add_command( 's5 import', Cli\ImportCommand::class );
+
+		// `wp s5 validate` — Step 4: Authoring Contract validation.
+		\WP_CLI::add_command( 's5 validate', Cli\ValidateCommand::class );
 	}
 }

@@ -1,0 +1,112 @@
+/*
+ * S5 theme — component vocabulary (Authoring Contract Part A, layer: components).
+ *
+ * One block per component root, keyed off the block class; elements use the
+ * single-underscore pattern, modifiers the double-dash pattern (A4). This file
+ * is one of the stylesheets declared in s5.config.json `styles.vocabulary`, so
+ * the CLASS SELECTORS here ARE the closed vocabulary the Authoring Contract
+ * validator enforces (Build Order Step 4). A page may only use classes defined
+ * somewhere in that declared set.
+ *
+ * Values are intentionally minimal — Step 4 is about the vocabulary contract,
+ * not visual design. Token wiring (tokens.css / scales.css) arrives with the
+ * real design system; these rules reference plain values only to be valid CSS.
+ */
+
+/* --- site header ------------------------------------------------------- */
+.site-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.brand {
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.nav ul {
+	display: flex;
+	gap: 1rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.nav-cta {
+	font-weight: 600;
+}
+
+/* --- hero -------------------------------------------------------------- */
+.hero {
+	display: grid;
+	gap: 1rem;
+}
+
+.hero-actions {
+	display: flex;
+	gap: 0.75rem;
+}
+
+.eyebrow {
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.lede {
+	max-width: 60ch;
+}
+
+/* --- button (block + enumerated modifiers) ----------------------------- */
+.btn {
+	display: inline-block;
+	padding: 0.6rem 1rem;
+	border-radius: 0.375rem;
+	text-decoration: none;
+}
+
+.btn--primary {
+	background: #1b1b1b;
+	color: #fff;
+}
+
+.btn--ghost {
+	background: transparent;
+	border: 1px solid currentColor;
+}
+
+/* --- features ---------------------------------------------------------- */
+.features {
+	display: grid;
+	gap: 1.5rem;
+}
+
+.feature-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 1rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.card {
+	display: grid;
+	gap: 0.5rem;
+}
+
+/* --- call to action ---------------------------------------------------- */
+.cta {
+	display: grid;
+	gap: 0.75rem;
+	text-align: center;
+}
+
+/* --- site footer ------------------------------------------------------- */
+.site-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}

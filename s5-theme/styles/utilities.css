@@ -1,0 +1,33 @@
+/*
+ * S5 theme — utility layer (Authoring Contract Part A5, layer: utilities).
+ *
+ * The `u-` layer: a CLOSED, enumerated set of structural micro-utilities and
+ * span-scoped inline emphasis (A5: under 15 classes total, never layout systems
+ * — `u-grid-2` / `u-flex-between` are banned; layout is block-class territory).
+ * Declared in s5.config.json `styles.vocabulary`, so these selectors join the
+ * vocabulary the validator enforces. Grammar layer = utility (`u-` prefix).
+ */
+
+.u-text-center {
+	text-align: center;
+}
+
+.u-text-left {
+	text-align: left;
+}
+
+.u-text-right {
+	text-align: right;
+}
+
+.u-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}

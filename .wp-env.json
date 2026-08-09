@@ -16,6 +16,7 @@
   },
   "mappings": {
     "wp-content/mu-plugins": "./tests/mu-plugins",
-    "wp-content/s5-pages": "./pages"
+    "wp-content/s5-pages": "./pages",
+    "wp-content/s5-repo": "."
   }
 }
