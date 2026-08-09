@@ -21,8 +21,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-$s5_post_id  = get_queried_object_id();
-$s5_fragment = \S5\Storage::get_canonical_html( (int) $s5_post_id );
+$s5_post_id = get_queried_object_id();
+// Step 5: serve the DERIVED render artifact. Fall back to canonical for pages
+// authored before the canonical/render split (or not yet compiled).
+$s5_fragment = \S5\Storage::get_render_html( (int) $s5_post_id );
+if ( '' === $s5_fragment ) {
+	$s5_fragment = \S5\Storage::get_canonical_html( (int) $s5_post_id );
+}
 
 // `wp_head()` may emit notices if headers are already sent; the fragment is
 // echoed exactly as stored with no intervening filters.

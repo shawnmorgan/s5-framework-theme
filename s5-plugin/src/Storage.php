@@ -43,6 +43,18 @@ final class Storage {
 	public const HEAD_KEY = '_s5_head';
 
 	/**
+	 * Meta key holding the DERIVED render HTML (Build Order Step 5).
+	 *
+	 * This is the artifact the canvas serves. It is compiled from the canonical
+	 * source by the transform pipeline and is deliberately disposable: never
+	 * revisioned, never exported, regenerable at any time via `wp s5 recompile`.
+	 * Canonical (`META_KEY`) stays the portable truth; this is environment state.
+	 *
+	 * @var string
+	 */
+	public const RENDER_KEY = '_s5_render_html';
+
+	/**
 	 * Post type framework pages live on in Step 1.
 	 *
 	 * @var string
@@ -95,6 +107,20 @@ final class Storage {
 				},
 			)
 		);
+
+		register_post_meta(
+			self::POST_TYPE,
+			self::RENDER_KEY,
+			array(
+				'type'              => 'string',
+				'single'            => true,
+				'show_in_rest'      => false,
+				'sanitize_callback' => null, // Derived render is written verbatim by the compiler.
+				'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
+					return current_user_can( 'edit_post', $post_id );
+				},
+			)
+		);
 	}
 
 	/**
@@ -137,5 +163,31 @@ final class Storage {
 		$head = get_post_meta( $post_id, self::HEAD_KEY, true );
 
 		return is_array( $head ) ? $head : array();
+	}
+
+	/**
+	 * The DERIVED render HTML for a post, or empty string if none.
+	 *
+	 * This is what the canvas serves. Empty means "not compiled yet" — callers
+	 * fall back to canonical so a page authored before Step 5 still serves.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return string Raw stored render HTML (may be empty).
+	 */
+	public static function get_render_html( int $post_id ): string {
+		$html = get_post_meta( $post_id, self::RENDER_KEY, true );
+
+		return is_string( $html ) ? $html : '';
+	}
+
+	/**
+	 * Store the derived render HTML for a post.
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $html    Compiled render HTML.
+	 * @return void
+	 */
+	public static function set_render_html( int $post_id, string $html ): void {
+		update_post_meta( $post_id, self::RENDER_KEY, $html );
 	}
 }

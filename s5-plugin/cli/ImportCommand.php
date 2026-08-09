@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace S5\Cli;
 
+use S5\Compiler;
 use S5\HtmlDocument;
 use S5\Storage;
 use S5\Validator;
@@ -210,8 +211,13 @@ final class ImportCommand {
 				);
 			}
 
-			update_post_meta( $post_id, Storage::META_KEY, $body );
 			update_post_meta( $post_id, Storage::HEAD_KEY, $head );
+			// Atomically store canonical + compile derived render + write mirror.
+			try {
+				Compiler::persist_page( $post_id, $body );
+			} catch ( \RuntimeException $e ) {
+				\WP_CLI::error( sprintf( '%s: compile/persist failed — %s', $slug, $e->getMessage() ) );
+			}
 
 			return array(
 				'id'     => $post_id,
@@ -235,8 +241,13 @@ final class ImportCommand {
 		}
 
 		$post_id = (int) $post_id;
-		update_post_meta( $post_id, Storage::META_KEY, $body );
 		update_post_meta( $post_id, Storage::HEAD_KEY, $head );
+		// Atomically store canonical + compile derived render + write mirror.
+		try {
+			Compiler::persist_page( $post_id, $body );
+		} catch ( \RuntimeException $e ) {
+			\WP_CLI::error( sprintf( '%s: compile/persist failed — %s', $slug, $e->getMessage() ) );
+		}
 
 		return array(
 			'id'     => $post_id,

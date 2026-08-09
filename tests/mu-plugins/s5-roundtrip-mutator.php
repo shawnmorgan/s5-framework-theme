@@ -19,9 +19,10 @@
  * tests/ and is only mounted into the wp-env test container.
  *
  * The mutation is applied at the meta-read seam (`get_post_metadata` for
- * `_s5_canonical_html`) rather than by editing any source file, so the negative
- * test corrupts exactly the served bytes through the real render path without
- * touching the fixtures, the plugin, or the canonical source on disk.
+ * `_s5_render_html` — the SERVED artifact since Step 5) rather than by editing
+ * any source file, so the negative test corrupts exactly the served bytes
+ * through the real render path without touching the fixtures, the plugin, or the
+ * canonical source on disk.
  *
  * @package S5\Tests
  */
@@ -63,7 +64,7 @@ add_filter(
 	static function ( $value, $object_id, $meta_key, $single ) {
 		static $reentrant = false;
 
-		if ( $reentrant || '_s5_canonical_html' !== $meta_key ) {
+		if ( $reentrant || '_s5_render_html' !== $meta_key ) {
 			return $value; // Not our key, or a re-entrant read — untouched.
 		}
 		if ( ! s5_roundtrip_mutation_enabled() ) {
@@ -72,7 +73,7 @@ add_filter(
 
 		// Pull the real stored value without re-triggering this filter.
 		$reentrant = true;
-		$real      = get_post_meta( (int) $object_id, '_s5_canonical_html', $single );
+		$real      = get_post_meta( (int) $object_id, '_s5_render_html', $single );
 		$reentrant = false;
 
 		if ( is_string( $real ) && '' !== $real ) {

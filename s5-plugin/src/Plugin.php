@@ -47,6 +47,7 @@ final class Plugin {
 
 		Storage::register();
 		Render::register();
+		Revisions::register();
 		self::register_cli_commands();
 	}
 
@@ -70,5 +71,8 @@ final class Plugin {
 
 		// `wp s5 validate` — Step 4: Authoring Contract validation.
 		\WP_CLI::add_command( 's5 validate', Cli\ValidateCommand::class );
+
+		// `wp s5 recompile` — Step 5: regenerate derived render + mirror.
+		\WP_CLI::add_command( 's5 recompile', Cli\RecompileCommand::class );
 	}
 }
