@@ -79,6 +79,29 @@
 	-->
 	<rule ref="WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents">
 		<exclude-pattern>cli/ImportCommand.php</exclude-pattern>
+		<exclude-pattern>../tests/lib/extract-head.php</exclude-pattern>
+	</rule>
+
+	<!--
+		tests/lib/extract-head.php is a STANDALONE host-side CLI helper for the
+		round-trip harness. It never boots WordPress, so the WP-runtime sniffs
+		misfire: it legitimately `echo`s parsed values to stdout (it is a CLI
+		filter, not HTML output), uses fwrite()/file_get_contents() for local
+		files (no WP_Filesystem available), and its `$tag` loop variable is a
+		local match string, not the WP `$tag` global. Scope these out for that
+		one test-only file. This is not framework code and is never shipped.
+	-->
+	<rule ref="WordPress.Security.EscapeOutput.OutputNotEscaped">
+		<exclude-pattern>../tests/lib/extract-head.php</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.GlobalVariablesOverride.Prohibited">
+		<exclude-pattern>../tests/lib/extract-head.php</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.AlternativeFunctions.file_system_operations_fwrite">
+		<exclude-pattern>../tests/lib/extract-head.php</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.WP.AlternativeFunctions.file_system_read_fwrite">
+		<exclude-pattern>../tests/lib/extract-head.php</exclude-pattern>
 	</rule>
 
 	<!--

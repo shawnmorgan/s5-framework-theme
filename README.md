@@ -15,12 +15,16 @@ The Build Order is strict: **do not begin a step until the current step's
 acceptance test passes.** Build the smallest thing that proves the invariant;
 defer everything deferrable.
 
-## Current status — Build Order **Step 1** complete (serve canonical HTML)
+## Current status — Build Order **Step 3** complete (round-trip fidelity is permanent)
 
-> **Exit condition:** the repository can be installed and tested repeatably from
-> a clean WordPress environment.
+> **Exit condition (Step 3):** render fidelity is *executable infrastructure,
+> not a written promise.* Every page in the corpus imports, is requested over
+> HTTP, is normalized by the **sanctioned transforms only**, and is diffed
+> against source — any unexplained delta fails the build with a readable report.
+> The harness also proves it can fail: it injects a render-path mutation, checks
+> the harness goes red, then removes it and checks it goes green.
 
-What exists now, and nothing more:
+Steps 0–2 stay green; Step 3 adds the standing fidelity harness. What exists now:
 
 | Path | Purpose |
 |---|---|
@@ -29,16 +33,24 @@ What exists now, and nothing more:
 | `s5-plugin/src/Storage.php` | Registers the `_s5_canonical_html` page meta (the canonical body-fragment). A page is a *framework page* when that meta is non-empty. |
 | `s5-plugin/src/Render.php` | `template_include` render path: routes framework pages to the canvas template, bypassing theme + Gutenberg; turns off the block editor for them. |
 | `s5-plugin/templates/canvas.php` | Runtime template — emits the stored fragment **verbatim** in a minimal `<html>` shell (`wp_head`/`wp_footer` stay outside the fragment). Never runs `the_content`. |
+| `s5-plugin/src/HtmlDocument.php` | Full-document parser: splits a source HTML file into the verbatim `<body>` fragment and the sanctioned `<head>` artifacts (title, description, canonical, OG/meta, JSON-LD). |
+| `s5-plugin/cli/ImportCommand.php` | `wp s5 import [<dir>]` — turns a directory of HTML docs into pages (slug = filename, `index.html` = front page), idempotent, never duplicates. |
+| `pages/` | The source corpus. Full HTML documents imported into pages — including `series-5-technology.html`, the real production-bound S5T page with genuine markup complexity. Also the QA corpus the fidelity harness round-trips. |
 | `s5.config.json` | Machine-readable layout: paths, namespaces, `s5` prefix / text-domain. |
-| `.wp-env.json` | Docker dev environment (WordPress 6.7, PHP 8.2) mounting the theme + plugin. |
+| `.wp-env.json` | Docker dev environment (WordPress 6.7, PHP 8.2) mounting the theme + plugin, and mapping `pages/` → `wp-content/s5-pages`. |
 | `tests/acceptance.sh` | **The Step 0 acceptance test** (bash). |
 | `tests/acceptance-step1.sh` | **The Step 1 acceptance test** — stores a known fragment, `curl`s the page, asserts byte-clean output. |
-| `tests/mu-plugins/` | Test-only mu-plugin (`s5-debug-guard.php`) mounted into WordPress so notices surface to the acceptance test. |
+| `tests/acceptance-step2.sh` | **The Step 2 acceptance test** — imports the corpus and checks idempotence, slugs, front page, verbatim body + head. |
+| `tests/acceptance-step3.sh` | **The Step 3 round-trip fidelity harness** (`npm run test:roundtrip`) — import → HTTP → normalize sanctioned transforms → diff; self-verifying via an armed render mutation. Ship Gate check #1. |
+| `tests/fixtures/README.md` | The QA-corpus contract: what the harness guarantees, and how to add a page. |
+| `tests/lib/extract-head.php` | Host-side helper the harness uses to read source head artifacts (raw bytes) for the head-contract assertions. |
+| `tests/mu-plugins/` | Test-only mu-plugins mounted into WordPress: `s5-debug-guard.php` (surfaces notices) and `s5-roundtrip-mutator.php` (the armed render-path mutation for the negative test; inert unless the `s5_roundtrip_mutate` option is set). |
 | `s5-plugin/tests/phpunit/` | PHPUnit bootstrap scaffold, reserved for Step 4 compiler units. |
 | `s5-plugin/composer.json` / `s5-plugin/phpcs.xml` | PSR-4 autoload + WordPress Coding Standards lint (live inside the plugin so `vendor/` mounts into the container). |
 
-Not built yet (later steps — see the Build Order): importer (`wp s5 import`),
-compiler, canonical/render split, media resolution, editor, components, MCP.
+Not built yet (later steps — see the Build Order): Authoring Contract
+validation (Step 4), canonical/render split (Step 5), media resolution (Step 6),
+editor, components, MCP.
 
 ## Requirements
 
@@ -52,7 +64,7 @@ compiler, canonical/render split, media resolution, editor, components, MCP.
 npm install                          # wp-env
 composer install -d s5-plugin        # plugin autoloader + phpcs/phpunit (builds s5-plugin/vendor/)
 npm run env:start                    # boot WordPress in Docker
-npm test                             # run the Step 0 acceptance test
+npm test                             # run Steps 0,1,2 + the round-trip harness
 ```
 
 > **macOS note:** Docker Desktop cannot bind-mount paths under TCC-protected
@@ -60,15 +72,26 @@ npm test                             # run the Step 0 acceptance test
 > either grant Docker **Full Disk Access** (System Settings → Privacy & Security)
 > or keep the working copy under a plain path such as `~/Projects`.
 
-`npm test` runs `tests/acceptance.sh`, which:
+`npm test` runs the acceptance suite in order — **Steps 0, 1, 2, then the
+round-trip fidelity harness** — and is green only if every step passes. Any
+failure exits nonzero with a clear message.
 
-1. starts wp-env (idempotent);
-2. activates `s5-plugin`;
-3. activates `s5-theme`;
-4. requests the site root and asserts **no PHP errors/notices** in `debug.log`;
-5. runs `wp s5 hello` and asserts it prints `s5 ok` and exits `0`.
+### The round-trip fidelity harness (`npm run test:roundtrip`)
 
-Any failure exits nonzero with a clear message.
+This is the standing Ship Gate check. For every page in `pages/` it:
+
+1. imports the corpus (`wp s5 import`);
+2. requests each page over HTTP;
+3. normalizes **only the sanctioned transforms** — enumerated as an auditable
+   list in `tests/acceptance-step3.sh` (today: head assembly + the canvas body
+   wrapper; media joins in Step 6, dynamics in Step 8);
+4. diffs the served **body byte-for-byte** against source, and asserts the
+   **head contract** (title/description once & matching, canonical matching,
+   each OG tag present, each JSON-LD block verbatim);
+5. **self-verifies**: it arms a render-path mutation, requires the harness to go
+   red with a delta report, then disarms it and requires green again.
+
+It is usable against any `pages/` corpus, so it grows with the site.
 
 ### Definition of done (Step 0)
 
@@ -83,6 +106,8 @@ npm run env:destroy         # tear it down completely
 npm run lint                # WordPress Coding Standards (phpcs) via the env
 npm run test:phpunit        # PHPUnit units (placeholder until Step 4)
 npm run test:step1          # Step 1 acceptance (canonical HTML served byte-clean)
+npm run test:step2          # Step 2 acceptance (wp s5 import → pages)
+npm run test:roundtrip      # Step 3 round-trip fidelity harness (Ship Gate #1)
 ```
 
 ## Naming
