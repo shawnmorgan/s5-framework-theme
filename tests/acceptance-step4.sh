@@ -52,7 +52,7 @@ info "S5 Step 4 — Authoring Contract validation"
 echo
 
 info "0/6  Starting wp-env and activating the plugin…"
-$WP_ENV start >/dev/null
+[ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
 wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
 pass "environment ready"
 

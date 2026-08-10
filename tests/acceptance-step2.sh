@@ -35,7 +35,7 @@ echo
 
 # --- 0. env + plugin + clean slate ----------------------------------------
 info "0/5  Starting wp-env, activating s5-plugin, resetting pages…"
-$WP_ENV start >/dev/null
+[ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
 wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 wp rewrite flush --hard >/dev/null 2>&1 || true

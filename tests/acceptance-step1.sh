@@ -42,7 +42,7 @@ echo
 
 # --- 1. environment + plugin ----------------------------------------------
 info "1/5  Starting wp-env and activating s5-plugin…"
-$WP_ENV start >/dev/null
+[ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
 wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
 # Pretty permalinks so the front controller routes through template_include.
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true

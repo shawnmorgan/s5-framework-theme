@@ -137,7 +137,7 @@ echo
 info "S5 Step 3 — round-trip fidelity harness"
 echo
 info "0/4  Starting wp-env, activating plugin, importing corpus…"
-$WP_ENV start >/dev/null
+[ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
 wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 wp rewrite flush --hard >/dev/null 2>&1 || true

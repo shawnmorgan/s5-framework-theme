@@ -46,7 +46,7 @@ echo
 # --- 1. start environment (idempotent) -------------------------------------
 
 info "1/5  Starting wp-env (idempotent)…"
-$WP_ENV start >/dev/null
+[ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
 pass "wp-env is up"
 
 # --- 2. activate plugin ----------------------------------------------------

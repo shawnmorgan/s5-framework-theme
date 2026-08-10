@@ -52,7 +52,7 @@ echo
 # 0. Clean import.
 # ---------------------------------------------------------------------------
 info "0/6  Starting wp-env, activating plugin, fresh import…"
-$WP_ENV start >/dev/null
+[ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
 wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 for s in index about fix-my-store series-5-technology media-broken; do
