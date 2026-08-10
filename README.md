@@ -28,9 +28,11 @@ defer everything deferrable.
 > URL, srcset/sizes, explicit width/height, and lazy/LCP loading (author-set
 > attributes win; the first content image is not lazy). External `http(s)`/`data:`
 > URLs are untouched everywhere. An unresolvable path is a **loud compile error**
-> naming the file + path. The round-trip harness maps resolved media markup back
-> to its logical source before diffing, so everything non-media stays
-> byte-for-byte.
+> naming the file + path. The served markup carries **only runtime attributes** —
+> no framework-internal attribute ships; the reversal information lives out of
+> band in the `_s5_media_map` page meta, which the round-trip harness reads to map
+> resolved media back to its logical source before diffing, so everything
+> non-media stays byte-for-byte.
 
 > **Exit condition (Step 5):** source is portable truth; render output is
 > disposable environment state. `_s5_canonical_html` stays the authored,
@@ -118,7 +120,8 @@ This is the standing Ship Gate check. For every page in `pages/` it:
 2. requests each page over HTTP;
 3. normalizes **only the sanctioned transforms** — enumerated as an auditable
    list in `tests/acceptance-step3.sh` (head assembly + the canvas body wrapper +
-   media resolution mapped back to logical paths; dynamics join in Step 8);
+   media resolution reversed via the `_s5_media_map` manifest; dynamics join in
+   Step 8);
 4. diffs the served **body byte-for-byte** against source, and asserts the
    **head contract** (title/description once & matching, canonical matching,
    each OG tag present, each JSON-LD block verbatim);
