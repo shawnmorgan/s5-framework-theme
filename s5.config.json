@@ -23,6 +23,11 @@
       "s5-theme/styles/utilities.css"
     ]
   },
+  "assets": {
+    "$comment": "Local asset directory the media resolver (Build Order Step 6) resolves canonical relative media references against. Canonical HTML references images by portable relative path (e.g. src=\"assets/hero.png\", srcset=\"assets/hero-wide.avif\") — NEVER attachment IDs, upload URLs, or srcset. On compile each relative <img>/<source> ref is sideloaded into the environment's media library (matched by content hash so re-imports dedupe) and the DERIVED render gets that environment's attachment URL + srcset + dimensions. 'dir' is relative to the repo root; the 'assets/' prefix in a reference maps to this dir.",
+    "dir": "assets",
+    "prefix": "assets/"
+  },
   "cli": {
     "namespace": "s5"
   }

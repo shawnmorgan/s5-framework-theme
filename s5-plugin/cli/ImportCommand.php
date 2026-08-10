@@ -120,6 +120,11 @@ final class ImportCommand {
 				case 'updated':
 					++$updated;
 					break;
+				case 'blocked':
+					// Compile/persist failure (e.g. unresolvable media) already
+					// warned with file + reason; block this page, keep importing.
+					++$blocked;
+					continue 2;
 				default:
 					++$unchanged;
 					break;
@@ -142,11 +147,12 @@ final class ImportCommand {
 		}
 
 		if ( $blocked > 0 ) {
-			// Some pages were valid and imported; others were blocked. Exit
-			// nonzero so the failure is loud, but keep the valid work.
+			// Some pages were valid and imported; others were blocked (Authoring
+			// Contract errors or compile failures such as unresolvable media).
+			// Exit nonzero so the failure is loud, but keep the valid work.
 			\WP_CLI::error(
 				sprintf(
-					'Imported %d file(s): %d created, %d updated, %d unchanged; %d blocked by Authoring Contract errors.',
+					'Imported %d file(s): %d created, %d updated, %d unchanged; %d blocked (Authoring Contract or compile errors).',
 					count( $files ) - $blocked,
 					$created,
 					$updated,
@@ -213,10 +219,17 @@ final class ImportCommand {
 
 			update_post_meta( $post_id, Storage::HEAD_KEY, $head );
 			// Atomically store canonical + compile derived render + write mirror.
+			// A compile error (e.g. unresolvable media) blocks THIS page loudly
+			// but does not abort the whole import; the existing page is left as
+			// it was (persist_page rolls its own state back).
 			try {
 				Compiler::persist_page( $post_id, $body );
 			} catch ( \RuntimeException $e ) {
-				\WP_CLI::error( sprintf( '%s: compile/persist failed — %s', $slug, $e->getMessage() ) );
+				\WP_CLI::warning( sprintf( '%s: compile/persist failed — %s', $slug, $e->getMessage() ) );
+				return array(
+					'id'     => $post_id,
+					'status' => 'blocked',
+				);
 			}
 
 			return array(
@@ -242,11 +255,19 @@ final class ImportCommand {
 
 		$post_id = (int) $post_id;
 		update_post_meta( $post_id, Storage::HEAD_KEY, $head );
-		// Atomically store canonical + compile derived render + write mirror.
+		// Atomically store canonical + compile derived render + write mirror. If
+		// compilation fails on a JUST-CREATED page (e.g. unresolvable media), the
+		// page has no canonical/render yet — delete it so the failed import leaves
+		// NO orphan page behind, then report it blocked (loud, import continues).
 		try {
 			Compiler::persist_page( $post_id, $body );
 		} catch ( \RuntimeException $e ) {
-			\WP_CLI::error( sprintf( '%s: compile/persist failed — %s', $slug, $e->getMessage() ) );
+			wp_delete_post( $post_id, true );
+			\WP_CLI::warning( sprintf( '%s: compile/persist failed — %s', $slug, $e->getMessage() ) );
+			return array(
+				'id'     => 0,
+				'status' => 'blocked',
+			);
 		}
 
 		return array(

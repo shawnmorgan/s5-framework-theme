@@ -33,14 +33,17 @@ final class Compiler {
 	 * auditable as it grows. TODAY every active transform is identity — render is
 	 * byte-identical to canonical — but the list, ordering, and seams exist now.
 	 *
-	 * Each entry: [id, description, callable]. Adding a real transform is one new
-	 * entry, not a rewrite.
+	 * Each entry: [id, description, callable]. The callable receives the working
+	 * HTML and the compile context (post id, etc.). Adding a real transform is one
+	 * new entry, not a rewrite.
 	 *
-	 *   1. identity            canonical bytes pass through unchanged (today's whole pipeline).
+	 *   1. identity            canonical bytes pass through unchanged (baseline).
+	 *   2. media resolution    (Step 6): logical asset refs -> env media markup —
+	 *                          the ONLY environment-specific transform; its output
+	 *                          lives only in the derived render, never canonical.
 	 *   --- seats reserved (NOT active yet; listed so the ordering is visible) ---
-	 *   2. hidden-node removal (Step 5 do-not-build: no data-hidden exists yet).
-	 *   3. media resolution    (Step 6): logical asset refs -> env media markup.
-	 *   4. component expansion  (later): deterministic write-time expansions.
+	 *   3. hidden-node removal (later: no data-hidden exists yet).
+	 *   4. component expansion (later): deterministic write-time expansions.
 	 *
 	 * @return array<int, array{id: string, desc: string, fn: callable}>
 	 */
@@ -49,12 +52,20 @@ final class Compiler {
 			array(
 				'id'   => 'identity',
 				'desc' => 'canonical bytes pass through unchanged',
-				'fn'   => static function ( string $html ): string {
+				'fn'   => static function ( string $html, array $context ): string {
+					unset( $context );
 					return $html;
 				},
 			),
-			// 2. hidden-node removal — seat reserved (no data-hidden until later).
-			// 3. media resolution — joins in Step 6.
+			array(
+				'id'   => 'media-resolution',
+				'desc' => 'resolve logical asset refs to environment attachment markup',
+				'fn'   => static function ( string $html, array $context ): string {
+					$post_id = isset( $context['post_id'] ) ? (int) $context['post_id'] : 0;
+					return MediaResolver::resolve( $html, $post_id );
+				},
+			),
+			// 3. hidden-node removal — seat reserved (no data-hidden until later).
 			// 4. component expansion — joins later.
 		);
 	}
@@ -65,13 +76,13 @@ final class Compiler {
 	 * Deterministic: the same canonical input always yields byte-identical output.
 	 *
 	 * @param string               $canonical Canonical body HTML.
-	 * @param array<string, mixed> $context   Compile context (post id, etc.); unused today.
+	 * @param array<string, mixed> $context   Compile context (post id, etc.).
 	 * @return string Derived render HTML.
 	 */
-	public static function compile( string $canonical, array $context = array() ): string { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- $context is the compile context; real transforms consume it from Step 6.
+	public static function compile( string $canonical, array $context = array() ): string {
 		$html = $canonical;
 		foreach ( self::pipeline() as $transform ) {
-			$html = (string) call_user_func( $transform['fn'], $html );
+			$html = (string) call_user_func( $transform['fn'], $html, $context );
 		}
 		return $html;
 	}

@@ -15,13 +15,28 @@ The Build Order is strict: **do not begin a step until the current step's
 acceptance test passes.** Build the smallest thing that proves the invariant;
 defer everything deferrable.
 
-## Current status — Build Order **Step 5** complete (canonical source vs derived render)
+## Current status — Build Order **Step 6** complete (media resolution)
+
+> **Exit condition (Step 6):** media no longer forces environment-specific data
+> into canonical HTML. Canonical references assets by **portable relative path**
+> (`assets/hero.png`), resolved against the asset dir declared in
+> `s5.config.json` — canonical never contains attachment IDs, upload URLs, or
+> srcset. On compile, the **media-resolution transform** (sanctioned transform #2)
+> sideloads each `<img>`/`<source>` asset into the media library — matching by
+> **content hash** (`_s5_source_hash`) so re-imports dedupe and a changed file
+> re-sideloads — and the **derived render** gets that environment's attachment
+> URL, srcset/sizes, explicit width/height, and lazy/LCP loading (author-set
+> attributes win; the first content image is not lazy). External `http(s)`/`data:`
+> URLs are untouched everywhere. An unresolvable path is a **loud compile error**
+> naming the file + path. The round-trip harness maps resolved media markup back
+> to its logical source before diffing, so everything non-media stays
+> byte-for-byte.
 
 > **Exit condition (Step 5):** source is portable truth; render output is
 > disposable environment state. `_s5_canonical_html` stays the authored,
 > revisioned, portable source. Compile turns it into `_s5_render_html` (the
 > derived artifact the canvas now **serves**) via an auditable ordered transform
-> pipeline (identity today) plus a visible **`post_content` semantic mirror**
+> pipeline plus a visible **`post_content` semantic mirror**
 > (canonical body minus `<script>`/`<style>`/inline-`<svg>`/`data-*`) for WP
 > search + SEO introspection — never served. Canonical, render, and mirror
 > persist **atomically**. `wp s5 recompile` regenerates the derived artifacts
@@ -29,7 +44,7 @@ defer everything deferrable.
 > alone. Canonical source is revisioned, and **restoring a revision recompiles
 > automatically** — the served page reverts with no manual step.
 
-Steps 0–4 stay green; Step 5 splits canonical from derived. What exists now:
+Steps 0–5 stay green; Step 6 resolves media at compile time. What exists now:
 
 | Path | Purpose |
 |---|---|
@@ -39,6 +54,8 @@ Steps 0–4 stay green; Step 5 splits canonical from derived. What exists now:
 | `s5-plugin/src/Compiler.php` | Compile: canonical → `_s5_render_html` via an **auditable ordered transform pipeline** (identity today; media/hidden-node seats reserved) + the visible `post_content` semantic mirror. `persist_page()` writes canonical + render + mirror **atomically** (rolls back if the mirror can't be stored verbatim). |
 | `s5-plugin/src/Revisions.php` | Registers `_s5_canonical_html` + `_s5_head` for native revisions and **recompiles derived artifacts on revision restore** (served page reverts with no manual recompile). |
 | `s5-plugin/cli/RecompileCommand.php` | `wp s5 recompile [<slug>\|--all]` — regenerates derived render + mirror from canonical. Deterministic (byte-identical). |
+| `s5-plugin/src/MediaResolver.php` | Media-resolution compile transform (Step 6). Resolves canonical relative `<img>`/`<source>` refs against the declared asset dir, **sideloads/dedupes by content hash** (`_s5_source_hash`), and rewrites the **derived render** with attachment URL + srcset/sizes + width/height + lazy/LCP. Author attrs win; external URLs untouched; unresolvable path = loud compile error. Byte-fidelity preserved (targeted string replacement, never DOM re-serialization). |
+| `assets/` | Local **portable** asset dir declared in `s5.config.json` (`assets.dir`). Canonical HTML references these by relative path (`assets/hero.png`); the compiler resolves them per environment. |
 | `s5-plugin/src/Render.php` | `template_include` render path: routes framework pages to the canvas template, bypassing theme + Gutenberg; turns off the block editor for them. |
 | `s5-plugin/templates/canvas.php` | Runtime template — emits the **derived `_s5_render_html`** (fallback: canonical) **verbatim** in a minimal `<html>` shell (`wp_head`/`wp_footer` stay outside the fragment). Never runs `the_content`; never serves the `post_content` mirror. |
 | `s5-plugin/src/HtmlDocument.php` | Full-document parser: splits a source HTML file into the verbatim `<body>` fragment and the sanctioned `<head>` artifacts (title, description, canonical, OG/meta, JSON-LD). |
@@ -58,14 +75,16 @@ Steps 0–4 stay green; Step 5 splits canonical from derived. What exists now:
 | `tests/acceptance-step3.sh` | **The Step 3 round-trip fidelity harness** (`npm run test:roundtrip`) — import → HTTP → normalize sanctioned transforms → diff; self-verifying via an armed render mutation. Ship Gate check #1. |
 | `tests/acceptance-step4.sh` | **The Step 4 acceptance test** — real corpus clean; planted unknown class → ERROR + did-you-mean; inline style outside/inside `<svg>`; numeric scale → WARNING proceeds; `--format=json` fields; round-trip still green. |
 | `tests/acceptance-step5.sh` | **The Step 5 acceptance test** — derived + mirror exist and are served from `_s5_render_html`; recompile deterministic; mirror is semantic (no script/style/data-\*) and WP-searchable; revision restore reverts the served page automatically; delete-then-recompile proves disposability; negative self-test still red/green. |
+| `tests/acceptance-step6.sh` | **The Step 6 acceptance test** — real images import with srcset + dimensions and the harness stays green; unchanged re-import dedupes by hash; a changed source image re-sideloads; canonical stays portable while render re-derives per environment; an unresolvable path fails loudly; recompile stays deterministic with media active. |
 | `tests/fixtures/README.md` | The QA-corpus contract: what the harness guarantees, and how to add a page. |
 | `tests/lib/extract-head.php` | Host-side helper the harness uses to read source head artifacts (raw bytes) for the head-contract assertions. |
 | `tests/mu-plugins/` | Test-only mu-plugins mounted into WordPress: `s5-debug-guard.php` (surfaces notices) and `s5-roundtrip-mutator.php` (the armed render-path mutation for the negative test; inert unless the `s5_roundtrip_mutate` option is set). |
 | `s5-plugin/tests/phpunit/` | PHPUnit bootstrap scaffold, reserved for Step 4 compiler units. |
 | `s5-plugin/composer.json` / `s5-plugin/phpcs.xml` | PSR-4 autoload + WordPress Coding Standards lint (live inside the plugin so `vendor/` mounts into the container). |
 
-Not built yet (later steps — see the Build Order): media resolution (Step 6),
-editor, components, MCP.
+Not built yet (later steps — see the Build Order): the real production corpus
+(Step 7), templates/parts/dynamics (Step 8), SEO/AEO (Step 9), editor,
+components, MCP.
 
 ## Requirements
 
@@ -98,8 +117,8 @@ This is the standing Ship Gate check. For every page in `pages/` it:
 1. imports the corpus (`wp s5 import`);
 2. requests each page over HTTP;
 3. normalizes **only the sanctioned transforms** — enumerated as an auditable
-   list in `tests/acceptance-step3.sh` (today: head assembly + the canvas body
-   wrapper; media joins in Step 6, dynamics in Step 8);
+   list in `tests/acceptance-step3.sh` (head assembly + the canvas body wrapper +
+   media resolution mapped back to logical paths; dynamics join in Step 8);
 4. diffs the served **body byte-for-byte** against source, and asserts the
    **head contract** (title/description once & matching, canonical matching,
    each OG tag present, each JSON-LD block verbatim);
@@ -125,6 +144,7 @@ npm run test:step2          # Step 2 acceptance (wp s5 import → pages)
 npm run test:roundtrip      # Step 3 round-trip fidelity harness (Ship Gate #1)
 npm run test:step4          # Step 4 acceptance (Authoring Contract validation)
 npm run test:step5          # Step 5 acceptance (canonical/derived split + revisions)
+npm run test:step6          # Step 6 acceptance (media resolution)
 npm run validate            # wp s5 validate the real corpus (Authoring Contract)
 npm run recompile           # wp s5 recompile --all (regenerate derived render + mirror)
 ```

@@ -73,6 +73,7 @@
 		<exclude-pattern>src/HtmlDocument.php</exclude-pattern>
 		<exclude-pattern>src/Validator.php</exclude-pattern>
 		<exclude-pattern>src/Compiler.php</exclude-pattern>
+		<exclude-pattern>src/MediaResolver.php</exclude-pattern>
 	</rule>
 
 	<!--

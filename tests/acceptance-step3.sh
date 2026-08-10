@@ -61,12 +61,43 @@ docker info >/dev/null 2>&1        || fail "Docker daemon not reachable."
 #      served <body>, and require everything around it to be wrapper-only
 #      (leading/trailing whitespace + empty wp_footer output for these pages).
 #
+#   3. MEDIA RESOLUTION (Step 6). Canonical references assets by portable
+#      relative path (`assets/hero.png`). The compiler resolves each <img>/
+#      <source> into environment-specific attachment markup: rewritten src/
+#      srcset to the upload URL, added srcset/sizes/width/height and lazy/LCP
+#      loading. Because that markup is environment-specific it can NOT be
+#      byte-diffed against source. Each resolved element carries `data-s5-orig`
+#      (base64 of its ORIGINAL source bytes); the normalizer below maps every
+#      resolved element back to that logical source BEFORE the body diff, so the
+#      authored fragment reappears verbatim and everything non-media is still
+#      diffed byte-for-byte. Imgs are never skipped.
+#
 #   ---- future entries (NOT active yet; listed so the seam is visible) --------
-#   3. MEDIA RESOLUTION  (Step 6): logical asset URLs -> environment media URLs.
 #   4. DYNAMIC PASSES    (Step 8): declared runtime substitutions.
 #
-# The per-page checks below apply (1)+(2) and nothing else.
+# The per-page checks below apply (1)+(2)+(3) and nothing else.
 # ---------------------------------------------------------------------------
+
+# SANCTIONED TRANSFORM 3 (reverse): map resolved media markup in a served body
+# back to its logical source bytes. Every element the compiler resolved carries
+# data-s5-orig="<base64 of original bytes>"; we replace the whole resolved
+# element with those decoded bytes. Reads a body on stdin, prints normalized.
+normalize_media() {
+	php -r '
+		$b = stream_get_contents(STDIN);
+		// Match any start tag carrying data-s5-orig="..." and swap it for the
+		// decoded original element bytes.
+		$out = preg_replace_callback(
+			"/<(?:img|source)\b[^>]*\bdata-s5-orig=\"([^\"]*)\"[^>]*>/i",
+			function ( $m ) {
+				$orig = base64_decode( $m[1], true );
+				return ( false === $orig ) ? $m[0] : $orig;
+			},
+			$b
+		);
+		echo ( null === $out ) ? $b : $out;
+	'
+}
 
 # Extract the inner HTML of the FIRST <body>..last </body> in file $1 (verbatim
 # bytes), using the SAME boundary rule the importer uses. Prints to stdout.
@@ -140,7 +171,9 @@ roundtrip_one() {
 
 	# --- SANCTIONED TRANSFORM 2: BODY (byte-for-byte) ----------------------
 	src_body="$(extract_body_inner "$file")"
-	served_body="$(printf '%s' "$served" | extract_served_body_inner)"
+	# SANCTIONED TRANSFORM 3: reverse media resolution so resolved <img>/<source>
+	# markup maps back to the authored logical source before the byte diff.
+	served_body="$(printf '%s' "$served" | extract_served_body_inner | normalize_media)"
 
 	# The fragment must appear as an EXACT byte substring of the served body.
 	if ! printf '%s' "$served_body" | grep -qF -- "$src_body"; then
