@@ -34,8 +34,9 @@ final class Compiler {
 	 * byte-identical to canonical — but the list, ordering, and seams exist now.
 	 *
 	 * Each entry: [id, description, callable]. The callable receives the working
-	 * HTML and the compile context (post id, etc.). Adding a real transform is one
-	 * new entry, not a rewrite.
+	 * HTML, the compile context (post id, etc.), and a media map collected by
+	 * reference (resolved element bytes -> original logical bytes). Adding a real
+	 * transform is one new entry, not a rewrite.
 	 *
 	 *   1. identity            canonical bytes pass through unchanged (baseline).
 	 *   2. media resolution    (Step 6): logical asset refs -> env media markup —
@@ -52,17 +53,17 @@ final class Compiler {
 			array(
 				'id'   => 'identity',
 				'desc' => 'canonical bytes pass through unchanged',
-				'fn'   => static function ( string $html, array $context ): string {
-					unset( $context );
+				'fn'   => static function ( string $html, array $context, array &$map ): string {
+					unset( $context, $map );
 					return $html;
 				},
 			),
 			array(
 				'id'   => 'media-resolution',
 				'desc' => 'resolve logical asset refs to environment attachment markup',
-				'fn'   => static function ( string $html, array $context ): string {
+				'fn'   => static function ( string $html, array $context, array &$map ): string {
 					$post_id = isset( $context['post_id'] ) ? (int) $context['post_id'] : 0;
-					return MediaResolver::resolve( $html, $post_id );
+					return MediaResolver::resolve( $html, $post_id, $map );
 				},
 			),
 			// 3. hidden-node removal — seat reserved (no data-hidden until later).
@@ -75,14 +76,21 @@ final class Compiler {
 	 *
 	 * Deterministic: the same canonical input always yields byte-identical output.
 	 *
-	 * @param string               $canonical Canonical body HTML.
-	 * @param array<string, mixed> $context   Compile context (post id, etc.).
+	 * The OPTIONAL `$media_map` is filled (by reference) with the media-resolution
+	 * reversal map: an ordered list of `[resolved_bytes, original_bytes]` pairs.
+	 * It is out-of-band bookkeeping (persisted as page meta, never emitted into the
+	 * served render) so the round-trip harness can map resolved markup back to its
+	 * logical source WITHOUT any framework-internal attribute shipping in the HTML.
+	 *
+	 * @param string                               $canonical Canonical body HTML.
+	 * @param array<string, mixed>                 $context   Compile context (post id, etc.).
+	 * @param array<int, array{0:string,1:string}> $media_map Collected reversal map (by ref).
 	 * @return string Derived render HTML.
 	 */
-	public static function compile( string $canonical, array $context = array() ): string {
+	public static function compile( string $canonical, array $context = array(), array &$media_map = array() ): string {
 		$html = $canonical;
 		foreach ( self::pipeline() as $transform ) {
-			$html = (string) call_user_func( $transform['fn'], $html, $context );
+			$html = (string) call_user_func_array( $transform['fn'], array( $html, $context, &$media_map ) );
 		}
 		return $html;
 	}
@@ -172,26 +180,31 @@ final class Compiler {
 	 * @throws \RuntimeException If the post_content mirror cannot be stored verbatim.
 	 */
 	public static function persist_page( int $post_id, string $canonical ): array {
-		$render = self::compile( $canonical, array( 'post_id' => $post_id ) );
-		$mirror = self::derive_mirror( $canonical );
+		$media_map = array();
+		$render    = self::compile( $canonical, array( 'post_id' => $post_id ), $media_map );
+		$mirror    = self::derive_mirror( $canonical );
 
 		// Snapshot for rollback.
 		$prev_canonical = Storage::get_canonical_html( $post_id );
 		$prev_render    = Storage::get_render_html( $post_id );
+		$prev_map       = Storage::get_media_map( $post_id );
 		$prev_post      = get_post( $post_id );
 		$prev_content   = ( $prev_post instanceof \WP_Post ) ? (string) $prev_post->post_content : '';
 
-		// 1. Canonical (portable truth) + 2. derived render (served artifact).
+		// 1. Canonical (portable truth) + 2. derived render (served artifact) +
+		// the media reversal map (out-of-band bookkeeping; NEVER in served HTML).
 		update_post_meta( $post_id, Storage::META_KEY, $canonical );
 		Storage::set_render_html( $post_id, $render );
+		Storage::set_media_map( $post_id, $media_map );
 
 		// 3. Semantic mirror -> post_content, WITHOUT content filters mangling it.
 		$stored = self::write_post_content_raw( $post_id, $mirror );
 
 		if ( $stored !== $mirror ) {
-			// Roll back everything so canonical/render/mirror never disagree.
+			// Roll back everything so canonical/render/mirror/map never disagree.
 			update_post_meta( $post_id, Storage::META_KEY, $prev_canonical );
 			Storage::set_render_html( $post_id, $prev_render );
+			Storage::set_media_map( $post_id, $prev_map );
 			self::write_post_content_raw( $post_id, $prev_content );
 
 			throw new \RuntimeException(

@@ -70,23 +70,24 @@ final class MediaResolver {
 	public const PATH_KEY = '_s5_source_path';
 
 	/**
-	 * Attribute stamped on a resolved element holding base64 of the ORIGINAL
-	 * element source bytes, so the harness can reverse the transform.
-	 *
-	 * @var string
-	 */
-	public const ORIG_ATTR = 'data-s5-orig';
-
-	/**
 	 * Resolve all local relative media references in a render fragment.
 	 *
-	 * @param string $html    Render HTML (post-identity-pipeline) to resolve.
-	 * @param int    $post_id Owning page id (for diagnostics only).
+	 * The resolved served markup carries ONLY runtime-purposed attributes
+	 * (src/srcset/sizes/width/height/loading/fetchpriority/decoding + the author's
+	 * own alt/class/etc). No framework-internal attribute is ever emitted. The
+	 * reversal information (how each resolved element maps back to its logical
+	 * source) is returned OUT OF BAND via `$map` — the caller persists it as page
+	 * meta so tooling can reverse the transform without reading served markup.
+	 *
+	 * @param string                               $html    Render HTML to resolve.
+	 * @param int                                  $post_id Owning page id (diagnostics).
+	 * @param array<int, array{0:string,1:string}> $map     Filled by ref with ordered
+	 *                                                       [resolved_bytes, original_bytes] pairs.
 	 * @return string Render HTML with media resolved to environment markup.
 	 *
 	 * @throws \RuntimeException If a referenced local asset cannot be resolved.
 	 */
-	public static function resolve( string $html, int $post_id ): string {
+	public static function resolve( string $html, int $post_id, array &$map = array() ): string {
 		if ( '' === trim( $html ) ) {
 			return $html;
 		}
@@ -104,7 +105,7 @@ final class MediaResolver {
 		// image and is NOT lazy-loaded (unless the author already said otherwise).
 		$first_img = $xpath->query( '//img' )->item( 0 );
 
-		// Collect (originalBytes -> resolvedBytes) edits, then apply as byte-exact
+		// Collect (originalBytes, resolvedBytes) edits, then apply as byte-exact
 		// string replacements so non-media bytes are never touched.
 		$edits = array();
 
@@ -142,7 +143,9 @@ final class MediaResolver {
 			$edits[]  = array( self::element_source( $source, $html ), $resolved );
 		}
 
-		// Apply edits by exact-substring replacement (first occurrence each).
+		// Apply edits by exact-substring replacement (first occurrence each) and
+		// record the reversal map (resolved -> original) OUT OF BAND. Nothing about
+		// the reversal is written into the served HTML.
 		foreach ( $edits as $edit ) {
 			list( $original, $replacement ) = $edit;
 			if ( '' === $original ) {
@@ -152,7 +155,8 @@ final class MediaResolver {
 			if ( false === $pos ) {
 				continue; // Should not happen: located via the same source bytes.
 			}
-			$html = substr( $html, 0, $pos ) . $replacement . substr( $html, $pos + strlen( $original ) );
+			$html  = substr( $html, 0, $pos ) . $replacement . substr( $html, $pos + strlen( $original ) );
+			$map[] = array( $replacement, $original );
 		}
 
 		return $html;
@@ -172,8 +176,6 @@ final class MediaResolver {
 	 * @return string Resolved element bytes.
 	 */
 	private static function compose_img( \DOMElement $img, int $att_id, bool $is_first ): string {
-		$orig_bytes = self::element_outer_html( $img );
-
 		// Preserve every author attribute verbatim, in source order.
 		$attrs = array();
 		foreach ( $img->attributes as $attr ) {
@@ -211,7 +213,8 @@ final class MediaResolver {
 		}
 
 		// loading / decoding — author wins; else lazy unless first (LCP) or
-		// explicitly high-priority.
+		// explicitly high-priority. These are the ONLY runtime attributes we add;
+		// no framework-internal attribute is emitted.
 		$high_priority = isset( $attrs['fetchpriority'] ) && 'high' === strtolower( $attrs['fetchpriority'] );
 		if ( ! isset( $attrs['loading'] ) && ! $is_first && ! $high_priority ) {
 			$attrs['loading'] = 'lazy';
@@ -219,9 +222,6 @@ final class MediaResolver {
 		if ( ! isset( $attrs['decoding'] ) ) {
 			$attrs['decoding'] = 'async';
 		}
-
-		// Back-reference for the round-trip harness (sanctioned transform #2).
-		$attrs[ self::ORIG_ATTR ] = base64_encode( $orig_bytes ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- encoding the original element bytes for the round-trip normalizer, not obfuscation.
 
 		return self::render_tag( 'img', $attrs );
 	}
@@ -241,16 +241,12 @@ final class MediaResolver {
 	 * @throws \RuntimeException If a referenced local asset cannot be resolved.
 	 */
 	private static function compose_source( \DOMElement $source, string $asset_dir, string $prefix, int $post_id ): string {
-		$orig_bytes = self::element_outer_html( $source );
-
 		$attrs = array();
 		foreach ( $source->attributes as $attr ) {
 			$attrs[ $attr->nodeName ] = (string) $attr->nodeValue;
 		}
 
 		$attrs['srcset'] = self::resolve_srcset( (string) $attrs['srcset'], $asset_dir, $prefix, $post_id );
-
-		$attrs[ self::ORIG_ATTR ] = base64_encode( $orig_bytes ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- encoding the original element bytes for the round-trip normalizer, not obfuscation.
 
 		return self::render_tag( 'source', $attrs );
 	}

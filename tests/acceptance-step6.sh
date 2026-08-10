@@ -91,6 +91,14 @@ printf '%s' "$DIAG_IMG" | grep -qF 'loading="lazy"' || fail "non-LCP diagram <im
 printf '%s' "$DIAG_IMG" | grep -qE 'width="[0-9]+"' || fail "diagram <img> missing injected width"
 # <source> in <picture> resolved to an upload URL, structure preserved.
 printf '%s' "$SERVED" | grep -oE '<source[^>]*>' | grep -qE 'srcset="https?://[^"]+/wp-content/uploads/[^"]+"' || fail "<source> srcset not resolved to upload URL"
+# NO framework-internal attribute may ship in the served render. Served media
+# markup carries only runtime-purposed attributes.
+printf '%s' "$SERVED" | grep -qiE 'data-s5-orig|data-s5-' && fail "served render leaks a framework-internal data-s5-* attribute"
+RENDER_META="$(wp post meta get "$S5T" _s5_render_html)"
+printf '%s' "$RENDER_META" | grep -qiE 'data-s5-orig|data-s5-' && fail "_s5_render_html stores a framework-internal data-s5-* attribute"
+# The reversal manifest MUST live out of band in page meta (not in the render).
+MAP_JSON="$(wp post meta get "$S5T" _s5_media_map --format=json 2>/dev/null || true)"
+printf '%s' "$MAP_JSON" | grep -qE '\[' || fail "_s5_media_map manifest is missing/empty (needed to reverse media for the harness)"
 # Canonical MUST remain portable: no ENV-SPECIFIC media data baked in. A logical
 # srcset with a relative path (e.g. srcset="assets/hero-wide.avif") is fine — that
 # is the portable form; what must never appear is a resolved upload URL, an

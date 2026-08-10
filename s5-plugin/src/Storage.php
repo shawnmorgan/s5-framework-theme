@@ -55,6 +55,21 @@ final class Storage {
 	public const RENDER_KEY = '_s5_render_html';
 
 	/**
+	 * Meta key holding the media-resolution REVERSAL MAP (Build Order Step 6).
+	 *
+	 * An ordered list of `[resolved_bytes, original_bytes]` pairs recorded when
+	 * the compiler resolved logical media refs into environment attachment markup.
+	 * This is OUT-OF-BAND bookkeeping — it is NEVER emitted into the served render
+	 * (the served `<img>`/`<source>` carry only runtime attributes) — so tooling
+	 * (the round-trip harness) can map resolved markup back to its logical source
+	 * without any framework-internal attribute shipping in the HTML. Disposable and
+	 * regenerable, exactly like the render it accompanies; not revisioned.
+	 *
+	 * @var string
+	 */
+	public const MEDIA_MAP_KEY = '_s5_media_map';
+
+	/**
 	 * Post type framework pages live on in Step 1.
 	 *
 	 * @var string
@@ -116,6 +131,20 @@ final class Storage {
 				'single'            => true,
 				'show_in_rest'      => false,
 				'sanitize_callback' => null, // Derived render is written verbatim by the compiler.
+				'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
+					return current_user_can( 'edit_post', $post_id );
+				},
+			)
+		);
+
+		register_post_meta(
+			self::POST_TYPE,
+			self::MEDIA_MAP_KEY,
+			array(
+				'type'              => 'array',
+				'single'            => true,
+				'show_in_rest'      => false,
+				'sanitize_callback' => null, // Compiler-authored bookkeeping; stored as-is.
 				'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
 					return current_user_can( 'edit_post', $post_id );
 				},
@@ -189,5 +218,28 @@ final class Storage {
 	 */
 	public static function set_render_html( int $post_id, string $html ): void {
 		update_post_meta( $post_id, self::RENDER_KEY, $html );
+	}
+
+	/**
+	 * The media-resolution reversal map for a post.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return array<int, array{0:string,1:string}> Ordered [resolved, original] pairs (empty if none).
+	 */
+	public static function get_media_map( int $post_id ): array {
+		$map = get_post_meta( $post_id, self::MEDIA_MAP_KEY, true );
+
+		return is_array( $map ) ? $map : array();
+	}
+
+	/**
+	 * Store the media-resolution reversal map for a post.
+	 *
+	 * @param int                                  $post_id Post ID.
+	 * @param array<int, array{0:string,1:string}> $map     Ordered [resolved, original] pairs.
+	 * @return void
+	 */
+	public static function set_media_map( int $post_id, array $map ): void {
+		update_post_meta( $post_id, self::MEDIA_MAP_KEY, $map );
 	}
 }

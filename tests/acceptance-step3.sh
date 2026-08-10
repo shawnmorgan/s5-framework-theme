@@ -66,11 +66,14 @@ docker info >/dev/null 2>&1        || fail "Docker daemon not reachable."
 #      <source> into environment-specific attachment markup: rewritten src/
 #      srcset to the upload URL, added srcset/sizes/width/height and lazy/LCP
 #      loading. Because that markup is environment-specific it can NOT be
-#      byte-diffed against source. Each resolved element carries `data-s5-orig`
-#      (base64 of its ORIGINAL source bytes); the normalizer below maps every
-#      resolved element back to that logical source BEFORE the body diff, so the
-#      authored fragment reappears verbatim and everything non-media is still
-#      diffed byte-for-byte. Imgs are never skipped.
+#      byte-diffed against source. The served markup carries ONLY runtime
+#      attributes — NO framework-internal attribute ships. The reversal map lives
+#      OUT OF BAND in page meta `_s5_media_map` (an ordered list of
+#      [resolved_bytes, original_bytes] pairs the compiler recorded). The
+#      normalizer below reads that manifest and swaps each resolved element back
+#      to its logical source BEFORE the body diff, so the authored fragment
+#      reappears verbatim and everything non-media is still diffed byte-for-byte.
+#      Imgs are never skipped.
 #
 #   ---- future entries (NOT active yet; listed so the seam is visible) --------
 #   4. DYNAMIC PASSES    (Step 8): declared runtime substitutions.
@@ -79,23 +82,26 @@ docker info >/dev/null 2>&1        || fail "Docker daemon not reachable."
 # ---------------------------------------------------------------------------
 
 # SANCTIONED TRANSFORM 3 (reverse): map resolved media markup in a served body
-# back to its logical source bytes. Every element the compiler resolved carries
-# data-s5-orig="<base64 of original bytes>"; we replace the whole resolved
-# element with those decoded bytes. Reads a body on stdin, prints normalized.
+# back to its logical source bytes using the compile-time manifest — NOT anything
+# in the served markup. Args: $1 = the page's _s5_media_map as JSON (an array of
+# [resolved, original] pairs, or empty). Reads a body on stdin, prints normalized.
 normalize_media() {
-	php -r '
-		$b = stream_get_contents(STDIN);
-		// Match any start tag carrying data-s5-orig="..." and swap it for the
-		// decoded original element bytes.
-		$out = preg_replace_callback(
-			"/<(?:img|source)\b[^>]*\bdata-s5-orig=\"([^\"]*)\"[^>]*>/i",
-			function ( $m ) {
-				$orig = base64_decode( $m[1], true );
-				return ( false === $orig ) ? $m[0] : $orig;
-			},
-			$b
-		);
-		echo ( null === $out ) ? $b : $out;
+	local map_json="${1:-[]}"
+	MAP_JSON="$map_json" php -r '
+		$b   = stream_get_contents(STDIN);
+		$map = json_decode( (string) getenv("MAP_JSON"), true );
+		if ( is_array( $map ) ) {
+			foreach ( $map as $pair ) {
+				if ( ! is_array( $pair ) || count( $pair ) < 2 ) { continue; }
+				list( $resolved, $original ) = $pair;
+				// Byte-exact swap of the resolved element back to its logical source.
+				$pos = strpos( $b, $resolved );
+				if ( $pos !== false ) {
+					$b = substr( $b, 0, $pos ) . $original . substr( $b, $pos + strlen( $resolved ) );
+				}
+			}
+		}
+		echo $b;
 	'
 }
 
@@ -155,25 +161,33 @@ pass "environment ready; corpus imported"
 ROUNDTRIP_DELTA=""
 
 roundtrip_one() {
-	local file="$1" slug url served src_body served_body remainder delta
+	local file="$1" slug url served src_body served_body remainder delta pid media_map
 	slug="$(basename "$file" .html)"
+
+	# Always resolve the page id (needed for the media manifest), including the
+	# front page (index.html).
+	pid="$(wp post list --post_type=page --name="$slug" --field=ID 2>/dev/null | head -n1)"
+	[ -n "$pid" ] || { ROUNDTRIP_DELTA="page '$slug' not found after import"; return 1; }
 
 	if [ "$slug" = "index" ]; then
 		url="$(wp option get home 2>/dev/null)/"
 	else
-		local pid; pid="$(wp post list --post_type=page --name="$slug" --field=ID 2>/dev/null | head -n1)"
-		[ -n "$pid" ] || { ROUNDTRIP_DELTA="page '$slug' not found after import"; return 1; }
 		url="$(wp post url "$pid" 2>/dev/null)"
 	fi
 
 	served="$(curl -s "$url" || true)"
 	[ -n "$served" ] || { ROUNDTRIP_DELTA="empty HTTP response from $url"; return 1; }
 
+	# The compile-time media manifest for THIS page (out-of-band; not in served HTML).
+	media_map="$(wp post meta get "$pid" _s5_media_map --format=json 2>/dev/null || true)"
+	[ -n "$media_map" ] || media_map="[]"
+
 	# --- SANCTIONED TRANSFORM 2: BODY (byte-for-byte) ----------------------
 	src_body="$(extract_body_inner "$file")"
-	# SANCTIONED TRANSFORM 3: reverse media resolution so resolved <img>/<source>
-	# markup maps back to the authored logical source before the byte diff.
-	served_body="$(printf '%s' "$served" | extract_served_body_inner | normalize_media)"
+	# SANCTIONED TRANSFORM 3: reverse media resolution using the manifest so
+	# resolved <img>/<source> markup maps back to the authored logical source
+	# before the byte diff. Nothing in the served markup drives this.
+	served_body="$(printf '%s' "$served" | extract_served_body_inner | normalize_media "$media_map")"
 
 	# The fragment must appear as an EXACT byte substring of the served body.
 	if ! printf '%s' "$served_body" | grep -qF -- "$src_body"; then
