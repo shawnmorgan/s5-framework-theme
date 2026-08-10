@@ -81,6 +81,15 @@ final class ImportCommand {
 		$blocked   = 0;
 		$front_id  = 0;
 
+		// Drift trackers: the theme owns charset/viewport, and header/footer are
+		// duplicated per page until the Step 8 parts system. Warn (never block) if
+		// pages disagree, so silent divergence is caught before it ships.
+		$charset_ref  = null;
+		$viewport_ref = null;
+		$header_ref   = null;
+		$footer_ref   = null;
+		$ref_file     = '';
+
 		foreach ( $files as $file ) {
 			$name = basename( $file );
 			$slug = self::slug_from_filename( $name );
@@ -108,6 +117,10 @@ final class ImportCommand {
 				// Nonzero exit, naming file + reason.
 				\WP_CLI::error( sprintf( '%s: parse failed — %s', $name, $e->getMessage() ) );
 			}
+
+			// Drift warnings (non-blocking): charset/viewport (theme-owned) and the
+			// duplicated header/footer markup must match across the corpus.
+			self::warn_on_drift( $name, $doc, $ref_file, $charset_ref, $viewport_ref, $header_ref, $footer_ref );
 
 			$title  = isset( $doc->head['title'] ) ? (string) $doc->head['title'] : $slug;
 			$result = self::upsert_page( $slug, $title, $doc->body_html, $doc->head );
@@ -168,6 +181,80 @@ final class ImportCommand {
 	}
 
 	/**
+	 * Warn (never block) when a page drifts from the corpus on values that are
+	 * expected to be uniform: the theme-owned charset/viewport, and the header /
+	 * footer markup duplicated per page until the Step 8 parts system.
+	 *
+	 * The first page seen sets the reference; later pages are compared to it.
+	 *
+	 * @param string       $name         Current file name.
+	 * @param HtmlDocument $doc          Parsed document.
+	 * @param string       $ref_file     Reference file name (set on first page). By ref.
+	 * @param string|null  $charset_ref  Reference charset. By ref.
+	 * @param string|null  $viewport_ref Reference viewport. By ref.
+	 * @param string|null  $header_ref   Reference <header> markup. By ref.
+	 * @param string|null  $footer_ref   Reference <footer> markup. By ref.
+	 * @return void
+	 */
+	private static function warn_on_drift(
+		string $name,
+		HtmlDocument $doc,
+		string &$ref_file,
+		?string &$charset_ref,
+		?string &$viewport_ref,
+		?string &$header_ref,
+		?string &$footer_ref
+	): void {
+		$charset  = isset( $doc->head['charset'] ) ? (string) $doc->head['charset'] : '';
+		$viewport = isset( $doc->head['viewport'] ) ? (string) $doc->head['viewport'] : '';
+		$header   = self::first_tag_block( $doc->body_html, 'header' );
+		$footer   = self::first_tag_block( $doc->body_html, 'footer' );
+
+		if ( '' === $ref_file ) {
+			$ref_file     = $name;
+			$charset_ref  = $charset;
+			$viewport_ref = $viewport;
+			$header_ref   = $header;
+			$footer_ref   = $footer;
+			return;
+		}
+
+		if ( $charset !== $charset_ref ) {
+			\WP_CLI::warning( sprintf( '  %s: charset "%s" drifts from %s "%s"', $name, $charset, $ref_file, (string) $charset_ref ) );
+		}
+		if ( $viewport !== $viewport_ref ) {
+			\WP_CLI::warning( sprintf( '  %s: viewport "%s" drifts from %s "%s"', $name, $viewport, $ref_file, (string) $viewport_ref ) );
+		}
+		if ( $header !== $header_ref ) {
+			\WP_CLI::warning( sprintf( '  %s: <header> markup drifts from %s (duplicated header/footer; unify in the Step 8 parts system)', $name, $ref_file ) );
+		}
+		if ( $footer !== $footer_ref ) {
+			\WP_CLI::warning( sprintf( '  %s: <footer> markup drifts from %s (duplicated header/footer; unify in the Step 8 parts system)', $name, $ref_file ) );
+		}
+	}
+
+	/**
+	 * The verbatim source of the first `<$tag>…</$tag>` block in $html, or ''.
+	 *
+	 * Byte-substring extraction (not DOM) so the comparison is exact.
+	 *
+	 * @param string $html Body HTML.
+	 * @param string $tag  Tag name (header|footer).
+	 * @return string
+	 */
+	private static function first_tag_block( string $html, string $tag ): string {
+		if ( ! preg_match( '/<' . $tag . '\b[^>]*>/i', $html, $m, PREG_OFFSET_CAPTURE ) ) {
+			return '';
+		}
+		$start = (int) $m[0][1];
+		$close = stripos( $html, '</' . $tag . '>', $start );
+		if ( false === $close ) {
+			return '';
+		}
+		return substr( $html, $start, $close - $start + strlen( '</' . $tag . '>' ) );
+	}
+
+	/**
 	 * Default source directory: the plugin's parent repo `pages/` dir.
 	 *
 	 * The s5-plugin dir lives at <repo>/s5-plugin, so the source is one level up.
@@ -207,13 +294,31 @@ final class ImportCommand {
 			$cur_body = Storage::get_canonical_html( $post_id );
 			$cur_head = Storage::get_head( $post_id );
 
+			// A framework page must be published to serve. An existing page may be
+			// a draft — notably WordPress ships a default "Privacy Policy" draft at
+			// slug `privacy-policy` — so importing over it must PUBLISH it (and sync
+			// the title). Status/title mismatch counts as a change, so an unpublished
+			// page is never reported "unchanged" and left dark.
+			$status_ok = ( 'publish' === $existing->post_status );
+			$title_ok  = ( $title === $existing->post_title );
 			$body_same = ( $cur_body === $body );
 			$head_same = ( wp_json_encode( $cur_head ) === wp_json_encode( $head ) );
 
-			if ( $body_same && $head_same ) {
+			if ( $body_same && $head_same && $status_ok && $title_ok ) {
 				return array(
 					'id'     => $post_id,
 					'status' => 'unchanged',
+				);
+			}
+
+			if ( ! $status_ok || ! $title_ok ) {
+				wp_update_post(
+					array(
+						'ID'          => $post_id,
+						'post_status' => 'publish',
+						'post_title'  => $title,
+					),
+					true
 				);
 			}
 

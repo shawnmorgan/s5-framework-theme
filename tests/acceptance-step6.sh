@@ -27,7 +27,7 @@ md5of()   { md5 -q 2>/dev/null || md5sum | awk '{print $1}'; }
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 PAGES_C="wp-content/s5-pages"
-S5T_SRC="$ROOT_DIR/pages/series-5-technology.html"
+S5T_SRC="$ROOT_DIR/pages/index.html"
 DIAGRAM_SRC="$ROOT_DIR/assets/diagram.png"
 
 command -v npx >/dev/null 2>&1    || fail "npx not found. Run 'npm install' first."
@@ -55,7 +55,7 @@ info "0/6  Starting wp-env, activating plugin, fresh import…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
 wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
-for s in index about fix-my-store series-5-technology media-broken; do
+for s in index about fix-my-store index media-broken; do
 	pid="$(wp post list --post_type=page --name="$s" --field=ID | head -n1)"
 	[ -n "$pid" ] && wp post delete "$pid" --force >/dev/null 2>&1 || true
 done
@@ -64,8 +64,8 @@ for aid in $(wp post list --post_type=attachment --field=ID 2>/dev/null); do
 	wp post delete "$aid" --force >/dev/null 2>&1 || true
 done
 $WP_ENV run cli wp s5 import "$PAGES_C" >/dev/null 2>&1 || fail "import failed"
-S5T="$(wp post list --post_type=page --name=series-5-technology --field=ID | head -n1)"
-[ -n "$S5T" ] || fail "series-5-technology page missing after import"
+S5T="$(wp post list --post_type=page --name=index --field=ID | head -n1)"
+[ -n "$S5T" ] || fail "index page missing after import"
 S5T_URL="$(wp post url "$S5T")"
 pass "environment ready; corpus imported (S5T #$S5T)"
 
@@ -113,7 +113,7 @@ pass "images attachment-backed with srcset + dimensions; canonical stays portabl
 info "      round-trip harness still green (media transform normalized)…"
 bash "$ROOT_DIR/tests/acceptance-step3.sh" >/tmp/s5-rt6.log 2>&1 || { tail -25 /tmp/s5-rt6.log >&2; fail "round-trip regressed under media resolution"; }
 # The harness re-imported the corpus; refresh ids.
-S5T="$(wp post list --post_type=page --name=series-5-technology --field=ID | head -n1)"
+S5T="$(wp post list --post_type=page --name=index --field=ID | head -n1)"
 S5T_URL="$(wp post url "$S5T")"
 pass "round-trip fidelity green with media resolution active"
 
@@ -143,7 +143,7 @@ ffmpeg -v error -y -f lavfi -i "color=c=0xef4444:s=640x480" -frames:v 1 -update 
 NEW_HASH="$(md5of < "$DIAGRAM_SRC")"
 OLD_HASH="$(md5of < "$DIAGRAM_BACKUP")"
 [ "$NEW_HASH" != "$OLD_HASH" ] || fail "diagram.png did not actually change"
-$WP_ENV run cli wp s5 recompile series-5-technology >/dev/null 2>&1 || fail "recompile after image change failed"
+$WP_ENV run cli wp s5 recompile index >/dev/null 2>&1 || fail "recompile after image change failed"
 NEW_DIAG_URL="$(curl -s "$S5T_URL" | grep -oE 'src="[^"]*diagram[^"]*"' | head -n1)"
 [ -n "$NEW_DIAG_URL" ] || fail "diagram <img> missing after change"
 [ "$NEW_DIAG_URL" != "$OLD_DIAG_URL" ] || fail "changed image did NOT re-sideload (served URL unchanged: $OLD_DIAG_URL)"
@@ -208,10 +208,10 @@ pass "unresolvable path failed loudly, naming file + path; no bad render persist
 # 6. Recompile determinism holds with media active (byte-identical twice).
 # ---------------------------------------------------------------------------
 info "6/6  Recompile determinism holds with media transform active…"
-$WP_ENV run cli wp s5 recompile series-5-technology >/dev/null 2>&1 || fail "recompile #1 failed"
+$WP_ENV run cli wp s5 recompile index >/dev/null 2>&1 || fail "recompile #1 failed"
 R1="$(wp post meta get "$S5T" _s5_render_html | md5of)"
 M1="$(wp post get "$S5T" --field=post_content | md5of)"
-$WP_ENV run cli wp s5 recompile series-5-technology >/dev/null 2>&1 || fail "recompile #2 failed"
+$WP_ENV run cli wp s5 recompile index >/dev/null 2>&1 || fail "recompile #2 failed"
 R2="$(wp post meta get "$S5T" _s5_render_html | md5of)"
 M2="$(wp post get "$S5T" --field=post_content | md5of)"
 [ "$R1" = "$R2" ] || fail "render not byte-identical across recompiles ($R1 vs $R2)"

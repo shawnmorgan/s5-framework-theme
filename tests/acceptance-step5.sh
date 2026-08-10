@@ -104,19 +104,26 @@ $WP_ENV run cli wp s5 import "$PAGES_C" >/dev/null 2>&1 || fail "re-import (v1) 
 ABOUT="$(wp post list --post_type=page --name=about --field=ID | head -n1)"
 REV_V1="$(wp post list --post_type=revision --post_parent="$ABOUT" --field=ID | head -n1)"
 [ -n "$REV_V1" ] || fail "no revision captured after import"
-wp post meta get "$REV_V1" _s5_canonical_html | grep -qF '<h1>About</h1>' || fail "v1 revision did not capture canonical source"
-python3 - "$ABOUT_SRC" <<'PY'
+# v1 canonical must have been captured in the revision (assert the closing </main>
+# is present — copy-independent, works for any about.html body).
+wp post meta get "$REV_V1" _s5_canonical_html | grep -qF '</main>' || fail "v1 revision did not capture canonical source"
+# Mutate v2 by INJECTING a unique sentinel before </main> — decoupled from page
+# copy so the revision test survives corpus changes. The sentinel must NOT appear
+# in v1, and must appear in v2, then disappear again after restore.
+V2_SENTINEL='<p class="lede">ABOUT-V2-SENTINEL</p>'
+python3 - "$ABOUT_SRC" "$V2_SENTINEL" <<'PY'
 import sys
-p=sys.argv[1]; s=open(p).read()
-s=s.replace("<h1>About</h1>","<h1>About v2</h1>").replace("One compiler, three doors","Changed body text")
-open(p,"w").write(s)
+p, sentinel = sys.argv[1], sys.argv[2]
+s = open(p).read()
+s = s.replace("</main>", sentinel + "\n</main>", 1)
+open(p, "w").write(s)
 PY
 $WP_ENV run cli wp s5 import "$PAGES_C" >/dev/null 2>&1 || fail "re-import (v2) failed"
-curl -s "$(wp post url "$ABOUT")" | grep -qF '<h1>About v2</h1>' || fail "v2 not served after update import"
+curl -s "$(wp post url "$ABOUT")" | grep -qF 'ABOUT-V2-SENTINEL' || fail "v2 not served after update import"
 # WP-CLI has no `post revision restore`; use the core function.
 wpeval "wp_restore_post_revision( $REV_V1 );" >/dev/null
-curl -s "$(wp post url "$ABOUT")" | grep -qF '<h1>About</h1>' || fail "served output did NOT revert after restore (no manual recompile ran)"
-wp post meta get "$ABOUT" _s5_render_html | grep -qF '<h1>About</h1>' || fail "render was not recompiled on restore"
+curl -s "$(wp post url "$ABOUT")" | grep -qF 'ABOUT-V2-SENTINEL' && fail "served output did NOT revert after restore (no manual recompile ran)"
+wp post meta get "$ABOUT" _s5_render_html | grep -qF 'ABOUT-V2-SENTINEL' && fail "render was not recompiled on restore"
 pass "restore reverts served output automatically (render recompiled on restore)"
 
 # --- 5. delete render + post_content -> recompile restores both ---------------

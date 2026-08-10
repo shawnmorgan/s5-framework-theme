@@ -119,7 +119,22 @@ final class HtmlDocument {
 	}
 
 	/**
-	 * Extract the sanctioned head artifacts from the DOM.
+	 * Extract head artifacts from the DOM (Build Order Step 7 head ruling).
+	 *
+	 * The head is handled as: STRUCTURED EXTRACTION of a few load-bearing values
+	 * (title, meta description, canonical) for the title filter and the round-trip
+	 * head contract, plus ORDERED VERBATIM PASSTHROUGH of every OTHER head node —
+	 * OG/Twitter meta, JSON-LD, favicon links, analytics tags, HTML comments, and
+	 * anything else — preserved byte-for-byte and in source order into
+	 * `head['passthrough']`. The framework omits nothing from the head.
+	 *
+	 * Two element kinds are captured structurally and NOT placed in passthrough,
+	 * because WordPress/the theme emits them and a passthrough copy would DUPLICATE
+	 * them:
+	 *   - `<title>`  — core prints it via pre_get_document_title (one title tag).
+	 *   - charset + viewport `<meta>` — the theme/canvas owns emitting these once;
+	 *     we record their source values so the importer can WARN on drift, but we
+	 *     never re-emit them.
 	 *
 	 * @param \DOMDocument $dom Parsed document.
 	 * @return void
@@ -131,68 +146,57 @@ final class HtmlDocument {
 		}
 		$head = $heads->item( 0 );
 
-		$tags   = array();
-		$jsonld = array();
+		$passthrough = array();
 
 		foreach ( $head->childNodes as $node ) {
-			if ( ! ( $node instanceof \DOMElement ) ) {
+			// Comments (e.g. a TODO-GA4 analytics placeholder) are passed through
+			// verbatim too — the head omits nothing.
+			if ( $node instanceof \DOMComment ) {
+				$passthrough[] = '<!--' . $node->textContent . '-->';
 				continue;
 			}
+			if ( ! ( $node instanceof \DOMElement ) ) {
+				continue; // Whitespace/text between elements is not significant.
+			}
+
 			$tag = strtolower( $node->nodeName );
 
-			switch ( $tag ) {
-				case 'title':
-					$this->head['title'] = $node->textContent;
-					break;
-
-				case 'meta':
-					$name     = strtolower( (string) $node->getAttribute( 'name' ) );
-					$property = strtolower( (string) $node->getAttribute( 'property' ) );
-					if ( 'description' === $name ) {
-						$this->head['description'] = (string) $node->getAttribute( 'content' );
-					}
-					// Preserve OG/Twitter/other meta verbatim, plus the description
-					// meta itself so the served head matches source exactly.
-					if ( '' !== $name || '' !== $property || $node->hasAttribute( 'charset' ) || '' !== (string) $node->getAttribute( 'http-equiv' ) ) {
-						$tags[] = self::serialize_element( $node );
-					} else {
-						$this->unrecognized[] = 'meta tag: ' . self::serialize_element( $node );
-					}
-					break;
-
-				case 'link':
-					$rel = strtolower( (string) $node->getAttribute( 'rel' ) );
-					if ( 'canonical' === $rel ) {
-						$this->head['canonical'] = (string) $node->getAttribute( 'href' );
-					}
-					// Keep SEO-relevant <link> rels; report others.
-					if ( in_array( $rel, array( 'canonical', 'alternate', 'amphtml' ), true ) ) {
-						$tags[] = self::serialize_element( $node );
-					} else {
-						$this->unrecognized[] = 'link[rel=' . ( '' !== $rel ? $rel : '(none)' ) . ']';
-					}
-					break;
-
-				case 'script':
-					$type = strtolower( (string) $node->getAttribute( 'type' ) );
-					if ( 'application/ld+json' === $type ) {
-						$jsonld[] = self::serialize_element( $node );
-					} else {
-						$this->unrecognized[] = 'script[type=' . ( '' !== $type ? $type : '(none)' ) . ']';
-					}
-					break;
-
-				default:
-					$this->unrecognized[] = 'head <' . $tag . '>';
-					break;
+			// <title>: structured only; core emits the single title tag.
+			if ( 'title' === $tag ) {
+				$this->head['title'] = $node->textContent;
+				continue;
 			}
+
+			// charset / viewport meta: theme owns emission — record for drift, do
+			// NOT pass through (avoids a duplicate charset/viewport in the head).
+			if ( 'meta' === $tag ) {
+				if ( $node->hasAttribute( 'charset' ) ) {
+					$this->head['charset'] = (string) $node->getAttribute( 'charset' );
+					continue;
+				}
+				if ( 'viewport' === strtolower( (string) $node->getAttribute( 'name' ) ) ) {
+					$this->head['viewport'] = (string) $node->getAttribute( 'content' );
+					continue;
+				}
+				// Pull description out structurally for the head contract; it is
+				// ALSO passed through verbatim so the served head matches source.
+				if ( 'description' === strtolower( (string) $node->getAttribute( 'name' ) ) ) {
+					$this->head['description'] = (string) $node->getAttribute( 'content' );
+				}
+			}
+
+			// canonical link: structured value for the head contract; also passed
+			// through verbatim.
+			if ( 'link' === $tag && 'canonical' === strtolower( (string) $node->getAttribute( 'rel' ) ) ) {
+				$this->head['canonical'] = (string) $node->getAttribute( 'href' );
+			}
+
+			// Everything else in the head is preserved verbatim, in order.
+			$passthrough[] = self::serialize_element( $node );
 		}
 
-		if ( ! empty( $tags ) ) {
-			$this->head['tags'] = $tags;
-		}
-		if ( ! empty( $jsonld ) ) {
-			$this->head['jsonld'] = $jsonld;
+		if ( ! empty( $passthrough ) ) {
+			$this->head['passthrough'] = $passthrough;
 		}
 	}
 

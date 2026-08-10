@@ -110,3 +110,109 @@
 	justify-content: space-between;
 	gap: 1rem;
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * Step 7 test-corpus vocabulary.
+ *
+ * These blocks/elements exist so the nine-page TEST corpus can be authored
+ * contract-clean. They are placeholder-tier alongside the test content itself:
+ * minimal rules, real names. The real design system will replace the values (and
+ * may rename) when the actual S5T pages land. Grammar per A4: dash-case blocks,
+ * block_element (single underscore), block--modifier (double dash).
+ * ---------------------------------------------------------------------------
+ */
+
+/* Visible "TEST CONTENT" marker banner (every test page carries one). */
+.test-banner {
+	padding: 0.5rem 1rem;
+	background: #fffbdd;
+	border: 1px dashed #b59f00;
+	text-align: center;
+	font-weight: 600;
+}
+
+/* Generic page hero (non-Home pages). */
+.page-hero {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.page-hero_title {
+	margin: 0;
+}
+
+.page-hero_lede {
+	max-width: 60ch;
+}
+
+/* Generic content section + prose column. */
+.section {
+	display: grid;
+	gap: 1rem;
+}
+
+.prose {
+	max-width: 70ch;
+	display: grid;
+	gap: 0.75rem;
+}
+
+/* FAQ list (question/answer pairs). */
+.faq {
+	display: grid;
+	gap: 1rem;
+}
+
+.faq_item {
+	display: grid;
+	gap: 0.25rem;
+}
+
+.faq_q {
+	font-weight: 600;
+	margin: 0;
+}
+
+.faq_a {
+	margin: 0;
+}
+
+/* Embed container (TidyCal / other third-party iframes). */
+.embed {
+	display: grid;
+	gap: 0.5rem;
+}
+
+.embed_frame {
+	width: 100%;
+	min-height: 640px;
+	border: 0;
+}
+
+/* Audit-offer page shape (Fix My Store). */
+.audit {
+	display: grid;
+	gap: 1.5rem;
+}
+
+.audit_lead {
+	max-width: 60ch;
+}
+
+.offer {
+	display: grid;
+	gap: 0.75rem;
+}
+
+.offer_list {
+	display: grid;
+	gap: 0.5rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.price {
+	font-weight: 700;
+}

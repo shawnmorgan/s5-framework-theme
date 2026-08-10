@@ -178,12 +178,14 @@ final class Storage {
 	 * The extracted head blob for a post.
 	 *
 	 * Shape (all keys optional):
-	 * - `title`       string  Document title text.
-	 * - `description` string  Meta description content.
-	 * - `canonical`   string  Canonical URL.
-	 * - `tags`        array   List of raw <meta>/<link> tag strings (OG, etc.),
-	 *                         preserved verbatim in source order.
-	 * - `jsonld`      array   List of raw JSON-LD <script> block strings.
+	 * - `title`       string  Document title text (core emits the title tag).
+	 * - `description` string  Meta description content (structured; for the head contract).
+	 * - `canonical`   string  Canonical URL (structured; for the head contract).
+	 * - `charset`     string  Source charset (theme emits it; recorded for drift only).
+	 * - `viewport`    string  Source viewport content (theme emits it; drift only).
+	 * - `passthrough` array   Ordered list of every OTHER head node's verbatim source
+	 *                         (OG/Twitter meta, JSON-LD, favicon links, analytics tags,
+	 *                         HTML comments, …) — emitted as-is, in source order.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return array<string, mixed> Head blob (empty array if none).

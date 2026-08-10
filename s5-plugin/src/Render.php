@@ -105,9 +105,11 @@ final class Render {
 	}
 
 	/**
-	 * Emit the stored head artifacts (description, canonical, OG/meta tags,
-	 * JSON-LD) for the current framework page. The <title> is handled by the
-	 * core title filter, not echoed here, to avoid a duplicate title tag.
+	 * Emit the stored head passthrough for the current framework page: every head
+	 * element/comment from source EXCEPT the title and charset/viewport, verbatim
+	 * and in source order (Build Order Step 7 head ruling). The <title> is printed
+	 * by core via the title filter, and charset+viewport are emitted once by the
+	 * canvas template — so neither is in the passthrough, avoiding duplicates.
 	 *
 	 * @return void
 	 */
@@ -120,15 +122,9 @@ final class Render {
 		$head = Storage::get_head( (int) $post_id );
 
 		$lines = array();
-
-		if ( ! empty( $head['tags'] ) && is_array( $head['tags'] ) ) {
-			foreach ( $head['tags'] as $tag ) {
-				$lines[] = (string) $tag;
-			}
-		}
-		if ( ! empty( $head['jsonld'] ) && is_array( $head['jsonld'] ) ) {
-			foreach ( $head['jsonld'] as $block ) {
-				$lines[] = (string) $block;
+		if ( ! empty( $head['passthrough'] ) && is_array( $head['passthrough'] ) ) {
+			foreach ( $head['passthrough'] as $entry ) {
+				$lines[] = (string) $entry;
 			}
 		}
 
@@ -136,8 +132,41 @@ final class Render {
 			return;
 		}
 
-		// Stored verbatim from source; emitted as-is by design (Build Order Step 2).
+		// Stored verbatim from source; emitted as-is by design (Build Order Step 7).
 		echo "\n" . implode( "\n", $lines ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- canonical head artifacts, served verbatim by design.
+	}
+
+	/**
+	 * Render a framework page by slug through the canvas, for the theme's 404
+	 * handler. Sets up the page as the queried object so wp_head()/the canvas emit
+	 * its stored head + render, then includes the canvas template.
+	 *
+	 * Returns false (rendering nothing) when no framework page with that slug
+	 * exists, so the caller can fall back to its own markup.
+	 *
+	 * @param string $slug Page slug (e.g. '404').
+	 * @return bool True if a framework page was rendered.
+	 */
+	public static function canvas_for_slug( string $slug ): bool {
+		$page = get_page_by_path( $slug, OBJECT, Storage::POST_TYPE );
+		if ( ! ( $page instanceof \WP_Post ) || ! Storage::is_framework_page( (int) $page->ID ) ) {
+			return false;
+		}
+
+		// Make the 404 page the queried object so the canvas + head hooks resolve
+		// to it, while keeping the 404 HTTP status the theme already set.
+		$GLOBALS['post'] = $page; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- deliberately presenting the 404 body via the framework canvas.
+		setup_postdata( $page );
+		global $wp_query;
+		$wp_query->queried_object    = $page;
+		$wp_query->queried_object_id = (int) $page->ID;
+
+		$canvas = S5_PLUGIN_DIR . self::CANVAS_TEMPLATE;
+		if ( ! is_readable( $canvas ) ) {
+			return false;
+		}
+		include $canvas;
+		return true;
 	}
 
 	/**

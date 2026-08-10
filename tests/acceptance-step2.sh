@@ -86,10 +86,13 @@ BODY="$(curl -s "$ABOUT_URL" || true)"
 SRC_BODY="$(php -r '$h=file_get_contents($argv[1]); preg_match("/<body\b[^>]*>/i",$h,$m,PREG_OFFSET_CAPTURE); $o=$m[0][1]+strlen($m[0][0]); $c=strripos($h,"</body>"); echo substr($h,$o,$c-$o);' pages/about.html)"
 printf '%s' "$BODY" | grep -qF -- "$SRC_BODY" || { echo "--- expected body ---" >&2; printf '%s\n' "$SRC_BODY" >&2; fail "served body does not contain source <body> verbatim"; }
 
-# <title> present exactly once, with the source title.
+# <title> present exactly once, matching the SOURCE title (derived, not hardcoded,
+# so the assertion survives copy changes in the corpus).
 TITLE_COUNT="$(printf '%s' "$BODY" | grep -oiE '<title>[^<]*</title>' | grep -c . || true)"
 [ "$TITLE_COUNT" = "1" ] || fail "expected exactly one <title>, found $TITLE_COUNT"
-printf '%s' "$BODY" | grep -qiF '<title>About S5</title>' || fail "source <title> not rendered"
+SRC_TITLE="$(php -r '$h=file_get_contents($argv[1]); preg_match("/<title>(.*?)<\/title>/is",$h,$m); echo isset($m[1])?trim($m[1]):"";' pages/about.html)"
+[ -n "$SRC_TITLE" ] || fail "about.html has no <title> to check"
+printf '%s' "$BODY" | grep -qF -- "<title>$SRC_TITLE</title>" || fail "source <title> not rendered (expected: <title>$SRC_TITLE</title>)"
 
 # meta description present exactly once.
 DESC_COUNT="$(printf '%s' "$BODY" | grep -oiE '<meta name="description"[^>]*>' | grep -c . || true)"

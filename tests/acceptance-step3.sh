@@ -291,6 +291,29 @@ $block"; return 1; }
 		done < <(printf '%s\0' "$jsonld_raw")
 	fi
 
+	# HEAD PASSTHROUGH FIDELITY (Step 7 head ruling): every OTHER head node in the
+	# source — favicon links, analytics tags, HTML comments, and any element that
+	# is not the title/charset/viewport/description/canonical/OG/JSON-LD already
+	# checked above — must appear VERBATIM in the served head. We assert the two
+	# the ruling names explicitly (favicon <link>, analytics comment) plus every
+	# source head comment, byte-for-byte.
+	local src_head fav
+	src_head="$(awk 'BEGIN{IGNORECASE=1} /<head[ >]/{f=1} f{print} /<\/head>/{exit}' "$file")"
+
+	# favicon <link rel="icon" ...> (if the source has one) present verbatim.
+	fav="$(printf '%s' "$src_head" | grep -oiE '<link[^>]+rel="icon"[^>]*>' | head -n1 || true)"
+	if [ -n "$fav" ]; then
+		printf '%s' "$served" | grep -qF -- "$fav" || { ROUNDTRIP_DELTA="HEAD delta for /$slug/ — favicon link not passed through verbatim: $fav"; return 1; }
+	fi
+
+	# every HTML comment in the source head (e.g. the TODO-GA4 analytics marker)
+	# must appear verbatim in the served head.
+	local comment
+	while IFS= read -r comment; do
+		[ -n "$comment" ] || continue
+		printf '%s' "$served" | grep -qF -- "$comment" || { ROUNDTRIP_DELTA="HEAD delta for /$slug/ — head comment not passed through verbatim: $comment"; return 1; }
+	done < <(printf '%s' "$src_head" | grep -oE '<!--[^>]*-->' || true)
+
 	ROUNDTRIP_DELTA=""
 	return 0
 }
@@ -324,7 +347,7 @@ pass "corpus round-trips with zero unexplained deltas"
 # ---------------------------------------------------------------------------
 info "2/4  Arming render-path mutation — harness MUST now detect a delta…"
 wp option update s5_roundtrip_mutate 1 >/dev/null 2>&1 || fail "could not arm mutation"
-if roundtrip_one "$SRC_PAGES/series-5-technology.html"; then
+if roundtrip_one "$SRC_PAGES/index.html"; then
 	wp option update s5_roundtrip_mutate 0 >/dev/null 2>&1 || true
 	fail "MUTATION NOT DETECTED — the harness passed a corrupted render. It cannot be trusted."
 fi
@@ -337,7 +360,7 @@ pass "mutation detected — harness went red with a delta report naming it"
 # ---------------------------------------------------------------------------
 info "3/4  Disarming mutation — harness MUST be green again…"
 wp option update s5_roundtrip_mutate 0 >/dev/null 2>&1 || fail "could not disarm mutation"
-roundtrip_one "$SRC_PAGES/series-5-technology.html" || { printf '%s\n' "$ROUNDTRIP_DELTA" >&2; fail "still red after disarming — negative test is not clean"; }
+roundtrip_one "$SRC_PAGES/index.html" || { printf '%s\n' "$ROUNDTRIP_DELTA" >&2; fail "still red after disarming — negative test is not clean"; }
 pass "green again after disarming — fidelity is self-verifying"
 
 # ---------------------------------------------------------------------------
