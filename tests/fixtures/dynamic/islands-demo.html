@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Islands Demo — Series 5 Technology</title>
+  <meta name="description" content="Interactive islands: local counter state and a shared wishlist store, no SPA runtime.">
+  <link rel="canonical" href="https://series5technology.com/islands-demo/">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<p class="test-banner" data-s5="test-marker">TEST CONTENT — interactive islands fixture</p>
+<s5-part name="site-header"></s5-part>
+
+<main data-s5="islands">
+  <section class="page-hero">
+    <p class="eyebrow">Interactive islands</p>
+    <h1 class="page-hero_title">Behavior only where it is declared</h1>
+    <p class="page-hero_lede">Two islands: a local-state counter and a shared-state wishlist. Everything else on the page ships no JavaScript.</p>
+  </section>
+
+  <section class="section">
+    <div class="island" data-s5-island="counter">
+      <p>Local counter</p>
+      <div class="island_row">
+        <button class="btn btn--ghost" type="button" data-s5-action="dec">&minus;</button>
+        <span class="island_value" data-s5-count>0</span>
+        <button class="btn btn--primary" type="button" data-s5-action="inc">+</button>
+      </div>
+    </div>
+
+    <div class="island" data-s5-island="wishlist">
+      <p>Shared wishlist (<span class="island_value" data-s5-wishlist-count>0</span> items)</p>
+      <div class="island_row">
+        <button class="btn btn--primary" type="button" data-s5-action="add">Add to wishlist</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<s5-part name="site-footer"></s5-part>
+</body>
+</html>

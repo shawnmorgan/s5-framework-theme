@@ -178,6 +178,20 @@ final class Storage {
 				},
 			)
 		);
+
+		register_post_meta(
+			self::POST_TYPE,
+			Islands::META_KEY,
+			array(
+				'type'              => 'array',
+				'single'            => true,
+				'show_in_rest'      => false,
+				'sanitize_callback' => null, // Compiler-detected island names; stored as-is.
+				'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
+					return current_user_can( 'edit_post', $post_id );
+				},
+			)
+		);
 	}
 
 	/**

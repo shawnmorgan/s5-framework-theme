@@ -207,6 +207,9 @@ final class Compiler {
 		// Flag whether this page needs a runtime dynamic pass (L&L / shortcodes),
 		// detected from the compiled render so parts-supplied tags count too.
 		Storage::set_dynamic( $post_id, self::needs_dynamic_pass( $render ) );
+		// Sidecar discovery (Step 10): record which interaction islands the render
+		// contains so only their modules are enqueued at request time.
+		Islands::set_for_page( $post_id, Islands::detect( $render ) );
 
 		// 3. Semantic mirror -> post_content, WITHOUT content filters mangling it.
 		$stored = self::write_post_content_raw( $post_id, $mirror );

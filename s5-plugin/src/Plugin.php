@@ -48,6 +48,7 @@ final class Plugin {
 		Storage::register();
 		Render::register();
 		Revisions::register();
+		Islands::register();
 		self::register_cli_commands();
 	}
 
