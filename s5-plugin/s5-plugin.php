@@ -30,6 +30,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 const S5_PLUGIN_DIR = __DIR__ . '/';
 
+/**
+ * Public URL to this plugin's directory, trailing-slashed. Used to enqueue the
+ * editor's admin-only assets (Build Order Step 12 — Editor MVP).
+ *
+ * @var string
+ */
+define( 'S5\\S5_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
 /*
  * Locate the Composer autoloader. It maps the `S5\` namespace to `src/`
  * (see composer.json). If missing, `composer install` was not run; fail loudly

@@ -49,6 +49,7 @@ final class Plugin {
 		Render::register();
 		Revisions::register();
 		Islands::register();
+		Editor::register();
 		self::register_cli_commands();
 	}
 

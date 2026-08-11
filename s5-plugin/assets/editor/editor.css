@@ -1,0 +1,227 @@
+/*
+ * S5 Framework — Editor MVP shell styles (Phase B1).
+ *
+ * Enqueued ONLY on the editor admin screen (Editor::enqueue_assets). Nothing
+ * here ships to logged-out visitors. Layout only: top bar + preview stage +
+ * right panel. Panel internals fill in through later Phase B items.
+ */
+
+/* Break out of the default wp-admin content padding for a full-bleed editor. */
+#wpcontent {
+	padding-left: 0;
+}
+
+.s5-editor {
+	position: absolute;
+	inset: 0;
+	top: var(--wp-admin--admin-bar--height, 32px);
+	display: flex;
+	flex-direction: column;
+	background: #1e1e1e;
+	color: #e6e6e6;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* --- top bar ------------------------------------------------------------- */
+
+.s5-editor__topbar {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	height: 48px;
+	padding: 0 12px;
+	background: #23282d;
+	border-bottom: 1px solid #32373c;
+}
+
+.s5-editor__topbar-group {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.s5-editor__topbar-group--center {
+	flex: 1 1 auto;
+	justify-content: center;
+}
+
+.s5-editor__topbar-group--right {
+	justify-content: flex-end;
+}
+
+.s5-editor__back {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: #c3c4c7;
+	text-decoration: none;
+	font-size: 13px;
+}
+
+.s5-editor__back:hover {
+	color: #fff;
+}
+
+.s5-editor__page-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #f0f0f1;
+	max-width: 240px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* segmented button groups (viewport + lens) */
+.s5-editor__viewport,
+.s5-editor__lens {
+	display: inline-flex;
+	background: #32373c;
+	border-radius: 4px;
+	padding: 2px;
+}
+
+.s5-editor__vp,
+.s5-editor__lens-btn {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	color: #c3c4c7;
+	font-size: 12px;
+	padding: 4px 10px;
+	border-radius: 3px;
+	cursor: pointer;
+	line-height: 1.6;
+}
+
+.s5-editor__vp.is-active,
+.s5-editor__lens-btn.is-active {
+	background: #2271b1;
+	color: #fff;
+}
+
+.s5-editor__dirty {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: #f0c33c;
+}
+
+.s5-editor__dirty-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: #f0c33c;
+}
+
+.s5-editor__update[disabled] {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* --- body: stage + panel ------------------------------------------------- */
+
+.s5-editor__body {
+	flex: 1 1 auto;
+	display: flex;
+	min-height: 0;
+}
+
+.s5-editor__stage {
+	flex: 1 1 auto;
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	overflow: auto;
+	padding: 20px;
+	background: #2b2b2b;
+	background-image:
+		linear-gradient(45deg, #262626 25%, transparent 25%),
+		linear-gradient(-45deg, #262626 25%, transparent 25%),
+		linear-gradient(45deg, transparent 75%, #262626 75%),
+		linear-gradient(-45deg, transparent 75%, #262626 75%);
+	background-size: 20px 20px;
+	background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+.s5-editor__preview {
+	background: #fff;
+	border: 0;
+	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+	width: 100%;
+	height: 100%;
+	transition: width 0.2s ease;
+}
+
+/* viewport widths driven by the stage's data attribute (JS toggles it). */
+.s5-editor__stage[data-s5-viewport="desktop"] .s5-editor__preview {
+	width: 100%;
+	max-width: 1280px;
+}
+
+.s5-editor__stage[data-s5-viewport="tablet"] .s5-editor__preview {
+	width: 768px;
+}
+
+.s5-editor__stage[data-s5-viewport="mobile"] .s5-editor__preview {
+	width: 390px;
+}
+
+.s5-editor__empty {
+	color: #a7aaad;
+	font-size: 13px;
+	margin: auto;
+}
+
+/* --- right panel --------------------------------------------------------- */
+
+.s5-editor__panel {
+	flex: 0 0 320px;
+	display: flex;
+	flex-direction: column;
+	background: #23282d;
+	border-left: 1px solid #32373c;
+	min-height: 0;
+}
+
+.s5-editor__panel-tabs {
+	display: flex;
+	border-bottom: 1px solid #32373c;
+}
+
+.s5-editor__tab {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	color: #c3c4c7;
+	font-size: 12px;
+	padding: 10px 12px;
+	cursor: pointer;
+	flex: 1 1 auto;
+	border-bottom: 2px solid transparent;
+}
+
+.s5-editor__tab.is-active {
+	color: #fff;
+	border-bottom-color: #2271b1;
+}
+
+.s5-editor__tab.is-disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.s5-editor__panel-body {
+	flex: 1 1 auto;
+	overflow: auto;
+	padding: 16px;
+}
+
+.s5-editor__hint {
+	color: #a7aaad;
+	font-size: 13px;
+	line-height: 1.5;
+}
