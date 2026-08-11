@@ -33,3 +33,5 @@ s5-plugin/vendor/
 # PHPUnit local cache
 .phpunit.result.cache
 s5-plugin/.phpunit.result.cache
+vendor-plugins/
+tangible-loops-and-logic.*.zip

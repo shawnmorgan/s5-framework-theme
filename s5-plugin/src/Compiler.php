@@ -59,6 +59,14 @@ final class Compiler {
 				},
 			),
 			array(
+				'id'   => 'part-expansion',
+				'desc' => 'expand <s5-part> references to their reusable markup',
+				'fn'   => static function ( string $html, array $context, array &$map ): string {
+					$post_id = isset( $context['post_id'] ) ? (int) $context['post_id'] : 0;
+					return PartExpander::expand( $html, $post_id, $map );
+				},
+			),
+			array(
 				'id'   => 'media-resolution',
 				'desc' => 'resolve logical asset refs to environment attachment markup',
 				'fn'   => static function ( string $html, array $context, array &$map ): string {
@@ -66,8 +74,8 @@ final class Compiler {
 					return MediaResolver::resolve( $html, $post_id, $map );
 				},
 			),
-			// 3. hidden-node removal — seat reserved (no data-hidden until later).
-			// 4. component expansion — joins later.
+			// hidden-node removal — seat reserved (no data-hidden until later).
+			// component expansion — joins later.
 		);
 	}
 

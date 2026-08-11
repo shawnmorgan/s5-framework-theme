@@ -6,7 +6,8 @@
     "./s5-theme"
   ],
   "plugins": [
-    "./s5-plugin"
+    "./s5-plugin",
+    "./vendor-plugins/tangible-loops-and-logic"
   ],
   "config": {
     "WP_DEBUG": true,
