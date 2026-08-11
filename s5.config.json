@@ -14,6 +14,7 @@
     "pluginCli": "s5-plugin/cli",
     "pagesSource": "pages",
     "parts": "parts",
+    "components": "components",
     "dist": "dist"
   },
   "styles": {

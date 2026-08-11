@@ -1,0 +1,12 @@
+{
+  "$comment": "S5 component manifest (Build Order Step 11). A component is a registered human capability: HTML partial + optional CSS + this manifest. Copy-on-insert expands component.html into a page's canonical HTML once; the component then stops existing as an abstraction (no component JSON as page state).",
+  "name": "card",
+  "version": "1.0.0",
+  "description": "A simple content card: eyebrow, title, body, and a primary call-to-action link. Uses the shared .card / .btn design-system vocabulary; its editable slots (title, body, cta) are declared so an inserted card is immediately editable in the S5 editor.",
+  "slots": [
+    { "node": "card-eyebrow", "type": "text", "label": "Eyebrow" },
+    { "node": "card-title", "type": "text", "label": "Title" },
+    { "node": "card-body", "type": "text", "label": "Body" },
+    { "node": "card-cta", "type": "link", "label": "Call to action" }
+  ]
+}

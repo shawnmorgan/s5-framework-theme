@@ -1,0 +1,12 @@
+/*
+ * card component styles (Build Order Step 11).
+ *
+ * The card's visual rules ship in the THEME design system
+ * (s5-theme/styles/components.css: .card, .eyebrow, .btn, .btn--primary) so they
+ * are part of the closed class vocabulary the Authoring Contract validator
+ * enforces — an inserted card validates against the same vocabulary as any
+ * authored markup. This file is the component's own style contract for registry
+ * completeness; it intentionally does NOT redefine the shared selectors (that
+ * would duplicate and drift the vocabulary). Component-private tweaks, if ever
+ * needed, would live here under a component-scoped class.
+ */

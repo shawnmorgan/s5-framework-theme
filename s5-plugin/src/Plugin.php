@@ -77,5 +77,8 @@ final class Plugin {
 
 		// `wp s5 recompile` — Step 5: regenerate derived render + mirror.
 		\WP_CLI::add_command( 's5 recompile', Cli\RecompileCommand::class );
+
+		// `wp s5 component` — Step 11: register/list/insert registered components.
+		\WP_CLI::add_command( 's5 component', Cli\ComponentCommand::class );
 	}
 }
