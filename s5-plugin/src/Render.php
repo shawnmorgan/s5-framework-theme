@@ -53,6 +53,12 @@ final class Render {
 		add_action( 'wp_head', array( self::class, 'output_head' ), 1 );
 		add_filter( 'pre_get_document_title', array( self::class, 'filter_document_title' ) );
 
+		// SEO ownership (Step 9): a framework page emits its OWN canonical (from
+		// source) — suppress WordPress core's rel_canonical so the page never ships
+		// two canonicals. Emit the S5-owned schema graph on the same head seam.
+		add_action( 'template_redirect', array( self::class, 'own_canonical' ) );
+		add_action( 'wp_head', array( self::class, 'output_schema' ), 5 );
+
 		// Bypassing the theme means no theme declares title-tag support, so
 		// core wp_head() would not print a <title>. Declare it here so core
 		// prints exactly one title tag, populated by filter_document_title().
@@ -134,6 +140,53 @@ final class Render {
 
 		// Stored verbatim from source; emitted as-is by design (Build Order Step 7).
 		echo "\n" . implode( "\n", $lines ) . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- canonical head artifacts, served verbatim by design.
+	}
+
+	/**
+	 * On a framework page, suppress WordPress core's canonical link so the page
+	 * ships only its OWN authored canonical (emitted verbatim via head passthrough).
+	 * Prevents a duplicate `<link rel="canonical">` in the served head.
+	 *
+	 * @return void
+	 */
+	public static function own_canonical(): void {
+		if ( ! is_singular() ) {
+			return;
+		}
+		$post_id = get_queried_object_id();
+		if ( $post_id && Storage::is_framework_page( (int) $post_id ) ) {
+			remove_action( 'wp_head', 'rel_canonical' );
+		}
+	}
+
+	/**
+	 * Emit the S5-owned schema graph (WebSite/WebPage/Organization) for the current
+	 * framework page, compiled from the same head values that render.
+	 *
+	 * @return void
+	 */
+	public static function output_schema(): void {
+		$post_id = get_queried_object_id();
+		if ( ! $post_id || ! Storage::is_framework_page( (int) $post_id ) ) {
+			return;
+		}
+
+		/**
+		 * Allow a SEO provider to disable the S5-owned schema output entirely.
+		 *
+		 * @param bool $emit    Whether to emit the owned schema graph.
+		 * @param int  $post_id The page ID.
+		 */
+		if ( ! apply_filters( 's5_emit_owned_schema', true, (int) $post_id ) ) {
+			return;
+		}
+
+		$json = Schema::build_json_ld( (int) $post_id );
+		if ( null === $json ) {
+			return;
+		}
+
+		echo "\n" . '<script type="application/ld+json">' . "\n" . $json . "\n" . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode output; JSON-LD emitted verbatim by design.
 	}
 
 	/**

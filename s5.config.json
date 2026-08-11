@@ -28,6 +28,15 @@
     "dir": "assets",
     "prefix": "assets/"
   },
+  "site": {
+    "$comment": "Authoritative site identity for the S5-owned schema graph (Build Order Step 9, PRD §13.2). WebSite + Organization JSON-LD are compiled from THESE values plus each page's own head (title/description/canonical), so structured data cannot silently drift from visible content. Placeholder-tier for the test corpus; replace with real values before launch.",
+    "name": "Series 5 Technology",
+    "url": "https://series5technology.com/",
+    "logo": "https://series5technology.com/assets/logo.svg",
+    "sameAs": [
+      "https://www.linkedin.com/company/series5technology"
+    ]
+  },
   "cli": {
     "namespace": "s5"
   }

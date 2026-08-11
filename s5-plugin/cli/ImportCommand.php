@@ -11,6 +11,7 @@ namespace S5\Cli;
 
 use S5\Compiler;
 use S5\HtmlDocument;
+use S5\SeoGate;
 use S5\Storage;
 use S5\Validator;
 
@@ -102,6 +103,9 @@ final class ImportCommand {
 			// GATE: validate before writing. Errors block THIS page; import
 			// continues for the rest. Warnings print and the page proceeds.
 			$findings = Validator::validate( (string) $html, $vocab, $name );
+			// SEO/quality gates (Step 9): headings, alt text, LCP, head metadata.
+			// All WARNINGS — they print but never block the page.
+			$findings = array_merge( $findings, SeoGate::check( (string) $html, $name ) );
 			if ( ! empty( $findings ) ) {
 				ValidateCommand::print_table( $findings );
 			}
