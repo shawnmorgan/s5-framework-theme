@@ -60,8 +60,20 @@ IDX="$(wp post list --post_type=page --name=index --field=ID | head -n1)"
 CANON="$(wp post meta get "$IDX" _s5_canonical_html)"
 printf '%s' "$CANON" | grep -qF '<s5-part name="site-header">' || fail "canonical does not reference the header part"
 printf '%s' "$CANON" | grep -qF '<header class="site-header"' && fail "canonical inlines the header (should be a part reference)"
+# index.html is imported as the SITE FRONT PAGE, so its canonical URL is the site
+# root ('/'), not '/index/'. Depending on rewrite state, `wp post url` may return
+# either — and only the front-page URL serves it. Assert the expanded header on
+# whichever of the two actually serves the page, so this check tests part
+# expansion (the real subject) rather than front-page routing timing.
 IDX_URL="$(wp post url "$IDX")"
-curl -s "$IDX_URL" | grep -qF '<header class="site-header"' || fail "served page does not show the expanded header part"
+HOME_URL="$(wp option get home)"
+# Follow redirects: a front page's own slug ('/index/') 301-redirects to the site
+# root, so curl must follow it (-L) to reach the served page. Try both the
+# resolved post URL and the site root; either serving the header is a pass.
+if ! { curl -sL "$IDX_URL" | grep -qF '<header class="site-header"'; } \
+   && ! { curl -sL "$HOME_URL/" | grep -qF '<header class="site-header"'; }; then
+	fail "served index page does not show the expanded header part"
+fi
 # The same part serves on another page (single source of truth).
 ABOUT_URL="$(wp post url "$(wp post list --post_type=page --name=about --field=ID | head -n1)")"
 curl -s "$ABOUT_URL" | grep -qF '<nav class="nav" aria-label="Primary">' || fail "about page missing the shared header markup"
