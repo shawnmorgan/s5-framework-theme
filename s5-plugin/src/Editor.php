@@ -223,6 +223,15 @@ final class Editor {
 			true
 		);
 
+		// Style tab (read-only) + Content/Style tab switching.
+		wp_enqueue_script(
+			's5-editor-styles',
+			$base . 'stylestab.js',
+			array( 's5-editor' ),
+			'0.0.0',
+			true
+		);
+
 		$head = Storage::get_head( $post_id );
 
 		wp_localize_script(
@@ -241,6 +250,7 @@ final class Editor {
 					'canonical'   => isset( $head['canonical'] ) ? (string) $head['canonical'] : '',
 				),
 				'cmSettings' => $cm_settings,
+				'tokens'     => Styles::read_tokens(),
 			)
 		);
 	}

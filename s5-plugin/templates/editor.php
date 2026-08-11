@@ -88,6 +88,7 @@ $s5_back_url    = isset( $s5_editor['back_url'] ) ? (string) $s5_editor['back_ur
 				<button type="button" class="s5-editor__tab is-disabled" data-s5-tab="tailwind" role="tab" aria-disabled="true" disabled><?php esc_html_e( 'Tailwind', 's5' ); ?></button>
 			</div>
 
+			<div class="s5-editor__tabpane" data-s5-tabpane="content">
 			<div class="s5-editor__panel-body" data-s5-panel-body data-s5-lens-edit>
 				<p class="s5-editor__hint" data-s5-hint>
 					<?php esc_html_e( 'Select an editable element in the preview to see its fields.', 's5' ); ?>
@@ -115,6 +116,13 @@ $s5_back_url    = isset( $s5_editor['back_url'] ) ? (string) $s5_editor['back_ur
 					<button type="button" class="button s5-editor__head-save" data-s5-head-save disabled>
 						<?php esc_html_e( 'Save head', 's5' ); ?>
 					</button>
+				</div>
+			</div>
+			</div><!-- /tabpane content -->
+
+			<div class="s5-editor__tabpane s5-editor__styletab" data-s5-tabpane="style" hidden>
+				<div class="s5-editor__panel-body" data-s5-styletab>
+					<p class="s5-editor__hint"><?php esc_html_e( 'Read-only. Rendered live from the theme design tokens.', 's5' ); ?></p>
 				</div>
 			</div>
 		</aside>

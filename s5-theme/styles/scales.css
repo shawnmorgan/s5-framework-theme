@@ -1,0 +1,42 @@
+/*
+ * S5 Framework — modular scales (Authoring Contract Part A3).
+ *
+ * Custom properties ONLY (no class selectors — adds nothing to the class
+ * vocabulary). Steps ride the S5 scale ladder (xxs…xxxl) that Grammar::LADDER
+ * enforces, so the scale-suffix classes in components/utilities resolve to real
+ * values. The editor's Style tab (Phase B4) renders these live as a type ramp,
+ * spacing steps, and radius samples — no hand-built HTML to drift.
+ *
+ * Placeholder-tier for the test corpus; replace with the real scale at launch.
+ */
+:root {
+	/* Type scale */
+	--s5-text-xxs: 0.694rem;
+	--s5-text-xs: 0.833rem;
+	--s5-text-sm: 0.9rem;
+	--s5-text-md: 1rem;
+	--s5-text-lg: 1.2rem;
+	--s5-text-xl: 1.44rem;
+	--s5-text-xxl: 1.728rem;
+	--s5-text-xxxl: 2.074rem;
+
+	/* Space scale */
+	--s5-space-xxs: 0.25rem;
+	--s5-space-xs: 0.5rem;
+	--s5-space-sm: 0.75rem;
+	--s5-space-md: 1rem;
+	--s5-space-lg: 1.5rem;
+	--s5-space-xl: 2rem;
+	--s5-space-xxl: 3rem;
+	--s5-space-xxxl: 4rem;
+
+	/* Radius scale */
+	--s5-radius-xxs: 2px;
+	--s5-radius-xs: 4px;
+	--s5-radius-sm: 6px;
+	--s5-radius-md: 8px;
+	--s5-radius-lg: 12px;
+	--s5-radius-xl: 16px;
+	--s5-radius-xxl: 24px;
+	--s5-radius-xxxl: 32px;
+}

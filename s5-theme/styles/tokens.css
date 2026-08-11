@@ -1,0 +1,39 @@
+/*
+ * S5 Framework — design tokens (Authoring Contract Part A2).
+ *
+ * Custom properties ONLY — no class selectors, so this file adds nothing to the
+ * closed class vocabulary the Authoring Contract validator enforces. These are
+ * the raw values the theme's components/utilities build on. The editor's Style
+ * tab (Editor MVP Phase B4) parses THIS file live to render the palette, so the
+ * swatches can never drift from the real tokens.
+ *
+ * Placeholder-tier for the test corpus; replace with real brand values at launch.
+ */
+:root {
+	/* Brand */
+	--s5-color-brand: #2271b1;
+	--s5-color-brand-strong: #135e96;
+	--s5-color-accent: #f0c33c;
+
+	/* Ink / surface */
+	--s5-color-ink: #1e1e1e;
+	--s5-color-ink-soft: #3c434a;
+	--s5-color-muted: #6c7278;
+	--s5-color-surface: #ffffff;
+	--s5-color-surface-alt: #f6f7f7;
+	--s5-color-line: #dcdcde;
+
+	/* Feedback */
+	--s5-color-success: #2a9d5c;
+	--s5-color-warning: #f0c33c;
+	--s5-color-danger: #d63638;
+
+	/* Typography families */
+	--s5-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	--s5-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+	/* Line heights */
+	--s5-leading-tight: 1.2;
+	--s5-leading-normal: 1.5;
+	--s5-leading-loose: 1.7;
+}

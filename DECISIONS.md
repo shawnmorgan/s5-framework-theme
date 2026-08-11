@@ -85,6 +85,27 @@ Why: instruction says bold/italic/link ONLY; a tiny sanitizer (wp_kses with a
 
 ---
 
+**D12 — Style tab reads tokens from `s5.config.json` → styles.designTokens, a
+NEW key separate from styles.vocabulary.**
+Rejected: adding tokens.css/scales.css to styles.vocabulary; hardcoding the paths
+in PHP.
+Why: the token files are custom-properties ONLY (no class selectors), so they must
+NOT enter the class vocabulary the validator enforces (that vocabulary is the union
+of class selectors). A separate `designTokens` list lets the Style-tab reader
+(Styles::read_tokens) find them by declaration without polluting validation. Full
+gate confirms vocabulary/round-trip unaffected.
+
+**D13 — L&L dynamic regions are marked in AUTHORED source with
+`data-s5-dynamic-region` (alongside data-edit/data-node), not detected from render.**
+Rejected: detecting L&L tags at render time (the served preview is already
+evaluated — tags are gone); compiler-injecting a marker (violates D4 verbatim).
+Why: the editor presents a dynamic region as a LOCKED block in Edit lens ("edit in
+code view") and fully editable in Code lens. The reliable, fidelity-safe signal is
+an authored attribute on the wrapping [data-edit] node; the overlay reads it and
+the panel renders the locked block. The wrapper attribute survives the dynamic pass
+(L&L replaces the loop's inner content, not the wrapper). Demoed on the
+sitemap-archive fixture: static hero title = editable; the <Loop> <ul> = locked.
+
 ## Open / flagged for owner review
 
 - **F1 — data-node is authored, not injected (resolved).** To protect the

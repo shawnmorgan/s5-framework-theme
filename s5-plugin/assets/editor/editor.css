@@ -351,3 +351,69 @@
 	opacity: 0.5;
 	cursor: not-allowed;
 }
+
+/* --- Style tab (read-only) (B4) ----------------------------------------- */
+
+.s5-editor__style-section {
+	margin-bottom: 18px;
+}
+
+.s5-editor__swatches {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 10px;
+	margin-top: 8px;
+}
+
+.s5-editor__swatch {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.s5-editor__chip {
+	display: block;
+	height: 36px;
+	border-radius: 4px;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.s5-editor__radius-box {
+	display: block;
+	height: 36px;
+	background: #2271b1;
+	border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.s5-editor__swatch-name {
+	font-size: 12px;
+	color: #f0f0f1;
+}
+
+.s5-editor__swatch-val {
+	font-size: 11px;
+	color: #8c8f94;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.s5-editor__ramp-row {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	padding: 4px 0;
+	border-bottom: 1px solid #2b2f34;
+}
+
+.s5-editor__ramp-sample {
+	color: #f0f0f1;
+	line-height: 1;
+	min-width: 44px;
+}
+
+.s5-editor__space-bar {
+	display: inline-block;
+	height: 12px;
+	background: #2271b1;
+	border-radius: 2px;
+	min-width: 2px;
+}

@@ -21,6 +21,11 @@
     "vocabulary": [
       "s5-theme/styles/components.css",
       "s5-theme/styles/utilities.css"
+    ],
+    "$tokensComment": "Design-token stylesheets (Authoring Contract Part A2/A3): custom properties ONLY, no class selectors, so they add nothing to the class vocabulary. The editor Style tab (Build Order Step 12) parses these live to render the palette / type ramp / spacing / radius, so the tab can never drift from the real tokens.",
+    "designTokens": [
+      "s5-theme/styles/tokens.css",
+      "s5-theme/styles/scales.css"
     ]
   },
   "assets": {
