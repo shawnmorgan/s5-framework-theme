@@ -209,6 +209,22 @@ final class Editor {
 			true
 		);
 
+		// Code lens: CodeMirror from WP core (no build step, no new deps). Enqueue
+		// the HTML-mode code editor; wp_enqueue_code_editor loads wp-codemirror.
+		$cm_settings = false;
+		if ( function_exists( 'wp_enqueue_code_editor' ) ) {
+			$cm_settings = wp_enqueue_code_editor( array( 'type' => 'text/html' ) );
+		}
+		wp_enqueue_script(
+			's5-editor-codelens',
+			$base . 'codelens.js',
+			array( 's5-editor', 'wp-codemirror' ),
+			'0.0.0',
+			true
+		);
+
+		$head = Storage::get_head( $post_id );
+
 		wp_localize_script(
 			's5-editor',
 			'S5Editor',
@@ -218,6 +234,13 @@ final class Editor {
 				'backUrl'    => $post_id ? get_edit_post_link( $post_id, 'raw' ) : admin_url( 'edit.php' ),
 				'saveUrl'    => rest_url( Rest::NAMESPACE . '/pages/' . $post_id . '/save' ),
 				'nonce'      => wp_create_nonce( 'wp_rest' ),
+				'canonical'  => Storage::get_canonical_html( $post_id ),
+				'head'       => array(
+					'title'       => isset( $head['title'] ) ? (string) $head['title'] : '',
+					'description' => isset( $head['description'] ) ? (string) $head['description'] : '',
+					'canonical'   => isset( $head['canonical'] ) ? (string) $head['canonical'] : '',
+				),
+				'cmSettings' => $cm_settings,
 			)
 		);
 	}

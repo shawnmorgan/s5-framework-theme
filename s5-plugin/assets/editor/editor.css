@@ -295,3 +295,59 @@
 	margin: 4px 0 0;
 	word-break: break-word;
 }
+
+/* --- code lens + head form (B3) ----------------------------------------- */
+
+.s5-editor__codelens {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.s5-editor__code {
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 240px;
+	background: #1e1e1e;
+	color: #f0f0f1;
+	border: 1px solid #3c434a;
+	border-radius: 4px;
+	padding: 8px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 12px;
+	line-height: 1.5;
+	resize: vertical;
+}
+
+/* CodeMirror mounts a sibling; keep it inside the panel width. */
+.s5-editor__codelens .CodeMirror {
+	border: 1px solid #3c434a;
+	border-radius: 4px;
+	height: auto;
+	min-height: 240px;
+	font-size: 12px;
+}
+
+.s5-editor__rule {
+	border: 0;
+	border-top: 1px solid #32373c;
+	margin: 12px 0;
+}
+
+.s5-editor__headform {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.s5-editor__code-save,
+.s5-editor__head-save {
+	align-self: flex-start;
+	margin-top: 6px;
+}
+
+.s5-editor__code-save[disabled],
+.s5-editor__head-save[disabled] {
+	opacity: 0.5;
+	cursor: not-allowed;
+}

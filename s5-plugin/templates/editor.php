@@ -88,10 +88,34 @@ $s5_back_url    = isset( $s5_editor['back_url'] ) ? (string) $s5_editor['back_ur
 				<button type="button" class="s5-editor__tab is-disabled" data-s5-tab="tailwind" role="tab" aria-disabled="true" disabled><?php esc_html_e( 'Tailwind', 's5' ); ?></button>
 			</div>
 
-			<div class="s5-editor__panel-body" data-s5-panel-body>
+			<div class="s5-editor__panel-body" data-s5-panel-body data-s5-lens-edit>
 				<p class="s5-editor__hint" data-s5-hint>
 					<?php esc_html_e( 'Select an editable element in the preview to see its fields.', 's5' ); ?>
 				</p>
+			</div>
+
+			<div class="s5-editor__panel-body s5-editor__codelens" data-s5-lens-code hidden>
+				<label class="s5-editor__field-label" for="s5-code"><?php esc_html_e( 'Canonical HTML (source of truth)', 's5' ); ?></label>
+				<textarea id="s5-code" class="s5-editor__code" data-s5-code spellcheck="false"></textarea>
+				<div class="s5-editor__code-diagnostics" data-s5-code-diagnostics></div>
+				<button type="button" class="button button-primary s5-editor__code-save" data-s5-code-save disabled>
+					<?php esc_html_e( 'Save canonical', 's5' ); ?>
+				</button>
+
+				<hr class="s5-editor__rule">
+
+				<div class="s5-editor__headform" data-s5-headform>
+					<div class="s5-editor__field-label"><?php esc_html_e( 'Head', 's5' ); ?></div>
+					<label class="s5-editor__field-label" for="s5-head-title"><?php esc_html_e( 'Title', 's5' ); ?></label>
+					<input id="s5-head-title" class="s5-editor__input" type="text" data-s5-head="title">
+					<label class="s5-editor__field-label" for="s5-head-desc"><?php esc_html_e( 'Meta description', 's5' ); ?></label>
+					<textarea id="s5-head-desc" class="s5-editor__input" rows="2" data-s5-head="description"></textarea>
+					<label class="s5-editor__field-label" for="s5-head-canonical"><?php esc_html_e( 'Canonical URL', 's5' ); ?></label>
+					<input id="s5-head-canonical" class="s5-editor__input" type="url" data-s5-head="canonical">
+					<button type="button" class="button s5-editor__head-save" data-s5-head-save disabled>
+						<?php esc_html_e( 'Save head', 's5' ); ?>
+					</button>
+				</div>
 			</div>
 		</aside>
 	</div>
