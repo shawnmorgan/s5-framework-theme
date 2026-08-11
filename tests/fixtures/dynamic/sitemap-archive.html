@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Site Map — Series 5 Technology</title>
+  <meta name="description" content="A dynamic archive listing every page, rendered at request time by Loops &amp; Logic.">
+  <link rel="canonical" href="https://series5technology.com/sitemap-archive/">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+</head>
+<body>
+<p class="test-banner" data-s5="test-marker">TEST CONTENT — dynamic L&amp;L archive fixture</p>
+<s5-part name="site-header"></s5-part>
+
+<main data-s5="sitemap">
+  <section class="page-hero">
+    <p class="eyebrow">Archive</p>
+    <h1 class="page-hero_title">Every page on the site</h1>
+    <p class="page-hero_lede">This list is generated at request time by a Loops &amp; Logic loop over published pages &mdash; not baked into the source.</p>
+  </section>
+
+  <section class="section">
+    <ul class="feature-grid" data-s5="page-loop">
+      <Loop type=page orderby=title order=asc>
+        <li class="card"><h3><Field title /></h3></li>
+      </Loop>
+    </ul>
+  </section>
+</main>
+
+<s5-part name="site-footer"></s5-part>
+</body>
+</html>

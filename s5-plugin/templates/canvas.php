@@ -2,15 +2,17 @@
 /**
  * S5 Framework — canvas (runtime) template.
  *
- * Step 1: serve the stored canonical body-fragment HTML verbatim inside a
- * minimal, valid HTML document. The fragment is echoed raw — it is NOT passed
- * through `the_content`, so WordPress applies no wpautop / wptexturize /
- * shortcode / block / oEmbed transformation to it. `wp_head()` and `wp_footer()`
- * stay OUTSIDE the fragment so the authored bytes remain byte-clean.
+ * Serves the stored canonical/derived body fragment inside a minimal, valid HTML
+ * document. The fragment is echoed raw — it is NOT passed through `the_content`,
+ * so WordPress applies no wpautop / wptexturize / block / oEmbed transformation.
+ * `wp_head()` / `wp_footer()` stay OUTSIDE the fragment so authored bytes stay
+ * byte-clean.
  *
- * The real document shell (design-system enqueue, SEO head, media, dynamics) is
- * built in later steps. This is the smallest wrapper that makes the page a valid
- * runtime for authored HTML.
+ * Step 8 runtime pipeline (PRD §3.3): `fetch compiled render → dynamic pass (L&L
+ * if the page is dynamic) → shortcode pass → serve`. The dynamic + shortcode
+ * passes run ONLY for pages flagged dynamic (their render contains Loops & Logic
+ * tags or shortcodes). Static pages skip both passes entirely and are served
+ * exactly as compiled — their byte-clean round-trip fidelity is untouched.
  *
  * @package S5\Plugin
  */
@@ -27,6 +29,17 @@ $s5_post_id = get_queried_object_id();
 $s5_fragment = \S5\Storage::get_render_html( (int) $s5_post_id );
 if ( '' === $s5_fragment ) {
 	$s5_fragment = \S5\Storage::get_canonical_html( (int) $s5_post_id );
+}
+
+// Step 8 runtime dynamic passes — ONLY for pages flagged dynamic. This is where
+// compile-on-write hands off to request-time evaluation, and only where declared.
+if ( \S5\Storage::is_dynamic( (int) $s5_post_id ) ) {
+	// Dynamic pass: Loops & Logic template engine (loops, fields, conditions).
+	if ( function_exists( 'tangible_template' ) ) {
+		$s5_fragment = (string) tangible_template( $s5_fragment );
+	}
+	// Shortcode pass: forms / legacy / plugin compatibility.
+	$s5_fragment = do_shortcode( $s5_fragment );
 }
 
 // `wp_head()` may emit notices if headers are already sent; the fragment is

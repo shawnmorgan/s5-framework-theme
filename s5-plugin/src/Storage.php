@@ -70,6 +70,20 @@ final class Storage {
 	public const MEDIA_MAP_KEY = '_s5_media_map';
 
 	/**
+	 * Meta flag: whether a page needs a runtime DYNAMIC PASS (Build Order Step 8).
+	 *
+	 * Compile-on-write handles everything static. A page is "dynamic" when its
+	 * compiled render contains Loops & Logic tags (`<Loop>`, `<Field>`, `<If>`, …)
+	 * or shortcodes — markup that must be evaluated at REQUEST time against live
+	 * data. The canvas runs the dynamic pass (L&L) + shortcode pass only for these
+	 * pages; static pages are served byte-clean, exactly as compiled, so their
+	 * round-trip fidelity is untouched. Set at compile time; disposable.
+	 *
+	 * @var string
+	 */
+	public const DYNAMIC_KEY = '_s5_dynamic';
+
+	/**
 	 * Post type framework pages live on in Step 1.
 	 *
 	 * @var string
@@ -145,6 +159,20 @@ final class Storage {
 				'single'            => true,
 				'show_in_rest'      => false,
 				'sanitize_callback' => null, // Compiler-authored bookkeeping; stored as-is.
+				'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
+					return current_user_can( 'edit_post', $post_id );
+				},
+			)
+		);
+
+		register_post_meta(
+			self::POST_TYPE,
+			self::DYNAMIC_KEY,
+			array(
+				'type'              => 'string',
+				'single'            => true,
+				'show_in_rest'      => false,
+				'sanitize_callback' => null, // Compiler-set flag ('1'/'0'); stored as-is.
 				'auth_callback'     => static function ( $allowed, $meta_key, $post_id ) {
 					return current_user_can( 'edit_post', $post_id );
 				},
@@ -243,5 +271,26 @@ final class Storage {
 	 */
 	public static function set_media_map( int $post_id, array $map ): void {
 		update_post_meta( $post_id, self::MEDIA_MAP_KEY, $map );
+	}
+
+	/**
+	 * Whether a page needs a runtime dynamic pass (L&L / shortcodes).
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public static function is_dynamic( int $post_id ): bool {
+		return '1' === (string) get_post_meta( $post_id, self::DYNAMIC_KEY, true );
+	}
+
+	/**
+	 * Set (or clear) the dynamic-pass flag for a page.
+	 *
+	 * @param int  $post_id Post ID.
+	 * @param bool $dynamic Whether the page needs a runtime dynamic pass.
+	 * @return void
+	 */
+	public static function set_dynamic( int $post_id, bool $dynamic ): void {
+		update_post_meta( $post_id, self::DYNAMIC_KEY, $dynamic ? '1' : '0' );
 	}
 }

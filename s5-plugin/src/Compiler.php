@@ -204,6 +204,9 @@ final class Compiler {
 		update_post_meta( $post_id, Storage::META_KEY, $canonical );
 		Storage::set_render_html( $post_id, $render );
 		Storage::set_media_map( $post_id, $media_map );
+		// Flag whether this page needs a runtime dynamic pass (L&L / shortcodes),
+		// detected from the compiled render so parts-supplied tags count too.
+		Storage::set_dynamic( $post_id, self::needs_dynamic_pass( $render ) );
 
 		// 3. Semantic mirror -> post_content, WITHOUT content filters mangling it.
 		$stored = self::write_post_content_raw( $post_id, $mirror );
@@ -231,6 +234,30 @@ final class Compiler {
 			'render_changed' => ( $prev_render !== $render ),
 			'mirror'         => $mirror,
 		);
+	}
+
+	/**
+	 * Whether compiled render HTML contains dynamic markup that must be evaluated
+	 * at request time — Loops & Logic tags or WordPress shortcodes.
+	 *
+	 * L&L tags are capitalized custom elements (`<Loop>`, `<Field>`, `<If>`,
+	 * `<Format>`, `<Set>`, `<Get>`, `<Template>`, `<Query>`, `<Date>`, `<Do>`).
+	 * We match the known tag set (case-insensitive open tag) plus a conservative
+	 * shortcode probe. Static pages match nothing and are served byte-clean.
+	 *
+	 * @param string $html Compiled render HTML.
+	 * @return bool
+	 */
+	private static function needs_dynamic_pass( string $html ): bool {
+		// Loops & Logic tag set (open tag, e.g. `<Loop ` or `<Field/>`).
+		if ( preg_match( '/<(?:Loop|Field|If|Else|Format|Set|Get|Template|Query|Date|Do|Repeat|List|Fields)[\s\/>]/i', $html ) ) {
+			return true;
+		}
+		// Conservative shortcode probe: `[word ...]` or `[word]` not an image/link.
+		if ( preg_match( '/\[[a-z][a-z0-9_-]*(?:\s[^\]]*)?\]/i', $html ) ) {
+			return true;
+		}
+		return false;
 	}
 
 	/**

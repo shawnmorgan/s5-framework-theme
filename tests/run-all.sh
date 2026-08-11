@@ -53,6 +53,7 @@ SUITES=(
 	"tests/acceptance-step4.sh|Step 4 — Authoring Contract validation"
 	"tests/acceptance-step5.sh|Step 5 — canonical vs derived render"
 	"tests/acceptance-step6.sh|Step 6 — media resolution"
+	"tests/acceptance-step8.sh|Step 8 — parts + generic dynamics (L&L)"
 )
 
 fail_count=0
