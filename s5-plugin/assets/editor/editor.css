@@ -225,3 +225,73 @@
 	font-size: 13px;
 	line-height: 1.5;
 }
+
+/* --- panel fields (Edit lens) ------------------------------------------- */
+
+.s5-editor__fields {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.s5-editor__field-label {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #8c8f94;
+	margin-top: 6px;
+}
+
+.s5-editor__input {
+	width: 100%;
+	box-sizing: border-box;
+	background: #1e1e1e;
+	color: #f0f0f1;
+	border: 1px solid #3c434a;
+	border-radius: 4px;
+	padding: 8px;
+	font-size: 13px;
+	font-family: inherit;
+	resize: vertical;
+}
+
+.s5-editor__input:focus {
+	outline: none;
+	border-color: #2271b1;
+	box-shadow: 0 0 0 1px #2271b1;
+}
+
+/* locked (dynamic / L&L) region presentation */
+.s5-editor__locked {
+	border: 1px dashed #f0c33c;
+	border-radius: 6px;
+	padding: 12px;
+}
+
+.s5-editor__badge {
+	display: inline-block;
+	background: #f0c33c;
+	color: #1e1e1e;
+	font-size: 11px;
+	font-weight: 700;
+	padding: 2px 8px;
+	border-radius: 999px;
+	margin-bottom: 8px;
+}
+
+/* validation diagnostics (loud, never silent) */
+.s5-editor__diagnostics {
+	border: 1px solid #d63638;
+	background: rgba(214, 54, 56, 0.12);
+	border-radius: 6px;
+	padding: 10px;
+	margin-bottom: 12px;
+}
+
+.s5-editor__diag {
+	color: #f0a3a4;
+	font-size: 12px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	margin: 4px 0 0;
+	word-break: break-word;
+}

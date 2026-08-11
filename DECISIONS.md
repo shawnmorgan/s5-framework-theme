@@ -61,6 +61,23 @@ Rejected: registering editor JS/CSS globally.
 Why: acceptance requires zero editor asset in the logged-out response. Admin-screen
 enqueue guarantees it; asserted by grep in the acceptance test.
 
+**D10 — REST endpoint ships slots+canonical in B2; head mode lands with the head
+sidebar in B3.**
+Rejected: implementing all three modes before any UI consumes head.
+Why: the endpoint is one route with a mode switch (D2). B2 needs slots (panel) and
+canonical (used by the code lens in B3, but cheap to include now); the head mode's
+only consumer is the B3 head sidebar, so its handler is written but exercised in B3.
+No second door — still one route, one permission check, one persist_page call.
+
+**D11 — Slot inner-text writes use a bounded splice, not full re-serialization.**
+Rejected: DOMDocument round-trip (reformats/normalizes the whole fragment, breaking
+byte fidelity); WP_HTML_Tag_Processor inner-HTML (not exposed in WP 6.7).
+Why: the tag processor locates+validates the node and does attribute writes
+surgically, but has no inner-HTML API. For text/rich we splice only between the
+matched open tag's end and its balanced close tag — every other byte is untouched,
+so round-trip stays clean (verified: about.html round-trips byte-clean with
+declarations, and a REST edit changes only the target node's inner text).
+
 **D9 — "rich" slot allows only `<strong> <em> <a>`.**
 Rejected: a full rich-text library.
 Why: instruction says bold/italic/link ONLY; a tiny sanitizer (wp_kses with a
@@ -78,3 +95,13 @@ Why: instruction says bold/italic/link ONLY; a tiny sanitizer (wp_kses with a
 - **F2 — Vanilla vs React (D1).** Biggest deviation from §8.1. Flagging explicitly.
 - **F3 — Slip protocol status.** Nothing slipped yet. Any cut taken will be logged
   here with the item and the trigger.
+- **F4 — Live gate blocked by Docker mount permission (infrastructure, NOT a
+  code/fidelity STOP).** `wp-env start` fails with `error while creating mount
+  source path '/host_mnt/Users/shawnmorgan/Desktop/...': operation not permitted`.
+  Docker daemon is up and mounts `/tmp` fine; it cannot mount anything under
+  `~/Desktop` — macOS TCC (Privacy & Security) is denying Docker Desktop access to
+  the Desktop folder. Fix is a host grant only the owner can give: System Settings
+  → Privacy & Security → Files and Folders / Full Disk Access → enable Docker
+  Desktop; or move the project out of `~/Desktop`. Phase B code is validated by
+  phpcs + `php -l` + `node --check` in the meantime; the full single-env gate
+  (Steps 0–10 + editor acceptance) runs the moment the env is reachable.

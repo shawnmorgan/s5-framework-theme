@@ -307,4 +307,19 @@ final class Storage {
 	public static function set_dynamic( int $post_id, bool $dynamic ): void {
 		update_post_meta( $post_id, self::DYNAMIC_KEY, $dynamic ? '1' : '0' );
 	}
+
+	/**
+	 * Store the extracted head blob for a page.
+	 *
+	 * Mirrors how the importer persists `_s5_head` (update_post_meta with the same
+	 * key). The head blob is separate from the canonical body fragment; the editor
+	 * head-form save (Phase B3) writes through this without touching canonical.
+	 *
+	 * @param int                  $post_id Post ID.
+	 * @param array<string, mixed> $head    Head blob (see get_head() for shape).
+	 * @return void
+	 */
+	public static function set_head( int $post_id, array $head ): void {
+		update_post_meta( $post_id, self::HEAD_KEY, $head );
+	}
 }

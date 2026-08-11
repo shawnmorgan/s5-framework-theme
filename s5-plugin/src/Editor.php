@@ -200,6 +200,15 @@ final class Editor {
 			true
 		);
 
+		// Edit-lens panel + REST save; depends on the shell for window.S5EditorShell.
+		wp_enqueue_script(
+			's5-editor-panel',
+			$base . 'panel.js',
+			array( 's5-editor' ),
+			'0.0.0',
+			true
+		);
+
 		wp_localize_script(
 			's5-editor',
 			'S5Editor',
@@ -207,6 +216,8 @@ final class Editor {
 				'postId'     => $post_id,
 				'previewUrl' => self::preview_url( $post_id ),
 				'backUrl'    => $post_id ? get_edit_post_link( $post_id, 'raw' ) : admin_url( 'edit.php' ),
+				'saveUrl'    => rest_url( Rest::NAMESPACE . '/pages/' . $post_id . '/save' ),
+				'nonce'      => wp_create_nonce( 'wp_rest' ),
 			)
 		);
 	}
@@ -279,6 +290,26 @@ final class Editor {
 		}
 		// Chrome-free frame: no admin bar inside the preview.
 		add_filter( 'show_admin_bar', '__return_false' );
+
+		// Inject the selection overlay so the parent editor can wire the Edit lens.
+		// This runs ONLY on a preview request from a capable, logged-in editor —
+		// never on an anonymous front-end request (the D8 isolation guarantee).
+		add_action( 'wp_enqueue_scripts', array( self::class, 'enqueue_overlay' ) );
+	}
+
+	/**
+	 * Enqueue the preview overlay into the canvas (preview requests only).
+	 *
+	 * @return void
+	 */
+	public static function enqueue_overlay(): void {
+		wp_enqueue_script(
+			's5-editor-overlay',
+			constant( 'S5\\S5_PLUGIN_URL' ) . 'assets/editor/overlay.js',
+			array(),
+			'0.0.0',
+			true
+		);
 	}
 
 	/**
