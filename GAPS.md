@@ -12,19 +12,30 @@ Severity: **BLOCKER** · **HIGH** · **MED** · **LOW**.
 
 ## FRAMEWORK gaps (the framework owes this code)
 
-### HIGH — Duplicate `<link rel="canonical">` on the front page
-WordPress core emits its own canonical (`http://localhost:8888/`) in addition to
-the page's authored canonical (`https://series5technology.com/`), so the front
-page serves **two** canonicals. The head-passthrough ruling emits the authored one
-correctly; core's must be suppressed when a framework page supplies its own.
-→ Step 9 (SEO ownership) or a targeted `remove_action` now if launch needs it.
-Recorded, not fixed in Step 7.
+### ✅ FIXED (Step 9) — Duplicate `<link rel="canonical">`
+Core's `rel_canonical` is now suppressed on framework pages (`Render::own_canonical`);
+each page ships exactly one authored canonical. Asserted by acceptance-step9.
 
-### HIGH — Header/footer duplicated per page (no partials yet)
-Decided acceptable for Step 7. The importer now **warns on header/footer drift**
-across the corpus (and on charset/viewport drift) so copies can't silently
-diverge. Every page still carries its own copy.
-→ Step 8: parts/templates system collapses the duplication to one part.
+### ✅ FIXED (Step 8) — Header/footer duplication
+Header/footer are now a single reusable part each (`parts/site-header.html`,
+`parts/site-footer.html`); pages reference `<s5-part>` and the compiler expands it.
+The importer still warns on drift for any remaining duplicated regions.
+
+### MED — L&L licensing / distribution posture for production
+Loops & Logic 4.2.4 (owner-provided GPL zip) is installed in the dev env via
+`vendor-plugins/` (gitignored). For production this plugin must be installed on the
+host by normal means; the repo does not vendor it. PRD Open Question #4 (final L&L
+licensing/distribution) is unresolved. Recorded, not blocking dev.
+
+### MED — AEO artifacts not built (llms.txt + robots panel)
+PRD §13.1a calls for an `llms.txt` generator (from the page mirror) and a
+plain-language AI-crawler robots policy panel. Step 9 built Layer A (document
+metadata) + Layer B (schema) but not these AEO artifacts. Deferred to a later pass.
+
+### LOW — Interactivity API not used (vanilla ES modules only)
+Step 10 islands use vanilla ES modules (the smallest proof). The discovery/enqueue
+seam can drive the WordPress Interactivity API / Script Modules where richer state
+is needed; not built yet.
 
 ### MED — 404 status pathway relies on WP setting the 404
 `404.php` renders an authored `404` framework page (if `pages/404.html` was
