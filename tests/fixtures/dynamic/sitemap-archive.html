@@ -15,12 +15,12 @@
 <main data-s5="sitemap">
   <section class="page-hero">
     <p class="eyebrow">Archive</p>
-    <h1 class="page-hero_title">Every page on the site</h1>
+    <h1 class="page-hero_title" data-edit="text" data-node="sitemap-title">Every page on the site</h1>
     <p class="page-hero_lede">This list is generated at request time by a Loops &amp; Logic loop over published pages &mdash; not baked into the source.</p>
   </section>
 
   <section class="section">
-    <ul class="feature-grid" data-s5="page-loop">
+    <ul class="feature-grid" data-s5="page-loop" data-edit="rich" data-node="sitemap-loop" data-s5-dynamic-region>
       <Loop type=page orderby=title order=asc>
         <li class="card"><h3><Field title /></h3></li>
       </Loop>
