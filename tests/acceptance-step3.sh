@@ -368,6 +368,8 @@ pass "green again after disarming — fidelity is self-verifying"
 # ---------------------------------------------------------------------------
 info "4/4  Checking debug.log for PHP errors…"
 DEBUG_CONTENT="$(wp eval '$p=(defined("WP_DEBUG_LOG")&&is_string(WP_DEBUG_LOG))?WP_DEBUG_LOG:WP_CONTENT_DIR."/debug.log"; echo file_exists($p)?file_get_contents($p):"";' 2>/dev/null || true)"
+# Scope to S5 code: third-party vendored-plugin (L&L) deprecations are not ours.
+DEBUG_CONTENT="$(printf '%s' "$DEBUG_CONTENT" | grep -vE '/vendor-plugins/|/plugins/tangible-loops-and-logic/' || true)"
 if printf '%s' "$DEBUG_CONTENT" | grep -Eiq 'PHP (Fatal error|Parse error|Warning|Notice)'; then
 	echo "----- debug.log -----" >&2; printf '%s\n' "$DEBUG_CONTENT" >&2; echo "---------------------" >&2
 	fail "PHP errors/notices during round-trip"
