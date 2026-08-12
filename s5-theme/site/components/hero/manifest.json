@@ -1,0 +1,11 @@
+{
+  "name": "hero",
+  "version": "1.0.0",
+  "description": "A page-top hero: eyebrow, large title, supporting lede, and a primary call-to-action. Its scoped .hero* classes ship with the component.",
+  "slots": [
+    { "node": "hero-eyebrow", "type": "text", "label": "Eyebrow" },
+    { "node": "hero-title", "type": "text", "label": "Title" },
+    { "node": "hero-lede", "type": "rich", "label": "Lede" },
+    { "node": "hero-cta", "type": "link", "label": "Call to action" }
+  ]
+}

@@ -49,11 +49,36 @@ final class ComponentRegistry {
 	public const MANIFEST_FILE = 'manifest.json';
 
 	/**
-	 * Component stylesheet filename (optional).
+	 * Component stylesheet filename (optional), mission-canonical (Item 2).
 	 *
 	 * @var string
 	 */
-	public const CSS_FILE = 'component.css';
+	public const CSS_FILE = 'style.css';
+
+	/**
+	 * Legacy component stylesheet filename, still supported as a fallback so
+	 * pre-Item-2 components (the card) keep working without a rename churn.
+	 *
+	 * @var string
+	 */
+	public const CSS_FILE_LEGACY = 'component.css';
+
+	/**
+	 * Resolve a component's stylesheet path, preferring style.css, falling back to
+	 * the legacy component.css. Returns '' when the component ships no CSS.
+	 *
+	 * @param string $base Absolute component directory.
+	 * @return string Absolute CSS path, or '' if none present.
+	 */
+	public static function css_path( string $base ): string {
+		if ( is_file( $base . '/' . self::CSS_FILE ) ) {
+			return $base . '/' . self::CSS_FILE;
+		}
+		if ( is_file( $base . '/' . self::CSS_FILE_LEGACY ) ) {
+			return $base . '/' . self::CSS_FILE_LEGACY;
+		}
+		return '';
+	}
 
 	/**
 	 * List every registered component name (sorted).
@@ -86,6 +111,24 @@ final class ComponentRegistry {
 
 		sort( $names );
 		return $names;
+	}
+
+	/**
+	 * Absolute stylesheet paths for every registered component that ships CSS,
+	 * keyed by component name (sorted by name). Drives the compiled CSS bundle
+	 * (D17) and the vocabulary extension (D18).
+	 *
+	 * @return array<string, string> name => absolute style.css path
+	 */
+	public static function css_paths(): array {
+		$paths = array();
+		foreach ( self::list() as $name ) {
+			$css = self::css_path( self::components_dir() . '/' . $name );
+			if ( '' !== $css ) {
+				$paths[ $name ] = $css;
+			}
+		}
+		return $paths;
 	}
 
 	/**
@@ -138,9 +181,10 @@ final class ComponentRegistry {
 			throw new \RuntimeException( esc_html( sprintf( 'component "%s": manifest.json must declare a "version"', $name ) ) );
 		}
 
-		$css = '';
-		if ( is_file( $base . '/' . self::CSS_FILE ) ) {
-			$css = self::read_file( $base . '/' . self::CSS_FILE );
+		$css      = '';
+		$css_path = self::css_path( $base );
+		if ( '' !== $css_path ) {
+			$css = self::read_file( $css_path );
 		}
 
 		return array(

@@ -70,13 +70,23 @@ Plugin::boot();
 /**
  * Enqueue front-end assets.
  *
- * The compiled design system (site/styles/*) is served through the framework's
- * canvas render path, not enqueued here; this seam remains for any theme-level
- * front-end asset the framework itself owns.
+ * The compiled CSS bundle (site/dist/s5.css — the design system + every registered
+ * component's scoped CSS, concatenated at compile per D17) is enqueued on framework
+ * pages so a single cacheable <link> styles the served page. The bundle is a served
+ * asset via wp_head, OUTSIDE the authored body fragment, so byte-clean round-trip is
+ * untouched. Enqueue only on framework pages, and only if the bundle exists.
  *
  * @return void
  */
 function s5_theme_enqueue_assets(): void {
-	// No theme-owned front-end assets at present.
+	$post_id = get_queried_object_id();
+	if ( ! $post_id || ! Storage::is_framework_page( (int) $post_id ) ) {
+		return;
+	}
+	$url = StyleBundle::url();
+	if ( '' === $url ) {
+		return;
+	}
+	wp_enqueue_style( 's5-bundle', $url, array(), (string) StyleBundle::version() );
 }
 add_action( 'wp_enqueue_scripts', __NAMESPACE__ . '\\s5_theme_enqueue_assets' );

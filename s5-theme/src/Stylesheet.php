@@ -69,6 +69,23 @@ final class Stylesheet {
 			}
 		}
 
+		// D18: every registered component's style.css EXTENDS the closed vocabulary.
+		// A self-contained component ships its markup AND its licensed class names, so
+		// an inserted component using its own scoped classes validates. The closed
+		// guarantee holds — the vocabulary is still a finite union (declared files +
+		// registered components), nothing outside it passes.
+		try {
+			foreach ( ComponentRegistry::css_paths() as $name => $css_path ) {
+				$files[] = 'components/' . $name . '/' . basename( $css_path );
+				foreach ( self::parse_classes( (string) file_get_contents( $css_path ) ) as $class ) {
+					$classes[ $class ] = true;
+				}
+			}
+		} catch ( \RuntimeException $e ) {
+			// No components dir yet (fresh site) — vocabulary is just the declared files.
+			unset( $e );
+		}
+
 		return array(
 			'classes' => $classes,
 			'files'   => $files,

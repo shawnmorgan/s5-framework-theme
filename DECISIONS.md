@@ -152,6 +152,33 @@ the full run CAN pass; the flake predates the repackage (see the Step 8 front-pa
 timing note in memory). The repackage is functionally proven; the flake is a test-
 harness robustness issue to harden separately, not an Item 1 blocker.
 
+**D17 — Compiled CSS is ONE bundle written to `site/dist/s5.css` and enqueued on
+framework pages. (Item 2 CSS serving.)**
+Rejected: inline `<style>` in the canvas head (re-sends every load); enqueuing each
+source + component file separately (no concatenation, request fan-out).
+Why: the mission says component "scoped CSS concatenates at compile." At compile the
+CSS builder concatenates `site/styles/{tokens,scales,components,utilities}.css` +
+every registered component's `style.css` into `site/dist/s5.css`; `functions.php`
+enqueues that ONE cacheable file on framework pages via `wp_enqueue_scripts`. This
+also fixes a PRE-EXISTING gap: the S5 design system did not reach served pages at all
+(only WP core styles did). `wp s5 recompile` regenerates the bundle; the served head
+gains exactly one S5 `<link>`. Byte-clean round-trip is unaffected (the bundle is a
+served asset via wp_head, OUTSIDE the authored body fragment — same class as
+wp_footer's skip-link).
+
+**D18 — A component's `style.css` class selectors AUTO-JOIN the closed vocabulary the
+Authoring Contract validator enforces. (Item 2 vocabulary.)**
+Rejected: components may only reuse the global site vocabulary (can't ship novel
+scoped classes).
+Why: "folder name = component name = block class" + self-contained components mean a
+component ships its markup AND its licensed class vocabulary. At vocabulary load, the
+validator's class set = union of `styles.vocabulary` files PLUS every registered
+component's `style.css` selectors. So an inserted `hero` component using `.hero` is
+legal because the `hero` component is registered. Keeps the closed-vocabulary
+guarantee (nothing outside the union passes) while letting components extend it by
+presence. Component CSS filename is `style.css` (mission-canonical); `component.css`
+stays supported as a fallback for pre-existing components (the card).
+
 ## Open / flagged for owner review
 
 - **F1 — data-node is authored, not injected (resolved).** To protect the

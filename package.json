@@ -25,6 +25,7 @@
     "test:step9": "bash tests/acceptance-step9.sh",
     "test:step10": "bash tests/acceptance-step10.sh",
     "test:step11": "bash tests/acceptance-step11.sh",
+    "test:components": "bash tests/acceptance-components.sh",
     "test:editor": "bash tests/acceptance-editor.sh",
     "validate": "wp-env run cli wp s5 validate wp-content/s5-pages",
     "recompile": "wp-env run cli wp s5 recompile --all"

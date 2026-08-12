@@ -1,0 +1,6 @@
+/* hero — page-top intro. Scoped block class = component name. */
+.hero { padding: var(--space-lg, 2rem) 0; text-align: center; }
+.hero_eyebrow { color: var(--color-accent, #2563eb); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.hero_title { font-size: var(--text-lg, 1.5rem); line-height: 1.1; margin: .25em 0; }
+.hero_lede { max-width: 42rem; margin: 0 auto var(--space-md, 1rem); color: var(--color-fg, #111); }
+.hero_cta { display: inline-block; padding: .625rem 1.25rem; border-radius: var(--radius-md, .5rem); background: var(--color-accent, #2563eb); color: #fff; text-decoration: none; }

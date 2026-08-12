@@ -57,6 +57,7 @@ SUITES=(
 	"tests/acceptance-step9.sh|Step 9 — baseline SEO/AEO ownership"
 	"tests/acceptance-step10.sh|Step 10 — frontend interactive islands"
 	"tests/acceptance-step11.sh|Step 11 — components (registry + copy-on-insert)"
+	"tests/acceptance-components.sh|Item 2 — component folders + CSS bundle"
 	"tests/acceptance-editor.sh|Step 12 — Editor MVP (WordCamp cut)"
 )
 

@@ -1,0 +1,9 @@
+{
+  "name": "embed",
+  "version": "1.0.0",
+  "description": "A responsive iframe embed (video, map, booking widget) with a caption. Scoped .embed* classes ship with the component.",
+  "slots": [
+    { "node": "embed-iframe", "type": "src", "label": "Embed URL" },
+    { "node": "embed-caption", "type": "text", "label": "Caption" }
+  ]
+}

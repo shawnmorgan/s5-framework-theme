@@ -83,6 +83,14 @@ final class RecompileCommand {
 			);
 		}
 
+		// Rebuild the compiled CSS bundle once (D17): design system + component CSS.
+		try {
+			\S5\StyleBundle::build();
+			\WP_CLI::log( 'rebuilt CSS bundle (site/dist/s5.css)' );
+		} catch ( \RuntimeException $e ) {
+			\WP_CLI::warning( 'CSS bundle not rebuilt: ' . $e->getMessage() );
+		}
+
 		\WP_CLI::success( sprintf( 'Recompiled %d page(s).', $recompiled ) );
 	}
 

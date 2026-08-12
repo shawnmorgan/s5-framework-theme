@@ -1,0 +1,9 @@
+{
+  "name": "faq-item",
+  "version": "1.0.0",
+  "description": "A single question/answer pair for an FAQ list. Scoped .faq-item* classes ship with the component.",
+  "slots": [
+    { "node": "faq-item-q", "type": "text", "label": "Question" },
+    { "node": "faq-item-a", "type": "rich", "label": "Answer" }
+  ]
+}

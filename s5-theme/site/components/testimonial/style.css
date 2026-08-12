@@ -1,0 +1,6 @@
+/* testimonial — customer quote. */
+.testimonial { margin: 0; padding: var(--space-lg, 2rem); border-left: 3px solid var(--color-accent, #2563eb); }
+.testimonial_quote { font-size: var(--text-lg, 1.5rem); line-height: 1.4; margin: 0 0 var(--space-md, 1rem); }
+.testimonial_author { display: flex; flex-direction: column; }
+.testimonial_name { font-weight: 600; }
+.testimonial_role { color: var(--color-accent, #2563eb); }

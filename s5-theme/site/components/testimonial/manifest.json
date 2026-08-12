@@ -1,0 +1,10 @@
+{
+  "name": "testimonial",
+  "version": "1.0.0",
+  "description": "A customer quote with attribution (name + role). Scoped .testimonial* classes ship with the component.",
+  "slots": [
+    { "node": "testimonial-quote", "type": "rich", "label": "Quote" },
+    { "node": "testimonial-name", "type": "text", "label": "Name" },
+    { "node": "testimonial-role", "type": "text", "label": "Role" }
+  ]
+}

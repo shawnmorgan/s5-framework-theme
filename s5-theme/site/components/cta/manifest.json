@@ -1,0 +1,10 @@
+{
+  "name": "cta",
+  "version": "1.0.0",
+  "description": "A call-to-action band: title, supporting line, and a button. Scoped .cta* classes ship with the component.",
+  "slots": [
+    { "node": "cta-title", "type": "text", "label": "Title" },
+    { "node": "cta-body", "type": "rich", "label": "Body" },
+    { "node": "cta-button", "type": "link", "label": "Button" }
+  ]
+}

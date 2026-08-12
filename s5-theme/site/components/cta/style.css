@@ -1,0 +1,5 @@
+/* cta — conversion band. */
+.cta { padding: var(--space-lg, 2rem); border-radius: var(--radius-md, .5rem); background: var(--color-bg, #fff); text-align: center; }
+.cta_title { font-size: var(--text-lg, 1.5rem); margin: 0 0 .25em; }
+.cta_body { margin: 0 auto var(--space-md, 1rem); max-width: 36rem; }
+.cta_button { display: inline-block; padding: .625rem 1.25rem; border-radius: var(--radius-md, .5rem); background: var(--color-accent, #2563eb); color: #fff; text-decoration: none; }

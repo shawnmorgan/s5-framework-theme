@@ -1,0 +1,11 @@
+{
+  "name": "pricing-card",
+  "version": "1.0.0",
+  "description": "A single pricing tier: plan name, price, a feature list, and a CTA. Scoped .pricing-card* classes ship with the component.",
+  "slots": [
+    { "node": "pricing-card-plan", "type": "text", "label": "Plan name" },
+    { "node": "pricing-card-price", "type": "text", "label": "Price" },
+    { "node": "pricing-card-features", "type": "list", "label": "Features" },
+    { "node": "pricing-card-cta", "type": "link", "label": "CTA" }
+  ]
+}

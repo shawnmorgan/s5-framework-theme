@@ -163,6 +163,16 @@ final class ImportCommand {
 			\WP_CLI::log( sprintf( 'front page set to #%d (index.html)', $front_id ) );
 		}
 
+		// Rebuild the compiled CSS bundle once (D17) so served pages are styled with
+		// the current design system + component CSS. Runs before the blocked-exit
+		// below so the bundle is fresh even on a partial import.
+		try {
+			\S5\StyleBundle::build();
+			\WP_CLI::log( 'rebuilt CSS bundle (site/dist/s5.css)' );
+		} catch ( \RuntimeException $e ) {
+			\WP_CLI::warning( 'CSS bundle not rebuilt: ' . $e->getMessage() );
+		}
+
 		if ( $blocked > 0 ) {
 			// Some pages were valid and imported; others were blocked (Authoring
 			// Contract errors or compile failures such as unresolvable media).
