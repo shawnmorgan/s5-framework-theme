@@ -34,6 +34,22 @@ fail() { printf '%s✘%s %s\n' "$RED" "$NC" "$1" >&2; exit 1; }
 WP_ENV="npx wp-env"
 wp() { $WP_ENV run cli wp "$@" 2>/dev/null | tr -d '\r'; }
 
+# Fetch $1 (following redirects) and grep -qF for $2, retrying up to ~10s to absorb
+# the write->read settle lag between a CLI persist and the web container serving the
+# recompiled page (the two run as separate PHP processes over shared MySQL). The
+# served bytes are deterministic once settled; this only tolerates the timing, it
+# does not mask a real absence — after the retries it still fails loudly.
+curl_until() {
+	local url="$1" needle="$2" i
+	for i in $(seq 1 20); do
+		if curl -sL "$url" | grep -qF "$needle"; then
+			return 0
+		fi
+		sleep 0.5
+	done
+	return 1
+}
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 PAGES_C="wp-content/s5-pages"
@@ -87,13 +103,13 @@ HOME_URL="$(wp option get home)"
 # Follow redirects: a front page's own slug ('/index/') 301-redirects to the site
 # root, so curl must follow it (-L) to reach the served page. Try both the
 # resolved post URL and the site root; either serving the header is a pass.
-if ! { curl -sL "$IDX_URL" | grep -qF '<header class="site-header"'; } \
-   && ! { curl -sL "$HOME_URL/" | grep -qF '<header class="site-header"'; }; then
+if ! curl_until "$IDX_URL" '<header class="site-header"' \
+   && ! curl_until "$HOME_URL/" '<header class="site-header"'; then
 	fail "served index page does not show the expanded header part"
 fi
 # The same part serves on another page (single source of truth).
 ABOUT_URL="$(wp post url "$(wp post list --post_type=page --name=about --field=ID | head -n1)")"
-curl -s "$ABOUT_URL" | grep -qF '<nav class="nav" aria-label="Primary">' || fail "about page missing the shared header markup"
+curl_until "$ABOUT_URL" '<nav class="nav" aria-label="Primary">' || fail "about page missing the shared header markup"
 pass "parts expand at compile time; header/footer shared from one source"
 
 # ---------------------------------------------------------------------------

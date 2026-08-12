@@ -21,6 +21,27 @@ fail() { printf '%s✘%s %s\n' "$RED" "$NC" "$1" >&2; exit 1; }
 WP_ENV="npx wp-env"
 wp() { $WP_ENV run cli wp "$@" 2>/dev/null | tr -d '\r'; }
 wpeval() { $WP_ENV run cli wp eval "$1" 2>/dev/null | tr -d '\r'; }
+
+# Retry a curl+grep for a needle to be PRESENT (up to ~10s), absorbing the settle
+# lag between a CLI persist and the web container serving the recompiled page.
+# Deterministic once settled; still fails loudly if the needle never appears.
+curl_until() {
+	local url="$1" needle="$2" i
+	for i in $(seq 1 20); do
+		curl -s "$url" | grep -qF "$needle" && return 0
+		sleep 0.5
+	done
+	return 1
+}
+# Retry for a needle to be ABSENT (post-restore/recompile), same settle tolerance.
+curl_until_gone() {
+	local url="$1" needle="$2" i
+	for i in $(seq 1 20); do
+		curl -s "$url" | grep -qF "$needle" || return 0
+		sleep 0.5
+	done
+	return 1
+}
 md5of() { md5 2>/dev/null || md5sum; }
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -62,7 +83,7 @@ MIRROR="$(wp post get "$ABOUT" --field=post_content)"
 [ -n "$MIRROR" ] || fail "post_content mirror is empty after import"
 ORIG_RENDER="$RENDER"
 wp post meta update "$ABOUT" _s5_render_html '<article>RENDER-SENTINEL</article>' >/dev/null
-curl -s "$(wp post url "$ABOUT")" | grep -qF 'RENDER-SENTINEL' || { wp post meta update "$ABOUT" _s5_render_html "$ORIG_RENDER" >/dev/null; fail "served output does not come from _s5_render_html"; }
+curl_until "$(wp post url "$ABOUT")" 'RENDER-SENTINEL' || { wp post meta update "$ABOUT" _s5_render_html "$ORIG_RENDER" >/dev/null; fail "served output does not come from _s5_render_html"; }
 wp post meta update "$ABOUT" _s5_render_html "$ORIG_RENDER" >/dev/null
 pass "derived render + mirror exist; page is served from _s5_render_html"
 
@@ -119,10 +140,10 @@ s = s.replace("</main>", sentinel + "\n</main>", 1)
 open(p, "w").write(s)
 PY
 $WP_ENV run cli wp s5 import "$PAGES_C" >/dev/null 2>&1 || fail "re-import (v2) failed"
-curl -s "$(wp post url "$ABOUT")" | grep -qF 'ABOUT-V2-SENTINEL' || fail "v2 not served after update import"
+curl_until "$(wp post url "$ABOUT")" 'ABOUT-V2-SENTINEL' || fail "v2 not served after update import"
 # WP-CLI has no `post revision restore`; use the core function.
 wpeval "wp_restore_post_revision( $REV_V1 );" >/dev/null
-curl -s "$(wp post url "$ABOUT")" | grep -qF 'ABOUT-V2-SENTINEL' && fail "served output did NOT revert after restore (no manual recompile ran)"
+curl_until_gone "$(wp post url "$ABOUT")" 'ABOUT-V2-SENTINEL' || fail "served output did NOT revert after restore (no manual recompile ran)"
 wp post meta get "$ABOUT" _s5_render_html | grep -qF 'ABOUT-V2-SENTINEL' && fail "render was not recompiled on restore"
 pass "restore reverts served output automatically (render recompiled on restore)"
 
