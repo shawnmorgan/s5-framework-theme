@@ -36,6 +36,20 @@
 		return null;
 	}
 
+	// A list node's items as newline-separated text (for the list slot editor).
+	function listItems( el ) {
+		if ( ! el ) {
+			return '';
+		}
+		var lis = el.querySelectorAll( 'li' );
+		if ( ! lis.length ) {
+			return '';
+		}
+		return Array.prototype.map.call( lis, function ( li ) {
+			return ( li.textContent || '' ).trim();
+		} ).join( '\n' );
+	}
+
 	function clearHover() {
 		if ( hoverEl ) {
 			hoverEl.removeAttribute( 'data-s5-hover' );
@@ -84,6 +98,7 @@
 				href: el.getAttribute( 'href' ) || '',
 				src: el.getAttribute( 'src' ) || '',
 				alt: el.getAttribute( 'alt' ) || '',
+				items: listItems( el ),
 				dynamic: el.hasAttribute( 'data-s5-dynamic' ),
 			},
 			ORIGIN
@@ -120,6 +135,14 @@
 				} else {
 					el.setAttribute( 'alt', msg.value );
 				}
+			} else if ( 'src' === msg.type ) {
+				el.setAttribute( 'src', msg.value );
+			} else if ( 'list' === msg.type ) {
+				var html = ( msg.value || '' ).split( /\r\n|\r|\n/ ).map( function ( line ) {
+					line = line.trim();
+					return line ? '<li>' + escapeHtml( line ) + '</li>' : '';
+				} ).join( '' );
+				el.innerHTML = html;
 			}
 		}
 	} );
@@ -129,6 +152,14 @@
 			return CSS.escape( s );
 		}
 		return String( s ).replace( /["\\\]]/g, '\\$&' );
+	}
+
+	// Minimal HTML-text escape for live list feedback (server re-sanitizes on save).
+	function escapeHtml( s ) {
+		return String( s )
+			.replace( /&/g, '&amp;' )
+			.replace( /</g, '&lt;' )
+			.replace( />/g, '&gt;' );
 	}
 
 	// Mark dynamic (L&L) regions so the parent can present them as locked (B5).

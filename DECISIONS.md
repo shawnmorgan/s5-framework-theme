@@ -179,6 +179,19 @@ guarantee (nothing outside the union passes) while letting components extend it 
 presence. Component CSS filename is `style.css` (mission-canonical); `component.css`
 stays supported as a fallback for pre-existing components (the card).
 
+**D19 — Editor stays VANILLA JS for the WordCamp cut; React rehome deferred
+post-WordCamp. (Owner ruling, Item 3.)**
+Rejected: re-homing the editor on @wordpress/element + vendored htm now (the
+pre-mission approval's stated direction).
+Why: owner ruling "Extend the working vanilla editor." The editor MVP already exists
+in ~1,300 lines of working vanilla JS (top bar, viewport, Edit/Code lens, Style tab)
+and passes the editor acceptance suite. Re-implementing it in React before adding any
+new capability is real risk against the Aug 14 deadline. Item 3 completes the vanilla
+editor's functional surface (all six slot types, live typing, top-bar polish) and
+Items 4–7 (palette, structure list, components tab, style tab) build onto the same
+vanilla base. The §8.1 React direction resumes post-WordCamp. This supersedes any
+earlier "React rehome" plan for the WordCamp cut; D1's vanilla-shell rationale stands.
+
 ## Open / flagged for owner review
 
 - **F1 — data-node is authored, not injected (resolved).** To protect the

@@ -285,6 +285,26 @@ final class Rest {
 				}
 				return $processor->get_updated_html();
 
+			case 'src':
+				// Embed URL: set the src attribute on the node (iframe/embed). The URL
+				// is escaped; the node itself is authored (data-node) so only its src
+				// attribute changes, everything else stays byte-identical.
+				$processor->set_attribute( 'src', esc_url_raw( $value ) );
+				return $processor->get_updated_html();
+
+			case 'list':
+				// List slot: the value is newline-separated item text. Rebuild the
+				// node's inner as sanitized <li> items. Each item is plain text
+				// (esc_html) — a list is structure, not rich content.
+				$items = array();
+				foreach ( preg_split( '/\r\n|\r|\n/', $value ) as $line ) {
+					$line = trim( (string) $line );
+					if ( '' !== $line ) {
+						$items[] = '<li>' . esc_html( $line ) . '</li>';
+					}
+				}
+				return self::replace_inner( $canonical, $node, implode( '', $items ) );
+
 			default:
 				return new \WP_Error(
 					's5_unsupported_slot',

@@ -116,6 +116,24 @@
 				stage( sel.node, 'img', src.value, 'src' );
 			} );
 			wrap.appendChild( src );
+		} else if ( 'src' === sel.type ) {
+			// Embed URL (iframe/embed src).
+			wrap.appendChild( el( 'label', { class: 's5-editor__field-label' }, 'Embed URL' ) );
+			var embed = el( 'input', { class: 's5-editor__input', type: 'url', placeholder: 'https://…' } );
+			embed.value = sel.src || '';
+			embed.addEventListener( 'input', function () {
+				stage( sel.node, 'src', embed.value, '' );
+			} );
+			wrap.appendChild( embed );
+		} else if ( 'list' === sel.type ) {
+			// List slot: one item per line; server rebuilds <li> items.
+			wrap.appendChild( el( 'label', { class: 's5-editor__field-label' }, 'List items (one per line)' ) );
+			var list = el( 'textarea', { class: 's5-editor__input', rows: '6' } );
+			list.value = sel.items || sel.text || '';
+			list.addEventListener( 'input', function () {
+				stage( sel.node, 'list', list.value, '' );
+			} );
+			wrap.appendChild( list );
 		} else {
 			wrap.appendChild( el( 'p', { class: 's5-editor__hint' },
 				'Slot type "' + sel.type + '" is not editable in this build.' ) );
