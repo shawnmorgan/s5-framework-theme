@@ -1,11 +1,11 @@
 # PRD — Agent-Native WordPress Framework
 
-**Version:** 1.4  
-**Date:** 2026-08-08  
+**Version:** 1.5  
+**Date:** 2026-08-11  
 **Owner:** Shawn Morgan  
 **Status:** Approved architecture; ready for build  
-**Supersedes:** PRD v1.3. **v1.4 restores four decisions dropped in the v1.3 revision:** admin IA + generated style guide (§8.4), per-user editing-level override (§9), llms.txt + AI-crawler robots policy (§13.1a), scripts panel spec (§6.8). Adds the S5T Ship Gate (§17.0).  
-**Canonical companion spec:** Authoring Contract v0.1, which itself defers to BEM + Token Spec v0.9 where stated
+**Supersedes:** PRD v1.4. **v1.5 change:** dynamics reclassified — L&L retired before any real-site usage; S5 Dynamics is the native, 100%-owned dynamic layer per companion spec **S5-DYNAMICS-SPEC-v1.5** (§12.1, Phase 2 rewritten; commercial gate: no external revenue on non-native dynamics; build trigger: first real dynamic page). v1.4 restorations retained: admin IA + generated style guide (§8.4), per-user editing-level override (§9), llms.txt + AI-crawler robots policy (§13.1a), scripts panel (§6.8), S5T Ship Gate (§17.0), CSS Modes (§5.2), React ingestion + no-runtime-React law (§5.3).  
+**Canonical companion specs:** Authoring Contract v0.1 (defers to BEM + Token Spec v0.9 where stated) · S5-DYNAMICS-SPEC-v1.5
 
 ---
 
@@ -143,7 +143,7 @@ It is never the served page source.
 
 Request-time rendering should remain deliberately small:
 
-`fetch compiled render HTML → dynamic pass (L&L if used) → shortcode pass → serve/cache`
+`fetch compiled render HTML → dynamic pass (S5 Dynamics, flagged pages only) → shortcode pass → serve/cache`
 
 Hidden-node stripping, media normalization, validation, structural compilation, and other deterministic transformations happen at write time.
 
@@ -238,6 +238,38 @@ Author-authored arbitrary `style=` attributes are forbidden.
 A narrowly defined compiler-owned exception may exist for content values that cannot reasonably be represented by a static class vocabulary, such as an editable background image exposed as a media prop. The allowed mechanism must be enumerated and lintable, for example a compiler-owned CSS custom property consumed by component CSS.
 
 No general inline-style escape hatch exists.
+
+### 5.2 CSS Modes (added v1.4 — semantic | tailwind)
+
+The product law was never "semantic CSS"; it is **closed vocabulary, validated loudly**. Tailwind with arbitrary values banned is a closed vocabulary. The framework therefore ships two CSS modes.
+
+**Mode flag:** `s5.config.json → css.mode: "semantic" | "tailwind"`, declared at site init, surfaced read-only in the Style tab. **One-way door by policy:** immutable in UI after first import (a mode switch invalidates the entire corpus vocabulary; changing it is a dev act — edit config + full re-import of a converted corpus). A "convert site" migration is a possible future feature, not v1.
+
+**Exactly four things branch on mode:**
+1. **Validator vocabulary.** Semantic: parsed stylesheet classes + Contract Part A grammar. Tailwind: generated-utility awareness + manifest classes; **arbitrary-value syntax (`[10px]`, `[#hex]`) = ERROR**; dynamically constructed class names are impossible by construction (complete literals only, per Tailwind's own scanning model). Severity model and diagnostics format identical across modes.
+2. **Stylesheet production.** Semantic: authored files, no build. Tailwind: write-time build transform in the compile pipeline — scans corpus + component library and **emits a generated safelist via `@source inline()` from the controls manifests and component variant maps** (every step of every axis, every variant class), so every editor-swappable class provably exists in the compiled stylesheet regardless of current usage. Safelist is generated, never hand-maintained, asserted by the gate. (Prevents the silent-failure class: a swap targeting a class Tailwind never emitted.)
+3. **Manifest values.** Same manifest schema, axes, and steps; per-mode class values (`size.xl` → `heading-style-xl` | `text-xl`). Theme ships both value sets for stock axes/components.
+4. **Style-guide generator source.** Semantic: tokens.css + scales.css + component CSS. Tailwind: `@theme` variables + manifest ranges. Output identical.
+
+**Everything else does not branch:** storage, render pipeline, importer, harness, declaration vocabulary, editor UI and swap semantics ("remove the axis's class set, add the chosen class" — the manifest knows the set; no runtime merge library), editing levels, gate, media, Git, MCP. The editor never knows the mode exists; the controls manifest is the indirection layer (the CVA variant-map pattern as data — industry-converged: enum axes → complete literal class strings, defaults, no interpolation ever).
+
+**Color rule (both modes):** no palette exposure, ever. Tailwind mode uses semantic tokens (`@theme` — `--color-brand`, `--color-bg-alt`); color changes ride variant selections whose class sets are authored in manifests (the shadcn semantic-token approach). The "no color pickers" law is mode-independent.
+
+**Tokens/scales survive identically:** Tailwind v4 `@theme` is native CSS variables — the Tokens panel and locked-slot Scales feed `@theme` in tailwind mode and tokens.css/scales.css in semantic mode. Fluidity lives in the theme values (clamp), so one class per step, no responsive compounds.
+
+**Default:** **tailwind is the default mode for new sites** once shipped (agents are natively fluent in it; it feeds the north-star metric directly). Semantic is the toggle — the agency-discipline mode. S5T launches on semantic (built, validated, corpus staged against it) and stands as semantic mode's proof site.
+
+**Sequencing:** Tailwind mode = first post-launch feature. Four workstreams matching the four branches: validator vocabulary source, build transform + safelist generator, dual manifest values for stock components, style-guide source. First tailwind-mode site = a Relume-ingested demo (tests the mode; produces the flagship marketing artifact).
+
+### 5.3 React/component-library ingestion (added v1.4) and the no-runtime-React law
+
+**Product law: no runtime React, ever.** React (and JSX/TSX generally) is an *authoring format*, not a runtime. Ecosystem component sources (Relume, v0, shadcn, agent-generated React/Tailwind) are ingested by rendering to static HTML **at authoring time, in the repo** — `renderToStaticMarkup` or agent-equivalent (the v0-to-semantic skill is the semantic-mode variant of this pass) — before import. The framework never parses, stores, or executes JSX; canonical HTML remains canonical; the editor edits HTML; the harness diffs bytes; production hosts run PHP only.
+
+Rationale (recorded so it isn't relitigated): making JSX canonical relocates rather than removes the translation tax — editor saves become code modification into JSX, fidelity becomes "trust the renderer," and every environment inherits a Node dependency. The Gutenberg pattern (React authors markup → serialization → validation/deprecation machinery → re-serialization on save) is the cautionary precedent, not the blueprint.
+
+Interactivity: browser behavior ships as small islands — WP Interactivity API where WP state is involved, plain modules otherwise (per §12.4). Anything genuinely requiring a React runtime is app-lane work, outside this product.
+
+Ingestion is a documented authoring recipe first; a `wp s5 ingest` convenience command may follow if repetition earns it.
 
 ---
 
@@ -548,11 +580,13 @@ Environment-specific derived render HTML, attachment IDs, compiled media URLs, c
 
 ## 12. Dynamic Content, State, and Runtime Behavior
 
-### 12.1 v1 dynamic layer — Tangible Loops & Logic
+### 12.1 Dynamic layer — S5 Dynamics (native, owned; supersedes L&L)
 
-For v1 and v1.5, Tangible Loops & Logic (L&L) remains the preferred generic dynamic layer for loops, conditions, CPT/field rendering, archive context, and related server-side dynamic behavior where plain HTML cannot express the requirement.
+**Ruling (v1.5): L&L is retired before any real-site usage.** L&L never appears in any real site's canonical HTML. Every dynamic capability the product advertises is owned 100% in-theme. **Commercial gate: no external revenue on any dynamics not implemented natively.** Rationale: canonical HTML is forever — third-party syntax embedded in canonical is guaranteed migration debt and a warranty the product cannot honor ("talk to the vendor" does not survive a paying customer).
 
-This is a deliberate time-to-market dependency, not the permanent language boundary of the product. L&L prevents S5 from prematurely rebuilding query, field, conditional, and context semantics while the core authoring/compiler model is still being proven.
+The dynamic layer is **S5 Dynamics**, fully specified in **S5-DYNAMICS-SPEC-v1.5** (companion doc; becomes Authoring Contract Part B addendum on ratification). Summary of what that spec fixes: HTML-native `s5-*` custom elements (`s5-loop`, `s5-field`, `s5-if`/`s5-else`, `s5-empty`); closed enumerated vocabulary (unknown anything = import ERROR with diagnostics); compile-time validation + auto-flagging + sidecar tag inventory; request-time execution on the existing dynamic-pass seam; context stack with fixed per-surface seeds and depth-2 nesting cap; field-resolution waterfall (core → meta → ACF/MetaBox/Pods adapters) with collision-as-import-error and optional `source=`; enumerated formatting attributes (no filter pipeline); inert, context-escaped output; content-class vs user-state cache semantics with validator warnings; structural+determinism harness contract for dynamic pages. **Never:** expression language, variables, user-defined tags, third-party tag API, PHP-in-templates.
+
+Build trigger: the first real dynamic page (shawnmorgan.co blog). Until then, static sites need nothing and the Step 8 seam stands ready. The Step 8 L&L integration is retired; its seam (dynamic flagging, pipeline ordering, static byte-clean guarantee) is the execution substrate.
 
 Shortcodes remain the compatibility layer for forms and legacy/plugin functionality. Runtime dynamic passes occur only after write-time compilation.
 
@@ -562,22 +596,9 @@ Dynamic behavior is authored as code by an agent/developer. S5 does not provide 
 
 If a marketer needs to insert a dynamic composition, the author registers a component whose implementation already contains the approved query/dynamic behavior. The marketer may configure only declared props.
 
-### 12.3 v2 — native S5 dynamic runtime
+### 12.3 Dynamics expansions (reserved, designed-not-improvised)
 
-After production use through v1 and v1.5 establishes the actual required corpus, S5 should replace the L&L dependency with a deliberately small native server-side dynamic language/runtime.
-
-The goal is **not L&L feature parity**. The target is the smallest vocabulary that covers the recurring needs of S5 sites, expected to include roughly:
-- `Loop` / query;
-- `Field`;
-- `If` / `Else`;
-- current object/context;
-- variables;
-- template/include;
-- pagination;
-- post/CPT, taxonomy, user, and Woo-aware contexts;
-- adapters for common field providers where needed.
-
-The native runtime should compile/execute against WordPress APIs and domain adapters rather than introduce a new canonical page representation. HTML remains the document.
+Per S5-DYNAMICS-SPEC-v1.5 §11: pagination; repeaters/relationships (loop-over-fields design); meta-value queries; condition composition; date-window conditions; ACF/MetaBox/Pods adapter implementations; **the Woo set** (product loop, product fields, price/stock/availability, variation data — specced when the Woo track opens, same laws, same adapter pattern). Growth model: enumerated expansion against real page demand; gaps escalate to islands/PHP/spec revision, never to syntax improvisation.
 
 ### 12.4 Frontend state and interactivity
 
@@ -855,7 +876,7 @@ Exit criterion:
 - native baseline metadata/schema compilation;
 - revisions;
 - Git export;
-- parts/templates and L&L-backed generic dynamics;
+- parts/templates and generic dynamics (S5 Dynamics per spec v1.5);
 - frontend interactive-island convention;
 - QA fixtures from production corpus;
 - declared human editing surface;
@@ -887,27 +908,22 @@ Exit criterion:
 
 **A normal WooCommerce store can be authored at agent/code speed without translating the design into builder elements.**
 
-### Phase 2 — Native S5 dynamics / remove L&L dependency
+### Phase 2 — S5 Dynamics v0 (native; L&L retired before real-site usage)
 
-Only after v1 + Woo production use identifies the required dynamic corpus:
-- native Loop/query primitive;
-- Field;
-- If/Else;
-- context;
-- variables/includes;
-- pagination;
-- post/CPT/taxonomy/user adapters;
-- Woo-aware context;
-- common custom-field provider adapters;
-- migration path from the supported L&L subset;
-- security/escaping/query limits;
-- compiler diagnostics and fixtures.
+Reclassified in v1.5 from evidence-gated option to **hard prerequisite**: build trigger = first real dynamic page (shawnmorgan.co blog); commercial gate = no external revenue on non-native dynamics. Scope per S5-DYNAMICS-SPEC-v1.5 §12:
+- engine (context stack + splice) on the existing dynamic-pass seam;
+- `s5-loop` (post/page/CPT + archive `main`);
+- `s5-field` (core + meta adapters; adapter interface designed for ACF/MetaBox/Pods);
+- `s5-if`/`s5-else` (full v0 condition set) + `s5-empty`;
+- enumerated formatting; validator vocabulary; sidecar tag inventory; targeted purge hooks;
+- structural+determinism harness assertions; editor presentation (locked block in Edit lens, full code-lens editing);
+- L&L retirement: vendor removed, Step 8 acceptance re-pointed, liability ledger closed.
 
-Do not pursue full L&L parity and do not build a visual query builder.
+No expression language, no variables, no user-defined tags, no visual query builder — ever (spec §13).
 
 Exit criterion:
 
-**Normal S5 dynamic sites no longer require L&L, while HTML remains canonical and the dynamic vocabulary remains small enough for agents to learn from the Authoring Contract.**
+**Normal S5 dynamic sites run entirely on S5 Dynamics, HTML remains canonical, and the vocabulary is small enough for agents to learn from the Authoring Contract.**
 
 ### Phase 3 — Multi-site / agency hardening
 
@@ -951,7 +967,7 @@ Do not position primarily as a mass-market DIY page builder.
 1. Product name.
 2. Final editor technical design and state protocol.
 3. Rich-text slot scope beyond bold/italic/link, if corpus proves necessary.
-4. Final L&L licensing/distribution posture.
+4. ~~Final L&L licensing/distribution posture~~ — resolved v1.5: L&L retired, S5 Dynamics native (spec v1.5).
 5. LiveCanvas autopsy findings that materially affect storage/editor bootstrapping.
 6. Background-image compiler-owned value mechanism.
 7. Exact semantic HTML shape of the `post_content` mirror.
@@ -961,7 +977,7 @@ Do not position primarily as a mass-market DIY page builder.
 11. Exact S5 interactive-component convention and WordPress Interactivity API boundary.
 12. Woo adapter authoring syntax and hook vocabulary.
 13. Exact supported Woo v1.5 extension matrix.
-14. Native v2 dynamic-language syntax and supported L&L migration subset.
+14. ~~Native dynamic-language syntax~~ — resolved v1.5: specified in S5-DYNAMICS-SPEC-v1.5.
 15. SEO provider adapter contracts for Yoast and Rank Math.
 
 ---

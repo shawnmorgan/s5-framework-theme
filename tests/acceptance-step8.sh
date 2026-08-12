@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
 #
-# Step 8 acceptance — templates/parts + generic dynamics (Loops & Logic).
+# Step 8 acceptance — templates/parts + generic dynamics.
 #
 # Exit condition proven: normal dynamic WordPress marketing/content sites are
 # practical without S5 rebuilding query logic.
 #   - Reusable PARTS: header/footer authored once in parts/, referenced by pages
 #     via <s5-part>, expanded at compile time; pages still round-trip byte-clean.
-#   - Runtime DYNAMIC PASS: a page whose compiled render contains L&L tags is
-#     flagged dynamic and its <Loop>/<Field> render at REQUEST time against live
-#     data; static pages skip the pass and stay byte-clean.
+#   - Runtime DYNAMIC PASS: a page whose compiled render contains dynamic tags is
+#     flagged dynamic and its loop/field markup renders at REQUEST time against
+#     live data; static pages skip the pass and stay byte-clean.
+#
+# DYNAMICS ENGINE STATUS (PRD v1.5 + S5-DYNAMICS-SPEC-v1.5):
+#   Loops & Logic (L&L) is a RETIRED, DEV-ONLY FIXTURE dependency here. It is
+#   used solely to exercise the dynamic-pass SEAM (dynamic-page flagging, runtime
+#   pipeline ordering, static byte-clean guarantee) so the seam is proven before
+#   the native engine exists. L&L NEVER appears in any real site's canonical HTML:
+#   the S5T launch corpus is fully static, so no real-canonical L&L exists and
+#   there is no fidelity/ownership violation. S5 Dynamics v0 (native s5-loop /
+#   s5-field / s5-if / s5-empty, per S5-DYNAMICS-SPEC-v1.5) replaces this fixture
+#   at its build trigger — the first real dynamic page (shawnmorgan.co blog) — at
+#   which point this acceptance is re-pointed at the native engine and the L&L
+#   vendor is removed. Until then the seam stands ready and this suite guards it.
 #
 # Usage: npm run test:step8   (or: bash tests/acceptance-step8.sh)
 

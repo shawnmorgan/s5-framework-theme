@@ -21,11 +21,20 @@ Header/footer are now a single reusable part each (`parts/site-header.html`,
 `parts/site-footer.html`); pages reference `<s5-part>` and the compiler expands it.
 The importer still warns on drift for any remaining duplicated regions.
 
-### MED — L&L licensing / distribution posture for production
-Loops & Logic 4.2.4 (owner-provided GPL zip) is installed in the dev env via
-`vendor-plugins/` (gitignored). For production this plugin must be installed on the
-host by normal means; the repo does not vendor it. PRD Open Question #4 (final L&L
-licensing/distribution) is unresolved. Recorded, not blocking dev.
+### ✅ CLOSED (PRD v1.5) — L&L is a retired dev-only fixture; no contradiction
+Earlier review flagged a "contradiction": PRD v1.5 §12.1 retires L&L, yet Step 8 as
+built runs on L&L. **Ruling (PRD v1.5 + S5-DYNAMICS-SPEC-v1.5): this is not a
+contradiction.** L&L (4.2.4, owner-provided GPL zip in gitignored `vendor-plugins/`)
+is a **retired, dev-only fixture dependency** that exists solely to exercise the
+dynamic-pass **seam** — dynamic-page flagging, runtime pipeline ordering, and the
+static byte-clean guarantee — so that seam is proven before the native engine is
+built. **L&L never appears in any real site's canonical HTML.** The S5T launch corpus
+is **fully static**, so no real-canonical L&L exists and there is no fidelity or
+ownership violation to resolve. **S5 Dynamics v0** (native `s5-loop`/`s5-field`/
+`s5-if`/`s5-empty`, per S5-DYNAMICS-SPEC-v1.5) replaces the fixture at its build
+trigger — the **first real dynamic page** (shawnmorgan.co blog) — at which point Step 8
+acceptance is re-pointed at the native engine and the L&L vendor is removed. PRD Open
+Question #4 is resolved by v1.5 (L&L retired; native dynamics owned). Finding closed.
 
 ### MED — AEO artifacts not built (llms.txt + robots panel)
 PRD §13.1a calls for an `llms.txt` generator (from the page mirror) and a
