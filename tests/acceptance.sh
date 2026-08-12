@@ -4,12 +4,14 @@
 #
 # Exit condition proven: the repository installs and tests repeatably from a
 # clean WordPress environment. Runs against the wp-env Docker environment
-# (mounts s5-theme as a theme and s5-plugin as a plugin per .wp-env.json).
+# (mounts s5-theme as the single framework theme per .wp-env.json). The framework
+# ships as ONE theme (D14): all product code lives in the theme; there is no
+# companion plugin.
 #
 # Steps (any failure exits nonzero with a clear message):
 #   1. wp-env start (idempotent)
-#   2. activate s5-plugin
-#   3. activate s5-theme
+#   2. activate the s5-theme framework theme
+#   3. assert the framework booted from the theme (the `wp s5` CLI is registered)
 #   4. request the site root; assert no PHP errors/notices in debug.log
 #   5. wp s5 hello -> assert output "s5 ok", exit 0
 #
@@ -49,20 +51,22 @@ info "1/5  Starting wp-env (idempotent)…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
 pass "wp-env is up"
 
-# --- 2. activate plugin ----------------------------------------------------
+# --- 2. activate the single framework theme --------------------------------
 
-info "2/5  Activating s5-plugin…"
-wp plugin activate s5-plugin >/dev/null 2>&1 || fail "s5-plugin failed to activate"
-wp plugin is-active s5-plugin >/dev/null 2>&1 || fail "s5-plugin is not active after activation"
-pass "s5-plugin active"
-
-# --- 3. activate theme -----------------------------------------------------
-
-info "3/5  Activating s5-theme…"
+info "2/5  Activating the s5-theme framework theme…"
 wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 ACTIVE_THEME="$(wp theme list --status=active --field=name 2>/dev/null | tr -d '[:space:]')"
 [ "$ACTIVE_THEME" = "s5-theme" ] || fail "active theme is '${ACTIVE_THEME}', expected 's5-theme'"
-pass "s5-theme active"
+pass "s5-theme active (framework theme)"
+
+# --- 3. framework booted FROM the theme ------------------------------------
+
+info "3/5  Asserting the framework booted from the theme (wp s5 CLI registered)…"
+# No companion plugin: the theme's functions.php requires vendor/autoload and calls
+# Plugin::boot(), which registers the `wp s5` namespace. If the CLI command exists,
+# the theme-hosted framework loaded. (`wp help s5` exits 0 only if `s5` is a command.)
+wp help s5 >/dev/null 2>&1 || fail "the 'wp s5' CLI is not registered — framework did not boot from the theme"
+pass "framework booted from the theme (wp s5 CLI present)"
 
 # --- 4. front-page request: no PHP errors in debug.log ---------------------
 

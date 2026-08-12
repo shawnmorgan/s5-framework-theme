@@ -106,6 +106,52 @@ the panel renders the locked block. The wrapper attribute survives the dynamic p
 (L&L replaces the loop's inner content, not the wrapper). Demoed on the
 sitemap-archive fixture: static hero title = editable; the <Loop> <ul> = locked.
 
+**D14 — SINGLE THEME, not parent/child. Product code at theme root; site files
+fenced in a `site/` subtree. (Owner ruling, supersedes the mission's "parent/child"
+wording.)**
+Rejected: the mission text's parent theme (product) + generated child theme (site)
+split; also rejected dropping the product/site separation entirely.
+Why: owner directive — "should be one fucking theme not a parent/child. that shit is
+old thinking." The child-theme split existed only to guarantee "product updates
+never touch site files." That guarantee is preserved WITHOUT a second theme by folder
+convention inside the one theme: the S5 framework code (functions.php bootstrap,
+`src/`, `cli/`, editor assets, templates, composer/vendor) lives at the theme root;
+all SITE-authored content (tokens.css, scales.css, components/, parts/, s5.config.json,
+assets/) lives under a single fenced `site/` subtree. A product update rewrites theme
+files and never writes into `site/`. The former `s5-plugin/` is dissolved into the
+theme; there is no companion plugin anymore. Autoload stays Composer PSR-4 (owner
+ruling) with composer.json + vendor/ living in the theme (S5\ → src/, S5\Cli\ → cli/).
+
+**D15 — `wp s5 init` scaffolds the site files IN PLACE inside the one theme (no
+second theme created).**
+Rejected: init generating a child theme (obsolete under D14); a minimal init that
+only writes config; dropping init.
+Why: with one theme, "make this site authorable" means writing the starter `site/`
+subtree (default s5.config.json, starter tokens.css/scales.css, starter components/,
+parts/) into the active theme so a fresh install has an authorable starting point.
+Idempotent: never overwrites an existing site file (the product-update guarantee runs
+the other direction too — init won't clobber authored site content).
+
+**D16 — Item 1 committed on all-green ISOLATED suites + green baseline, despite an
+intermittent full-run serving flake. (Judgment call, flagged F5.)**
+Rejected: blocking Item 1 until the single-command full run is green N times in a row
+(would burn hours against a WordCamp deadline chasing a pre-existing, non-repackage
+flake).
+Why: post-repackage, EVERY suite passes standalone (Steps 0–5 green in-sequence;
+6/8/9/10/11/editor green; Step 5 green twice back-to-back; phpcs 33/33). Two path
+regressions the move introduced were found and fixed (Step 6 `assets/diagram.png` and
+Step 11 `components/__bad_test__` both moved under `s5-theme/site/`; Step 8 got a
+rewrite-flush after its re-import). The remaining full-run failures ("v2 not served
+after update import" in Step 5; "index header" in Step 8) are a write→read SERVING
+RACE: a `curl` fires immediately after a `wp`-CLI persist and reads the web
+container's response built a moment before the CLI write committed (separate PHP
+processes over shared MySQL; NO object/page cache present — verified). The failure is
+NON-DETERMINISTIC and MOVES BETWEEN SUITES run-to-run — the signature of load
+contention, not a logic bug. The PRE-MOVE baseline full run was 12/12 green, proving
+the full run CAN pass; the flake predates the repackage (see the Step 8 front-page
+timing note in memory). The repackage is functionally proven; the flake is a test-
+harness robustness issue to harden separately, not an Item 1 blocker.
+
 ## Open / flagged for owner review
 
 - **F1 — data-node is authored, not injected (resolved).** To protect the

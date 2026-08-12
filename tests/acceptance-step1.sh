@@ -11,7 +11,7 @@ B64=#!/usr/bin/env bash
 # (no wpautop <p>/<br>, no wptexturize smart-quotes, entities preserved).
 #
 # Steps:
-#   1. wp-env start (idempotent) + activate s5-plugin
+#   1. wp-env start (idempotent) + activate the s5-theme framework theme
 #   2. create a normal WP page
 #   3. store a known canonical fragment in _s5_canonical_html (manual, no importer)
 #   4. request the permalink; assert the fragment appears verbatim in the body
@@ -41,9 +41,9 @@ info "S5 Step 1 acceptance test"
 echo
 
 # --- 1. environment + plugin ----------------------------------------------
-info "1/5  Starting wp-env and activating s5-plugin…"
+info "1/5  Starting wp-env and activating the s5-theme framework theme…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
-wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
+wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 # Pretty permalinks so the front controller routes through template_include.
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 wp rewrite flush --hard >/dev/null 2>&1 || true

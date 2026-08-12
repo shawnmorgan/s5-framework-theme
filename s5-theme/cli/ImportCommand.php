@@ -259,14 +259,15 @@ final class ImportCommand {
 	}
 
 	/**
-	 * Default source directory: the plugin's parent repo `pages/` dir.
+	 * Default source directory: the repo `pages/` dir.
 	 *
-	 * The s5-plugin dir lives at <repo>/s5-plugin, so the source is one level up.
+	 * Pages are authoring SOURCE, not shipped theme content — resolved via the
+	 * shared ValidateCommand::pages_root() (wp-content/s5-pages in wp-env).
 	 *
 	 * @return string
 	 */
 	private static function default_dir(): string {
-		return dirname( S5_PLUGIN_DIR ) . '/pages';
+		return ValidateCommand::pages_root();
 	}
 
 	/**

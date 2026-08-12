@@ -183,11 +183,14 @@ final class ValidateCommand {
 	}
 
 	/**
-	 * Resolve the repo root that contains s5.config.json + the theme styles.
+	 * Resolve the SITE ROOT — the directory that holds s5.config.json plus all
+	 * site-authored content (styles, components, parts, assets).
 	 *
-	 * In dev the repo root is the plugin's parent. In the wp-env container the
-	 * plugin and theme are NOT siblings, so the repo is mounted at
-	 * wp-content/s5-repo (see .wp-env.json). Try both.
+	 * Under the single-theme repackage (D14) the site root is the theme's fenced
+	 * `site/` subtree. In the wp-env container the theme may not be reachable via
+	 * get_stylesheet_directory() during a CLI run, so the repo is also mounted at
+	 * wp-content/s5-repo (see .wp-env.json) and the site root lives beneath it at
+	 * s5-theme/site. Try the active theme first, then the repo mapping.
 	 *
 	 * @return string
 	 *
@@ -195,11 +198,15 @@ final class ValidateCommand {
 	 */
 	public static function repo_root(): string {
 		$candidates = array();
+		if ( function_exists( 'get_stylesheet_directory' ) ) {
+			$candidates[] = rtrim( (string) get_stylesheet_directory(), '/' ) . '/site';
+		}
 		if ( defined( 'S5_PLUGIN_DIR' ) ) {
-			$candidates[] = rtrim( dirname( (string) S5_PLUGIN_DIR ), '/' );
+			// S5_PLUGIN_DIR is the theme root post-repackage; site/ is beneath it.
+			$candidates[] = rtrim( (string) S5_PLUGIN_DIR, '/' ) . '/site';
 		}
 		if ( defined( 'WP_CONTENT_DIR' ) ) {
-			$candidates[] = rtrim( (string) WP_CONTENT_DIR, '/' ) . '/s5-repo';
+			$candidates[] = rtrim( (string) WP_CONTENT_DIR, '/' ) . '/s5-repo/s5-theme/site';
 		}
 
 		foreach ( $candidates as $c ) {
@@ -214,15 +221,34 @@ final class ValidateCommand {
 	}
 
 	/**
+	 * Resolve the page-source directory (the repo `pages/` dir).
+	 *
+	 * Pages are authoring SOURCE, not shipped theme content, so they stay at the
+	 * repo root — NOT under the theme's site/ subtree. In wp-env they are mapped to
+	 * wp-content/s5-pages (see .wp-env.json). Try that mapping, then the repo root.
+	 *
+	 * @return string
+	 */
+	public static function pages_root(): string {
+		if ( defined( 'WP_CONTENT_DIR' ) ) {
+			$mapped = rtrim( (string) WP_CONTENT_DIR, '/' ) . '/s5-pages';
+			if ( is_dir( $mapped ) ) {
+				return $mapped;
+			}
+			$repo = rtrim( (string) WP_CONTENT_DIR, '/' ) . '/s5-repo/pages';
+			if ( is_dir( $repo ) ) {
+				return $repo;
+			}
+		}
+		return 'pages';
+	}
+
+	/**
 	 * Default source directory (the repo `pages/` dir), container-aware.
 	 *
 	 * @return string
 	 */
 	private static function default_dir(): string {
-		try {
-			return self::repo_root() . '/pages';
-		} catch ( \RuntimeException $e ) {
-			return defined( 'S5_PLUGIN_DIR' ) ? dirname( (string) S5_PLUGIN_DIR ) . '/pages' : 'pages';
-		}
+		return self::pages_root();
 	}
 }

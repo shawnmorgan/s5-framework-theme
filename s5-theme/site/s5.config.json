@@ -1,0 +1,46 @@
+{
+  "$comment": "Machine-readable layout for a SITE authored on the S5 framework. This file lives at the site root — the theme's fenced site/ subtree (D14). All relative paths below are resolved against THIS file's directory (ValidateCommand::repo_root() returns it). Product updates never rewrite this file or anything beside it. 'prefix' and 'textDomain' are the placeholder 's5' identity (PRD Open Question #1: product name unresolved; rename here + find/replace when it lands).",
+  "name": "S5",
+  "prefix": "s5",
+  "textDomain": "s5",
+  "namespaces": {
+    "theme": "S5\\Theme",
+    "framework": "S5"
+  },
+  "paths": {
+    "$comment": "Paths relative to this site root (theme/site/). Framework code (src/, cli/) lives at the theme root, one level up, and is NOT referenced here — tooling resolves it via the theme, not this config.",
+    "pagesSource": "pages",
+    "parts": "parts",
+    "components": "components",
+    "dist": "dist"
+  },
+  "styles": {
+    "$comment": "Site stylesheet(s) that define the CLOSED class vocabulary the Authoring Contract validator enforces (Build Order Step 4). The class vocabulary is the union of class selectors parsed from these files — there is no hardcoded class list. Paths are relative to this site root. Add component/utility stylesheets here as the design system grows (Authoring Contract Part A: tokens/scales/generated/utilities/components).",
+    "vocabulary": [
+      "styles/components.css",
+      "styles/utilities.css"
+    ],
+    "$tokensComment": "Design-token stylesheets (Authoring Contract Part A2/A3): custom properties ONLY, no class selectors, so they add nothing to the class vocabulary. The editor Style tab (Build Order Step 12) parses these live to render the palette / type ramp / spacing / radius, so the tab can never drift from the real tokens.",
+    "designTokens": [
+      "styles/tokens.css",
+      "styles/scales.css"
+    ]
+  },
+  "assets": {
+    "$comment": "Local asset directory the media resolver (Build Order Step 6) resolves canonical relative media references against. Canonical HTML references images by portable relative path (e.g. src=\"assets/hero.png\", srcset=\"assets/hero-wide.avif\") — NEVER attachment IDs, upload URLs, or srcset. On compile each relative <img>/<source> ref is sideloaded into the environment's media library (matched by content hash so re-imports dedupe) and the DERIVED render gets that environment's attachment URL + srcset + dimensions. 'dir' is relative to this site root; the 'assets/' prefix in a reference maps to this dir.",
+    "dir": "assets",
+    "prefix": "assets/"
+  },
+  "site": {
+    "$comment": "Authoritative site identity for the S5-owned schema graph (Build Order Step 9, PRD §13.2). WebSite + Organization JSON-LD are compiled from THESE values plus each page's own head (title/description/canonical), so structured data cannot silently drift from visible content. Placeholder-tier for the test corpus; replace with real values before launch.",
+    "name": "Series 5 Technology",
+    "url": "https://series5technology.com/",
+    "logo": "https://series5technology.com/assets/logo.svg",
+    "sameAs": [
+      "https://www.linkedin.com/company/series5technology"
+    ]
+  },
+  "cli": {
+    "namespace": "s5"
+  }
+}

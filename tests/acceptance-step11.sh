@@ -43,7 +43,7 @@ echo
 # ---------------------------------------------------------------------------
 info "0/6  Env up; import the corpus…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
-wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
+wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 $WP_ENV run cli wp s5 import "$PAGES_C" >/dev/null 2>&1 || fail "corpus import failed"
 pass "environment ready; corpus imported"
@@ -101,7 +101,7 @@ pass "unregistered component and bad anchor both refused"
 # ---------------------------------------------------------------------------
 info "5/6  Inserting a bad component is rejected; canonical unchanged…"
 # Author a throwaway bad component whose markup uses an out-of-vocabulary class.
-BAD_DIR="$ROOT_DIR/components/__bad_test__"
+BAD_DIR="$ROOT_DIR/s5-theme/site/components/__bad_test__"
 mkdir -p "$BAD_DIR"
 printf '<div class="zzz-not-a-real-vocab-class">bad</div>\n' > "$BAD_DIR/component.html"
 printf '{"name":"__bad_test__","version":"0.0.1"}\n' > "$BAD_DIR/manifest.json"

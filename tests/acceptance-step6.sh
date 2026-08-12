@@ -28,7 +28,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 PAGES_C="wp-content/s5-pages"
 S5T_SRC="$ROOT_DIR/pages/index.html"
-DIAGRAM_SRC="$ROOT_DIR/assets/diagram.png"
+DIAGRAM_SRC="$ROOT_DIR/s5-theme/site/assets/diagram.png"
 
 command -v npx >/dev/null 2>&1    || fail "npx not found. Run 'npm install' first."
 command -v docker >/dev/null 2>&1 || fail "docker not found."
@@ -53,7 +53,7 @@ echo
 # ---------------------------------------------------------------------------
 info "0/6  Starting wp-env, activating plugin, fresh import…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
-wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
+wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 for s in index about fix-my-store index media-broken; do
 	pid="$(wp post list --post_type=page --name="$s" --field=ID | head -n1)"

@@ -41,7 +41,7 @@ echo
 
 info "0/5  Env up; import corpus + the islands fixture…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
-wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
+wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 for s in index islands-demo; do
 	pid="$(wp post list --post_type=page --name="$s" --field=ID | head -n1)"

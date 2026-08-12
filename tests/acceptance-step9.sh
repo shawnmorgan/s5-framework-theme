@@ -41,7 +41,7 @@ echo
 
 info "0/5  Env up; import the corpus…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
-wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
+wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 for s in index about seo-bad; do
 	pid="$(wp post list --post_type=page --name="$s" --field=ID | head -n1)"
@@ -117,8 +117,8 @@ pass "SEO gates flag h1/alt/LCP as warnings; bad page still imports (non-blockin
 #    without duplicate output (schema graph filter + owned-schema suppression).
 # ---------------------------------------------------------------------------
 info "5/5  Provider seams present for specialist takeover…"
-grep -rqF 's5_emit_owned_schema' "$ROOT_DIR/s5-plugin/src/Render.php" || fail "provider seam s5_emit_owned_schema not present"
-grep -rqF 's5_schema_graph' "$ROOT_DIR/s5-plugin/src/Schema.php" || fail "provider seam s5_schema_graph not present"
+grep -rqF 's5_emit_owned_schema' "$ROOT_DIR/s5-theme/src/Render.php" || fail "provider seam s5_emit_owned_schema not present"
+grep -rqF 's5_schema_graph' "$ROOT_DIR/s5-theme/src/Schema.php" || fail "provider seam s5_schema_graph not present"
 pass "provider seams present (s5_emit_owned_schema + s5_schema_graph)"
 
 echo

@@ -69,6 +69,9 @@ final class Plugin {
 		// `wp s5 hello` — Step 0 smoke command proving CLI wiring.
 		\WP_CLI::add_command( 's5 hello', Cli\HelloCommand::class );
 
+		// `wp s5 init` — scaffold the theme's site/ subtree (single-theme, D14/D15).
+		\WP_CLI::add_command( 's5 init', Cli\InitCommand::class );
+
 		// `wp s5 import` — Step 2: import a directory of HTML docs into pages.
 		\WP_CLI::add_command( 's5 import', Cli\ImportCommand::class );
 

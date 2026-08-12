@@ -1,7 +1,7 @@
 {
     "name": "s5/framework",
-    "description": "Agent-Native WordPress Framework \u2014 companion plugin (theme + tooling live alongside).",
-    "type": "wordpress-plugin",
+    "description": "Agent-Native WordPress Framework \u2014 single theme (product code, CLI, editor, and tooling all live in the theme).",
+    "type": "wordpress-theme",
     "license": "GPL-2.0-or-later",
     "require": {
         "php": ">=8.1"

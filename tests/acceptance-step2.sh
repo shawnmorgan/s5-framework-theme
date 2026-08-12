@@ -34,9 +34,9 @@ info "S5 Step 2 acceptance test"
 echo
 
 # --- 0. env + plugin + clean slate ----------------------------------------
-info "0/5  Starting wp-env, activating s5-plugin, resetting pages…"
+info "0/5  Starting wp-env, activating the s5-theme framework theme, resetting pages…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
-wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
+wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 wp rewrite flush --hard >/dev/null 2>&1 || true
 # Remove any pages from prior runs so counts are deterministic.

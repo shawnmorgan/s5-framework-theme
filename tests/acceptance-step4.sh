@@ -26,7 +26,7 @@ validate() { $WP_ENV run cli wp s5 validate "$@" 2>&1 | grep -vE '^ℹ Starting|
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
-UTIL_CSS="$ROOT_DIR/s5-theme/styles/utilities.css"
+UTIL_CSS="$ROOT_DIR/s5-theme/site/styles/utilities.css"
 WORK="$ROOT_DIR/tests/_s4work"                 # host path (under the mounted repo)
 CWORK="wp-content/s5-repo/tests/_s4work"        # same dir as seen in the container
 PAGES_C="wp-content/s5-pages"                    # real corpus in the container
@@ -53,7 +53,7 @@ echo
 
 info "0/6  Starting wp-env and activating the plugin…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
-wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
+wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 pass "environment ready"
 
 # --- 1. real corpus passes clean --------------------------------------------

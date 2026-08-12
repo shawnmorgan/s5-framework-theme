@@ -52,7 +52,7 @@ echo
 # ---------------------------------------------------------------------------
 info "0/5  Env up; L&L active; import the static corpus…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
-wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
+wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 wp plugin activate tangible-loops-and-logic >/dev/null 2>&1 || fail "Loops & Logic failed to activate"
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 for s in index about commerce apps manage faq book-a-call privacy-policy fix-my-store sitemap-archive; do
@@ -60,6 +60,11 @@ for s in index about commerce apps manage faq book-a-call privacy-policy fix-my-
 	[ -n "$pid" ] && wp post delete "$pid" --force >/dev/null 2>&1 || true
 done
 $WP_ENV run cli wp s5 import "$PAGES_C" >/dev/null 2>&1 || fail "static corpus import failed"
+# The corpus delete+re-import above mints a NEW index post; the front-page route
+# ('/') only resolves to it once rewrite rules are re-flushed. Flush --hard here so
+# the front-page curl below is deterministic in the full single-env run (where the
+# prior suites' state ordering otherwise leaves '/' momentarily pointing stale).
+wp rewrite flush --hard >/dev/null 2>&1 || true
 pass "environment ready; L&L active; static corpus imported"
 
 # ---------------------------------------------------------------------------

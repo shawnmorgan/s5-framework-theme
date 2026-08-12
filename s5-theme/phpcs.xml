@@ -1,19 +1,23 @@
 <?xml version="1.0"?>
 <ruleset name="S5">
-	<description>Coding standard for the S5 framework (theme + plugin).</description>
+	<description>Coding standard for the S5 framework (single theme, D14).</description>
 
-	<file>../s5-theme</file>
+	<!-- Framework product PHP + theme entry files. Run from the theme root. -->
+	<file>functions.php</file>
 	<file>src</file>
 	<file>cli</file>
 	<file>templates</file>
-	<file>s5-plugin.php</file>
 	<file>tests</file>
-	<file>../tests</file>
+	<file>header.php</file>
+	<file>footer.php</file>
+	<file>index.php</file>
+	<file>404.php</file>
 
-	<!-- Ignore build/vendor output. -->
+	<!-- Ignore build/vendor output and the fenced site/ subtree (no product PHP). -->
 	<exclude-pattern>*/vendor/*</exclude-pattern>
 	<exclude-pattern>*/node_modules/*</exclude-pattern>
 	<exclude-pattern>*/dist/*</exclude-pattern>
+	<exclude-pattern>*/site/*</exclude-pattern>
 
 	<arg name="extensions" value="php"/>
 	<arg name="colors"/>

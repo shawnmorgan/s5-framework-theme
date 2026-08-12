@@ -45,7 +45,7 @@ echo
 # ---------------------------------------------------------------------------
 info "0/7  Env up; import the corpus (about.html carries declarations)…"
 [ "${S5_ENV_READY:-0}" = "1" ] || $WP_ENV start >/dev/null
-wp plugin activate s5-plugin >/dev/null || fail "s5-plugin failed to activate"
+wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme failed to activate"
 wp theme activate s5-theme >/dev/null 2>&1 || true
 wp rewrite structure '/%postname%/' --hard >/dev/null 2>&1 || true
 $WP_ENV run cli wp s5 import "$PAGES_C" >/dev/null 2>&1 || fail "corpus import failed"

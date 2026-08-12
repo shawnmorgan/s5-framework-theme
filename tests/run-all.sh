@@ -37,7 +37,7 @@ if [ "${SKIP_DESTROY:-0}" != "1" ]; then
 fi
 info "Starting wp-env once for the whole suite…"
 $WP_ENV start >/dev/null 2>&1 || { bad "wp-env start failed"; exit 1; }
-$WP_ENV run cli wp plugin activate s5-plugin >/dev/null 2>&1 || { bad "s5-plugin failed to activate"; exit 1; }
+$WP_ENV run cli wp theme activate s5-theme >/dev/null 2>&1 || { bad "s5-theme failed to activate"; exit 1; }
 ok "environment up; running all acceptance suites against it"
 echo
 
