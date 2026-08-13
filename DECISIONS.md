@@ -192,6 +192,15 @@ Items 4–7 (palette, structure list, components tab, style tab) build onto the 
 vanilla base. The §8.1 React direction resumes post-WordCamp. This supersedes any
 earlier "React rehome" plan for the WordCamp cut; D1's vanilla-shell rationale stands.
 
+**D20-RESOLVED (Day 2): the full gate is now GREEN end-to-end.** After Day 1, the
+transient was hardened suite-by-suite as it surfaced: Steps 5 & 8 (write→read serving
+race → curl_until/curl_until_gone), Step 11 (CLI register/list transient →
+wp_out_matches retry; inserted-card serve → curl_until), Item 2 (bundle-enqueued serve
+→ curl_until). With every serving/CLI-after-write assertion wrapped in a bounded retry
+that still fails loudly on real absence, `bash tests/run-all.sh` passes all 13 suites
+in one clean-slate run (verified). The retries tolerate Docker-load timing only; they
+do not mask logic. Original Day-1 reasoning below retained for history.
+
 **D20 — Full single-env gate flake is an environment characteristic; hardened the
 two serving-race suites and STOPPED chasing the rest. (Judgment call, Day 1.)**
 Rejected: continuing to patch each suite until one full run is green N times (the
