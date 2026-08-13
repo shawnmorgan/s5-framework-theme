@@ -40,7 +40,11 @@ $s5_back_url    = isset( $s5_editor['back_url'] ) ? (string) $s5_editor['back_ur
 				<span aria-hidden="true">&larr;</span>
 				<?php esc_html_e( 'WordPress', 's5' ); ?>
 			</a>
-			<span class="s5-editor__page-title"><?php echo esc_html( $s5_title ); ?></span>
+			<span class="s5-editor__mark" aria-hidden="true">S5</span>
+			<span class="s5-editor__titlewrap">
+				<span class="s5-editor__page-title"><?php echo esc_html( $s5_title ); ?></span>
+				<span class="s5-editor__page-sub"><?php esc_html_e( 'Framework page · S5 editor', 's5' ); ?></span>
+			</span>
 		</div>
 
 		<div class="s5-editor__topbar-group s5-editor__topbar-group--center">

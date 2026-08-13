@@ -458,3 +458,46 @@ inside `s5-theme`, NOT a second theme.
 
 **Verified:** distribution suite green; phpcs 38/38 clean; served framework AND
 non-framework pages both carry the design-system stylesheet from the zip with no mounts.
+
+## D27 — Editor reskin: PressFlow / Save-the-Date, dark-first (visual only)
+
+Reskinned the S5 editor chrome to the PressFlow / Save-the-Date design language,
+**dark as the only mode**. Contract codified FIRST in `docs/EDITOR-UI-STYLE.md`
+(committed before building), from the 4 PressFlow screens + the StD v1.4/v1.3 HTML
+mockups (`docs/ui-reference/`).
+
+**Scope discipline (the whole point of the task):** visual only. The rewrite of
+`assets/editor/editor.css` and the two presentational wrapper additions in
+`templates/editor.php` (a `.s5-editor__mark` tile + a `.s5-editor__titlewrap` subtitle
+line) are the ENTIRE change. Zero edits to save pipeline / REST / CanonicalOps / slot
+handlers / insertion / validation / selection. Every JS-bound hook is preserved: all
+`data-s5-*` attributes and the state classes JS actually toggles/reads (`.is-active`,
+`.is-disabled`, `.is-soon`, `.is-component`, `[data-s5-active]`, `[data-s5-viewport]`).
+Confirmed by grepping the editor JS before touching anything — JS selects almost
+entirely by `data-s5-*`, and only toggles `is-active` / reads `is-disabled`.
+
+**Token layer:** `--s5e-*` CSS variables scoped under `:where(.s5-editor)` (specificity
+0 so component rules win). Accent `#3858e9`/hover `#1d35b4`, canvas `#0e1013` dot-grid,
+surface `#1a1d21`, text `#f0f0f0`/`#a7aaad`, radii 2/4/8, gaps 4/8/16/24/32, mono for
+code/paths/values. Structured so a light theme is a later `:root`/`[data-theme]` swap —
+NOT built now, per the task.
+
+**WP-admin-context conflicts + how resolved (the required call-out):**
+- The editor is a `position:fixed` full-screen takeover that INHERITS wp-admin styling.
+  wp-admin `.button` / `.button-primary` bring their own height, box-shadow, text-shadow,
+  and border-radius. Resolved by resetting them **scoped under `.s5-editor`** only —
+  never a global `.button` override, so nothing outside the editor is touched.
+- CodeMirror ships wp-admin's light theme. Themed it dark **only within `.s5-editor`**
+  (`.CodeMirror`, `-gutters`, `-linenumber`, `-cursor`, `-selected`), so other admin
+  screens' code editors are unaffected.
+- The Style tab intentionally renders as **WHITE cards on the dark canvas**
+  (`.s5-editor__style-section`, already emitted by `stylestab.js`): a site's design
+  system previews on white because sites are light; the tool is dark. Deliberate
+  inversion, matching PressFlow screen 4 / StD's white `.std-preview-container`.
+- No CDN: StD's FontAwesome/Bootstrap-Icons `<link>`s were NOT ported; glyphs stay
+  system/unicode. Nothing new reaches the front end or logged-out visitors (the editor
+  enqueue is gated on the editor page hook; preview is `is_user_logged_in` + capability).
+
+**Verified:** phpcs clean; logged-out-enqueue guard intact; full 14-suite gate green
+from clean; editor operates (structure loads, lens/tab switching, dark CodeMirror mounts)
+— screenshots in `docs/demo-walkthrough/reskin-dark/`.

@@ -1,10 +1,68 @@
 /*
- * S5 Framework — Editor MVP shell styles (Phase B1).
+ * S5 Framework — Editor shell styles.
  *
- * Enqueued ONLY on the editor admin screen (Editor::enqueue_assets). Nothing
- * here ships to logged-out visitors. Layout only: top bar + preview stage +
- * right panel. Panel internals fill in through later Phase B items.
+ * Enqueued ONLY on the editor admin screen (Editor::enqueue_assets). Nothing here
+ * ships to logged-out visitors.
+ *
+ * Visual language: PressFlow / Save-the-Date, DARK-FIRST (see docs/EDITOR-UI-STYLE.md).
+ * Every value is a CSS variable so a light theme is a later variable swap. All
+ * `data-s5-*` hooks and JS-bound state classes (.is-active, .is-disabled, .is-soon,
+ * .is-component, [data-s5-active], [data-s5-viewport]) are preserved exactly — this is
+ * a visual reskin, not a structural change.
  */
+
+/* ============================================================================
+   TOKENS — scoped to the editor so nothing leaks into wp-admin at large.
+   :where() keeps specificity at 0 so component rules below win normally.
+   ============================================================================ */
+:where(.s5-editor) {
+	/* Accent (indigo) */
+	--s5e-accent: #3858e9;
+	--s5e-accent-hover: #1d35b4;
+	--s5e-accent-tint: #e8edff;
+	--s5e-accent-bright: #a8b8ff;
+
+	/* Dark surfaces */
+	--s5e-canvas: #0e1013;
+	--s5e-surface: #1a1d21;
+	--s5e-surface-2: #23272e;
+	--s5e-sidebar: #1e1e1e;
+	--s5e-bar: #1d2327;
+
+	/* Text */
+	--s5e-text: #f0f0f0;
+	--s5e-text-dim: #a7aaad;
+	--s5e-text-faint: #7c8085;
+
+	/* Semantic */
+	--s5e-success: #00a32a;
+	--s5e-success-tint: rgba(0, 163, 42, 0.14);
+	--s5e-danger: #cc1818;
+	--s5e-danger-tint: rgba(204, 24, 24, 0.14);
+	--s5e-warning: #f0c33c;
+
+	/* Borders / rows */
+	--s5e-border: rgba(255, 255, 255, 0.10);
+	--s5e-border-strong: rgba(255, 255, 255, 0.16);
+	--s5e-row-hover: rgba(255, 255, 255, 0.04);
+	--s5e-row-active: rgba(255, 255, 255, 0.08);
+
+	/* Radii — 2 / 4 / 8 only */
+	--s5e-radius-sm: 2px;
+	--s5e-radius-md: 4px;
+	--s5e-radius-lg: 8px;
+
+	/* Gaps */
+	--s5e-gap-1: 4px;
+	--s5e-gap-2: 8px;
+	--s5e-gap-3: 16px;
+	--s5e-gap-4: 24px;
+	--s5e-gap-5: 32px;
+
+	/* Type */
+	--s5e-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+	--s5e-mono: Menlo, Consolas, monaco, ui-monospace, SFMono-Regular, monospace;
+}
 
 /* Break out of the default wp-admin content padding for a full-bleed editor. */
 #wpcontent {
@@ -12,20 +70,33 @@
 }
 
 .s5-editor {
-	/* Fixed (not absolute): wp-admin's #wpbody offset parent sizes to its
-	   content, so `inset:0` on an absolute shell resolves against a collapsed
-	   ~180px box and the whole editor — preview iframe included — shrinks to a
-	   sliver. Fixed resolves against the viewport, giving the full-screen
-	   takeover this editor needs. */
+	/* Fixed (not absolute): wp-admin's #wpbody offset parent sizes to its content,
+	   so `inset:0` on an absolute shell resolves against a collapsed ~180px box and
+	   the whole editor shrinks to a sliver. Fixed resolves against the viewport. */
 	position: fixed;
 	inset: 0;
 	top: var(--wp-admin--admin-bar--height, 32px);
 	z-index: 100;
 	display: flex;
 	flex-direction: column;
-	background: #1e1e1e;
-	color: #e6e6e6;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	background: var(--s5e-canvas);
+	color: var(--s5e-text);
+	font-family: var(--s5e-font);
+	font-size: 13px;
+	line-height: 1.5;
+	-webkit-font-smoothing: antialiased;
+}
+
+/* WP-admin neutralization — scoped strictly to inside the editor.
+   The full-screen takeover inherits wp-admin .button styling; reset it so our own
+   button rules read cleanly. Never affects controls outside .s5-editor. */
+.s5-editor .button,
+.s5-editor .button-primary {
+	height: auto;
+	line-height: 1.4;
+	border-radius: var(--s5e-radius-sm);
+	box-shadow: none;
+	text-shadow: none;
 }
 
 /* --- top bar ------------------------------------------------------------- */
@@ -35,17 +106,17 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
-	height: 48px;
-	padding: 0 12px;
-	background: #23282d;
-	border-bottom: 1px solid #32373c;
+	gap: var(--s5e-gap-3);
+	height: 52px;
+	padding: 0 var(--s5e-gap-3);
+	background: var(--s5e-bar);
+	border-bottom: 1px solid var(--s5e-border);
 }
 
 .s5-editor__topbar-group {
 	display: flex;
 	align-items: center;
-	gap: 10px;
+	gap: var(--s5e-gap-2);
 }
 
 .s5-editor__topbar-group--center {
@@ -55,38 +126,77 @@
 
 .s5-editor__topbar-group--right {
 	justify-content: flex-end;
+	gap: var(--s5e-gap-3);
 }
 
+/* Back link, styled as a ghost affordance (StD-style, dim → bright on hover). */
 .s5-editor__back {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
-	color: #c3c4c7;
+	gap: var(--s5e-gap-1);
+	color: var(--s5e-text-dim);
 	text-decoration: none;
 	font-size: 13px;
+	padding: 6px 8px;
+	border-radius: var(--s5e-radius-md);
 }
 
 .s5-editor__back:hover {
+	color: var(--s5e-text);
+	background: var(--s5e-row-hover);
+}
+
+/* S5 mark: a small rounded accent tile before the title (added via wrapper). */
+.s5-editor__mark {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	border-radius: var(--s5e-radius-md);
+	background: var(--s5e-accent);
 	color: #fff;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	flex: 0 0 auto;
+}
+
+.s5-editor__titlewrap {
+	display: flex;
+	flex-direction: column;
+	line-height: 1.2;
+	min-width: 0;
 }
 
 .s5-editor__page-title {
 	font-size: 13px;
 	font-weight: 600;
-	color: #f0f0f1;
+	color: var(--s5e-text);
 	max-width: 240px;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-/* segmented button groups (viewport + lens) */
+.s5-editor__page-sub {
+	font-size: 11px;
+	color: var(--s5e-text-faint);
+	max-width: 240px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Segmented button groups (viewport + lens) — pill container, active = indigo. */
 .s5-editor__viewport,
 .s5-editor__lens {
 	display: inline-flex;
-	background: #32373c;
-	border-radius: 4px;
+	background: var(--s5e-surface-2);
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-lg);
 	padding: 2px;
+	gap: 2px;
 }
 
 .s5-editor__vp,
@@ -94,18 +204,29 @@
 	appearance: none;
 	border: 0;
 	background: transparent;
-	color: #c3c4c7;
+	color: var(--s5e-text-dim);
 	font-size: 12px;
-	padding: 4px 10px;
-	border-radius: 3px;
+	font-family: inherit;
+	padding: 5px 12px;
+	border-radius: var(--s5e-radius-md);
 	cursor: pointer;
-	line-height: 1.6;
+	line-height: 1.4;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 }
 
+.s5-editor__vp:hover,
+.s5-editor__lens-btn:hover {
+	color: var(--s5e-text);
+}
+
+/* Active view = filled-indigo pill (the PressFlow header pattern). */
 .s5-editor__vp.is-active,
 .s5-editor__lens-btn.is-active {
-	background: #2271b1;
+	background: var(--s5e-accent);
 	color: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .s5-editor__dirty {
@@ -113,12 +234,10 @@
 	align-items: center;
 	gap: 6px;
 	font-size: 12px;
-	color: #f0c33c;
+	color: var(--s5e-text-dim);
 }
 
-/* `display:inline-flex` above beats the UA `[hidden]{display:none}` rule, so the
-   dirty indicator stayed visible even when markClean() set hidden=true. Restore
-   the hidden contract explicitly. */
+/* `display:inline-flex` beats the UA `[hidden]{display:none}`, so restore it. */
 .s5-editor__dirty[hidden] {
 	display: none;
 }
@@ -127,11 +246,26 @@
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
-	background: #f0c33c;
+	background: var(--s5e-accent);
+	box-shadow: 0 0 0 3px rgba(56, 88, 233, 0.25);
+}
+
+.s5-editor__update {
+	background: var(--s5e-accent);
+	border: 0;
+	color: #fff;
+	font-weight: 500;
+	padding: 7px 18px;
+	border-radius: var(--s5e-radius-sm);
+	cursor: pointer;
+}
+
+.s5-editor__update:hover:not([disabled]) {
+	background: var(--s5e-accent-hover);
 }
 
 .s5-editor__update[disabled] {
-	opacity: 0.5;
+	opacity: 0.45;
 	cursor: not-allowed;
 }
 
@@ -143,43 +277,52 @@
 	min-height: 0;
 }
 
-/* Left-panel Components palette (Item 4). */
+/* Left-panel Components palette. Dark sidebar (StD .settings-nav). */
 .s5-editor__leftpanel {
-	flex: 0 0 200px;
+	flex: 0 0 220px;
 	display: flex;
 	flex-direction: column;
-	border-right: 1px solid #dcdcde;
-	background: #fff;
+	border-right: 1px solid var(--s5e-border);
+	background: var(--s5e-sidebar);
 	overflow-y: auto;
 }
+
 .s5-editor__leftpanel-head {
-	padding: 10px 12px;
+	padding: 12px var(--s5e-gap-3) 10px;
+	font-size: 11px;
 	font-weight: 600;
-	border-bottom: 1px solid #f0f0f1;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+	color: var(--s5e-text-dim);
+	border-bottom: 1px solid var(--s5e-border);
 }
+
 .s5-editor__palette {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 8px;
-	padding: 10px;
+	gap: var(--s5e-gap-2);
+	padding: var(--s5e-gap-2);
 }
+
 .s5-editor__palette-item {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 4px;
-	padding: 8px 4px;
-	border: 1px solid #dcdcde;
-	border-radius: 6px;
-	background: #f6f7f7;
+	gap: var(--s5e-gap-1);
+	padding: var(--s5e-gap-2) var(--s5e-gap-1);
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-lg);
+	background: var(--s5e-surface);
 	cursor: grab;
 	font-size: 11px;
-	color: #1d2327;
+	color: var(--s5e-text);
 }
+
 .s5-editor__palette-item:hover {
-	border-color: #2271b1;
-	background: #fff;
+	border-color: var(--s5e-accent);
+	background: var(--s5e-surface-2);
 }
+
 .s5-editor__palette-thumb {
 	display: flex;
 	align-items: center;
@@ -187,268 +330,324 @@
 	width: 100%;
 	height: 44px;
 	overflow: hidden;
-	border-radius: 4px;
+	border-radius: var(--s5e-radius-md);
 	background: #fff;
 }
+
 .s5-editor__palette-thumb img {
 	max-width: 100%;
 	max-height: 100%;
 	object-fit: cover;
 }
+
 .s5-editor__palette-glyph {
 	font-size: 20px;
 	font-weight: 700;
-	color: #2271b1;
+	color: var(--s5e-accent-bright);
 }
+
 .s5-editor__palette-name {
 	text-align: center;
 	word-break: break-word;
-}
-.s5-editor__palette-hint {
-	margin: 0;
-	padding: 8px 12px;
-	font-size: 11px;
-	color: #646970;
-	border-top: 1px solid #f0f0f1;
+	color: var(--s5e-text-dim);
 }
 
-/* CSS mode toggle + stylesheet view (Item 7). */
-.s5-editor__cssmode {
-	padding: 12px 12px 0;
+.s5-editor__palette-hint {
+	margin: 0;
+	padding: var(--s5e-gap-2) var(--s5e-gap-3);
+	font-size: 11px;
+	color: var(--s5e-text-faint);
+	border-top: 1px solid var(--s5e-border);
 }
+
+/* CSS mode toggle + stylesheet view — dark radio-group + dark code slab. */
+.s5-editor__cssmode {
+	padding: var(--s5e-gap-3) var(--s5e-gap-3) 0;
+}
+
 .s5-editor__cssmode-switch {
 	display: inline-flex;
-	border: 1px solid #dcdcde;
-	border-radius: 6px;
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-md);
 	overflow: hidden;
-	margin-top: 4px;
+	margin-top: var(--s5e-gap-1);
 }
+
 .s5-editor__cssmode-btn {
 	border: 0;
-	background: #fff;
+	background: var(--s5e-surface-2);
+	color: var(--s5e-text-dim);
 	padding: 6px 12px;
 	font-size: 12px;
+	font-family: inherit;
 	cursor: pointer;
 	display: inline-flex;
 	align-items: center;
 	gap: 6px;
 }
+
 .s5-editor__cssmode-btn.is-active {
-	background: #2271b1;
+	background: var(--s5e-accent);
 	color: #fff;
 }
+
 .s5-editor__cssmode-btn.is-soon {
-	color: #646970;
+	color: var(--s5e-text-faint);
 	cursor: not-allowed;
-	background: #f6f7f7;
+	background: var(--s5e-surface);
 }
+
 .s5-editor__cssmode-badge {
 	font-size: 10px;
 	text-transform: uppercase;
-	letter-spacing: .03em;
-	opacity: .85;
+	letter-spacing: 0.03em;
+	opacity: 0.85;
 }
+
 .s5-editor__cssmode-btn.is-active .s5-editor__cssmode-badge {
-	background: rgba(255, 255, 255, .25);
-	border-radius: 3px;
+	background: rgba(255, 255, 255, 0.25);
+	border-radius: var(--s5e-radius-sm);
 	padding: 0 4px;
 }
+
 .s5-editor__cssmode-btn.is-soon .s5-editor__cssmode-badge {
-	background: #dcdcde;
-	border-radius: 3px;
+	background: var(--s5e-border);
+	border-radius: var(--s5e-radius-sm);
 	padding: 0 4px;
 }
+
 .s5-editor__stylesheet {
-	padding: 8px 12px 12px;
-	border-top: 1px solid #f0f0f1;
+	padding: var(--s5e-gap-2) var(--s5e-gap-3) var(--s5e-gap-3);
+	border-top: 1px solid var(--s5e-border);
 }
+
 .s5-editor__stylesheet-toggle {
 	border: 0;
 	background: none;
-	color: #2271b1;
+	color: var(--s5e-accent-bright);
 	cursor: pointer;
 	padding: 0;
 	font-size: 12px;
 }
+
 .s5-editor__stylesheet-view {
-	margin: 8px 0 0;
+	margin: var(--s5e-gap-2) 0 0;
 	max-height: 220px;
 	overflow: auto;
-	background: #1d2327;
-	color: #e2e4e7;
+	background: #0c0e11;
+	color: #d7dbe0;
 	padding: 10px;
-	border-radius: 6px;
-	font-family: Menlo, Consolas, monospace;
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-md);
+	font-family: var(--s5e-mono);
 	font-size: 11px;
 	white-space: pre;
 }
 
-/* Components tab (Item 6). */
+/* Components tab — dark cards. */
 .s5-editor__comp-grid {
 	display: grid;
 	grid-template-columns: 1fr 1fr;
-	gap: 8px;
-	padding: 12px;
+	gap: var(--s5e-gap-2);
+	padding: var(--s5e-gap-3);
 }
+
 .s5-editor__comp-card {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 4px;
-	padding: 10px 4px;
-	border: 1px solid #dcdcde;
-	border-radius: 6px;
-	background: #f6f7f7;
+	gap: var(--s5e-gap-1);
+	padding: 10px var(--s5e-gap-1);
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-lg);
+	background: var(--s5e-surface);
+	color: var(--s5e-text);
 	cursor: pointer;
 	font-size: 11px;
 }
+
 .s5-editor__comp-card:hover {
-	border-color: #2271b1;
-	background: #fff;
+	border-color: var(--s5e-accent);
+	background: var(--s5e-surface-2);
 }
+
 .s5-editor__comp-editor {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
-	padding: 12px;
+	gap: var(--s5e-gap-2);
+	padding: var(--s5e-gap-3);
 }
+
 .s5-editor__comp-editor-head {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: var(--s5e-gap-2);
 }
+
 .s5-editor__comp-back {
 	border: 0;
 	background: none;
-	color: #2271b1;
+	color: var(--s5e-accent-bright);
 	cursor: pointer;
 	padding: 0;
 	font-size: 12px;
 }
+
 .s5-editor__comp-name {
 	font-weight: 600;
+	color: var(--s5e-text);
 }
+
 .s5-editor__comp-files {
 	display: flex;
-	gap: 4px;
+	gap: var(--s5e-gap-1);
 }
+
 .s5-editor__comp-file {
-	border: 1px solid #dcdcde;
-	background: #f6f7f7;
-	border-radius: 4px 4px 0 0;
-	padding: 4px 8px;
+	border: 1px solid var(--s5e-border);
+	border-bottom: 0;
+	background: var(--s5e-surface);
+	color: var(--s5e-text-dim);
+	border-radius: var(--s5e-radius-md) var(--s5e-radius-md) 0 0;
+	padding: 4px 10px;
 	font-size: 11px;
+	font-family: var(--s5e-mono);
 	cursor: pointer;
 }
+
 .s5-editor__comp-file.is-active {
-	background: #fff;
-	border-bottom-color: #fff;
+	background: var(--s5e-surface-2);
+	color: var(--s5e-text);
 	font-weight: 600;
 }
+
 .s5-editor__comp-code {
 	width: 100%;
 	min-height: 160px;
-	font-family: Menlo, Consolas, monospace;
+	font-family: var(--s5e-mono);
 	font-size: 12px;
+	background: #0c0e11;
+	color: var(--s5e-text);
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-md);
+	padding: var(--s5e-gap-2);
+	box-sizing: border-box;
 }
+
 .s5-editor__comp-preview-wrap {
-	border: 1px solid #dcdcde;
-	border-radius: 6px;
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-lg);
 	overflow: hidden;
+	background: var(--s5e-surface);
 }
+
 .s5-editor__comp-preview {
 	width: 100%;
 	height: 160px;
 	border: 0;
 	background: #fff;
 }
+
 .s5-editor__diag.is-ok {
-	color: #007017;
+	color: var(--s5e-success);
 }
 
-/* Right-panel structure list (Item 5). */
+/* Right-panel structure list — the PressFlow structure-card treatment. */
 .s5-editor__structure {
-	border-bottom: 1px solid #f0f0f1;
+	border-bottom: 1px solid var(--s5e-border);
 	max-height: 40%;
 	overflow-y: auto;
+	background: var(--s5e-surface);
 }
+
 .s5-editor__structure-head {
-	padding: 8px 12px;
+	padding: 10px var(--s5e-gap-3);
 	font-weight: 600;
-	font-size: 12px;
-	color: #1d2327;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.8px;
+	color: var(--s5e-text-dim);
 	position: sticky;
 	top: 0;
-	background: #fff;
-	border-bottom: 1px solid #f0f0f1;
+	background: var(--s5e-surface);
+	border-bottom: 1px solid var(--s5e-border);
 }
+
 .s5-editor__structure-list {
 	list-style: none;
 	margin: 0;
-	padding: 4px 0;
+	padding: var(--s5e-gap-1) 0;
 }
+
 .s5-editor__structure-item {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	padding: 3px 8px;
+	gap: var(--s5e-gap-2);
+	padding: 6px var(--s5e-gap-3);
 	font-size: 12px;
-	color: #1d2327;
+	color: var(--s5e-text);
 	cursor: pointer;
 	border-left: 2px solid transparent;
 }
+
 .s5-editor__structure-item:hover {
-	background: #f6f7f7;
+	background: var(--s5e-row-hover);
 }
+
 .s5-editor__structure-item[data-s5-active] {
-	background: #f0f6fc;
-	border-left-color: #2271b1;
+	background: var(--s5e-row-active);
+	border-left-color: var(--s5e-accent);
 }
+
 .s5-editor__structure-item.is-component {
 	font-weight: 600;
 }
+
+/* Status/kind glyph tinted accent (StD "• Generated" → ours "• Component"). */
 .s5-editor__structure-kind {
-	color: #2271b1;
+	color: var(--s5e-accent-bright);
 	width: 12px;
 	text-align: center;
 	flex: 0 0 auto;
 }
+
 .s5-editor__structure-label {
 	flex: 1 1 auto;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
+
+/* Slot/type chip — small outlined pill (StD chip inventory). */
 .s5-editor__structure-type {
 	flex: 0 0 auto;
 	font-size: 10px;
-	color: #646970;
-	background: #f0f0f1;
-	border-radius: 3px;
-	padding: 0 4px;
+	color: var(--s5e-text-dim);
+	background: var(--s5e-surface-2);
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-sm);
+	padding: 1px 6px;
 }
 
+/* Canvas: near-black with a subtle dot-grid (PressFlow). */
 .s5-editor__stage {
 	flex: 1 1 auto;
 	display: flex;
 	align-items: flex-start;
 	justify-content: center;
 	overflow: auto;
-	padding: 20px;
-	background: #2b2b2b;
-	background-image:
-		linear-gradient(45deg, #262626 25%, transparent 25%),
-		linear-gradient(-45deg, #262626 25%, transparent 25%),
-		linear-gradient(45deg, transparent 75%, #262626 75%),
-		linear-gradient(-45deg, transparent 75%, #262626 75%);
-	background-size: 20px 20px;
-	background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+	padding: var(--s5e-gap-4);
+	background-color: var(--s5e-canvas);
+	background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+	background-size: 22px 22px;
+	background-position: -1px -1px;
 }
 
 .s5-editor__preview {
 	background: #fff;
 	border: 0;
-	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+	border-radius: var(--s5e-radius-lg);
+	box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
 	width: 100%;
 	height: 100%;
 	transition: width 0.2s ease;
@@ -469,7 +668,7 @@
 }
 
 .s5-editor__empty {
-	color: #a7aaad;
+	color: var(--s5e-text-dim);
 	font-size: 13px;
 	margin: auto;
 }
@@ -477,34 +676,40 @@
 /* --- right panel --------------------------------------------------------- */
 
 .s5-editor__panel {
-	flex: 0 0 320px;
+	flex: 0 0 340px;
 	display: flex;
 	flex-direction: column;
-	background: #23282d;
-	border-left: 1px solid #32373c;
+	background: var(--s5e-surface);
+	border-left: 1px solid var(--s5e-border);
 	min-height: 0;
 }
 
 .s5-editor__panel-tabs {
 	display: flex;
-	border-bottom: 1px solid #32373c;
+	border-bottom: 1px solid var(--s5e-border);
+	background: var(--s5e-bar);
 }
 
 .s5-editor__tab {
 	appearance: none;
 	border: 0;
 	background: transparent;
-	color: #c3c4c7;
+	color: var(--s5e-text-dim);
 	font-size: 12px;
-	padding: 10px 12px;
+	font-family: inherit;
+	padding: 11px 12px;
 	cursor: pointer;
 	flex: 1 1 auto;
 	border-bottom: 2px solid transparent;
 }
 
+.s5-editor__tab:hover:not(.is-disabled) {
+	color: var(--s5e-text);
+}
+
 .s5-editor__tab.is-active {
 	color: #fff;
-	border-bottom-color: #2271b1;
+	border-bottom-color: var(--s5e-accent);
 }
 
 .s5-editor__tab.is-disabled {
@@ -515,11 +720,11 @@
 .s5-editor__panel-body {
 	flex: 1 1 auto;
 	overflow: auto;
-	padding: 16px;
+	padding: var(--s5e-gap-3);
 }
 
 .s5-editor__hint {
-	color: #a7aaad;
+	color: var(--s5e-text-dim);
 	font-size: 13px;
 	line-height: 1.5;
 }
@@ -529,107 +734,138 @@
 .s5-editor__fields {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: var(--s5e-gap-2);
 }
 
+/* Uppercase letterspaced micro-label (StD .section-label). */
 .s5-editor__field-label {
 	font-size: 11px;
+	font-weight: 600;
 	text-transform: uppercase;
-	letter-spacing: 0.04em;
-	color: #8c8f94;
+	letter-spacing: 0.8px;
+	color: var(--s5e-text-dim);
 	margin-top: 6px;
 }
 
 .s5-editor__input {
 	width: 100%;
 	box-sizing: border-box;
-	background: #1e1e1e;
-	color: #f0f0f1;
-	border: 1px solid #3c434a;
-	border-radius: 4px;
-	padding: 8px;
+	background: var(--s5e-surface-2);
+	color: var(--s5e-text);
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-sm);
+	padding: 8px 12px;
 	font-size: 13px;
 	font-family: inherit;
 	resize: vertical;
 }
 
+.s5-editor__input::placeholder {
+	color: var(--s5e-text-faint);
+}
+
 .s5-editor__input:focus {
 	outline: none;
-	border-color: #2271b1;
-	box-shadow: 0 0 0 1px #2271b1;
+	border-color: var(--s5e-accent);
+	box-shadow: 0 0 0 1px var(--s5e-accent);
 }
 
 /* locked (dynamic / L&L) region presentation */
 .s5-editor__locked {
-	border: 1px dashed #f0c33c;
-	border-radius: 6px;
-	padding: 12px;
+	border: 1px dashed var(--s5e-warning);
+	border-radius: var(--s5e-radius-lg);
+	padding: var(--s5e-gap-3);
 }
 
 .s5-editor__badge {
 	display: inline-block;
-	background: #f0c33c;
+	background: var(--s5e-warning);
 	color: #1e1e1e;
 	font-size: 11px;
 	font-weight: 700;
 	padding: 2px 8px;
 	border-radius: 999px;
-	margin-bottom: 8px;
+	margin-bottom: var(--s5e-gap-2);
 }
 
 /* validation diagnostics (loud, never silent) */
 .s5-editor__diagnostics {
-	border: 1px solid #d63638;
-	background: rgba(214, 54, 56, 0.12);
-	border-radius: 6px;
+	border: 1px solid var(--s5e-danger);
+	background: var(--s5e-danger-tint);
+	border-radius: var(--s5e-radius-lg);
 	padding: 10px;
-	margin-bottom: 12px;
+	margin-bottom: var(--s5e-gap-3);
 }
 
 .s5-editor__diag {
 	color: #f0a3a4;
 	font-size: 12px;
-	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-family: var(--s5e-mono);
 	margin: 4px 0 0;
 	word-break: break-word;
 }
 
-/* --- code lens + head form (B3) ----------------------------------------- */
+/* --- code lens + head form ---------------------------------------------- */
 
 .s5-editor__codelens {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: var(--s5e-gap-2);
 }
 
 .s5-editor__code {
 	width: 100%;
 	box-sizing: border-box;
 	min-height: 240px;
-	background: #1e1e1e;
-	color: #f0f0f1;
-	border: 1px solid #3c434a;
-	border-radius: 4px;
-	padding: 8px;
-	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	background: #0c0e11;
+	color: var(--s5e-text);
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-md);
+	padding: var(--s5e-gap-2);
+	font-family: var(--s5e-mono);
 	font-size: 12px;
 	line-height: 1.5;
 	resize: vertical;
 }
 
-/* CodeMirror mounts a sibling; keep it inside the panel width. */
-.s5-editor__codelens .CodeMirror {
-	border: 1px solid #3c434a;
-	border-radius: 4px;
+/* CodeMirror mounts a sibling; dark theme matching the surfaces. */
+.s5-editor__codelens .CodeMirror,
+.s5-editor .CodeMirror {
+	border: 1px solid var(--s5e-border);
+	border-radius: var(--s5e-radius-md);
 	height: auto;
 	min-height: 240px;
+	font-family: var(--s5e-mono);
 	font-size: 12px;
+	background: #0c0e11;
+	color: var(--s5e-text);
+}
+
+.s5-editor .CodeMirror-gutters {
+	background: #0c0e11;
+	border-right: 1px solid var(--s5e-border);
+}
+
+.s5-editor .CodeMirror-linenumber {
+	color: var(--s5e-text-faint);
+}
+
+.s5-editor .CodeMirror-cursor {
+	border-left-color: var(--s5e-text);
+}
+
+.s5-editor .CodeMirror-selected {
+	background: rgba(56, 88, 233, 0.30);
+}
+
+.s5-editor .CodeMirror-focused .CodeMirror-selected {
+	background: rgba(56, 88, 233, 0.40);
 }
 
 .s5-editor__rule {
 	border: 0;
-	border-top: 1px solid #32373c;
-	margin: 12px 0;
+	border-top: 1px solid var(--s5e-border);
+	margin: var(--s5e-gap-3) 0;
 }
 
 .s5-editor__headform {
@@ -650,17 +886,37 @@
 	cursor: not-allowed;
 }
 
-/* --- Style tab (read-only) (B4) ----------------------------------------- */
+/* ============================================================================
+   Style tab — the deliberate contrast move: WHITE content cards on the dark
+   canvas. A site's design system previews on white because sites are light;
+   the TOOL is dark. (PressFlow screen 4 / StD .std-preview-container.)
+   ============================================================================ */
+
+.s5-editor__styletab [data-s5-styletab] {
+	background: var(--s5e-canvas);
+}
 
 .s5-editor__style-section {
-	margin-bottom: 18px;
+	background: #fff;
+	color: #1e1e1e;
+	border: 1px solid rgba(0, 0, 0, 0.08);
+	border-radius: var(--s5e-radius-lg);
+	padding: var(--s5e-gap-3);
+	margin-bottom: var(--s5e-gap-3);
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+.s5-editor__style-section > h2,
+.s5-editor__style-section > h3,
+.s5-editor__style-section > .s5-editor__field-label {
+	color: #1e1e1e;
 }
 
 .s5-editor__swatches {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
 	gap: 10px;
-	margin-top: 8px;
+	margin-top: var(--s5e-gap-2);
 }
 
 .s5-editor__swatch {
@@ -672,26 +928,26 @@
 .s5-editor__chip {
 	display: block;
 	height: 36px;
-	border-radius: 4px;
-	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: var(--s5e-radius-md);
+	border: 1px solid rgba(0, 0, 0, 0.12);
 }
 
 .s5-editor__radius-box {
 	display: block;
 	height: 36px;
-	background: #2271b1;
-	border: 1px solid rgba(255, 255, 255, 0.12);
+	background: var(--s5e-accent);
+	border-radius: var(--s5e-radius-md);
 }
 
 .s5-editor__swatch-name {
 	font-size: 12px;
-	color: #f0f0f1;
+	color: #1e1e1e;
 }
 
 .s5-editor__swatch-val {
 	font-size: 11px;
-	color: #8c8f94;
-	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	color: #757575;
+	font-family: var(--s5e-mono);
 }
 
 .s5-editor__ramp-row {
@@ -699,11 +955,11 @@
 	align-items: baseline;
 	gap: 10px;
 	padding: 4px 0;
-	border-bottom: 1px solid #2b2f34;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .s5-editor__ramp-sample {
-	color: #f0f0f1;
+	color: #1e1e1e;
 	line-height: 1;
 	min-width: 44px;
 }
@@ -711,7 +967,7 @@
 .s5-editor__space-bar {
 	display: inline-block;
 	height: 12px;
-	background: #2271b1;
-	border-radius: 2px;
+	background: var(--s5e-accent);
+	border-radius: var(--s5e-radius-sm);
 	min-width: 2px;
 }
