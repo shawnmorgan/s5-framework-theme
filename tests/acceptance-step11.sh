@@ -26,6 +26,23 @@ fail() { printf '%s✘%s %s\n' "$RED" "$NC" "$1" >&2; exit 1; }
 WP_ENV="npx wp-env"
 wp() { $WP_ENV run cli wp "$@" 2>/dev/null | tr -d '\r'; }
 
+# Run a `wp s5 ...` command and grep -qi its output for a pattern, retrying a few
+# times. A bare `wp-env run cli` invocation occasionally returns empty under full-
+# suite Docker load; this absorbs that transient without masking a real failure
+# (after the retries it still returns nonzero). Usage: wp_out_matches PATTERN wp-args…
+wp_out_matches() {
+	local pattern="$1"; shift
+	local i out
+	for i in 1 2 3 4 5; do
+		out="$(wp "$@")"
+		if printf '%s' "$out" | grep -qi "$pattern"; then
+			return 0
+		fi
+		sleep 1
+	done
+	return 1
+}
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 PAGES_C="wp-content/s5-pages"
@@ -52,9 +69,8 @@ pass "environment ready; corpus imported"
 # 1. Agent registers a component (validate + version stamp).
 # ---------------------------------------------------------------------------
 info "1/6  Register the 'card' component (validates + reports version)…"
-REG="$(wp s5 component register card)"
-printf '%s' "$REG" | grep -qi 'version 1.0.0' || fail "register did not report the component version"
-wp s5 component list | grep -qi 'card@1.0.0' || fail "registered component not listed with its version"
+wp_out_matches 'version 1.0.0' s5 component register card || fail "register did not report the component version"
+wp_out_matches 'card@1.0.0' s5 component list || fail "registered component not listed with its version"
 pass "component registered and listed with its version stamp"
 
 # ---------------------------------------------------------------------------
