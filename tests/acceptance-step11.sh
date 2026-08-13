@@ -43,6 +43,17 @@ wp_out_matches() {
 	return 1
 }
 
+# Fetch $1 (following redirects), grep -qF for $2, retrying ~10s to absorb the
+# write->read settle lag between a CLI persist and the web container serving it.
+curl_until() {
+	local url="$1" needle="$2" i
+	for i in $(seq 1 20); do
+		curl -sL "$url" | grep -qF "$needle" && return 0
+		sleep 0.5
+	done
+	return 1
+}
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 PAGES_C="wp-content/s5-pages"
@@ -85,7 +96,7 @@ CANON="$(wp post meta get "$ABOUT" _s5_canonical_html)"
 printf '%s' "$CANON" | grep -qF 'data-s5-component="card"' || fail "card did not expand into canonical HTML"
 printf '%s' "$CANON" | grep -qF 'data-s5-component-version="1.0.0"' || fail "inserted card missing its version stamp"
 ABOUT_URL="$(wp post url "$ABOUT")"
-curl -sL "$ABOUT_URL" | grep -qF 'class="card"' || fail "inserted card does not render on the served page"
+curl_until "$ABOUT_URL" 'class="card"' || fail "inserted card does not render on the served page"
 pass "copy-on-insert expanded into real canonical HTML (with version stamp) and renders"
 
 # ---------------------------------------------------------------------------

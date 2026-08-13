@@ -98,7 +98,7 @@ info "4/6  Compiled bundle is enqueued on a served framework page…"
 ABOUT="$(wp post list --post_type=page --name=about --field=ID | head -n1)"
 [ -n "$ABOUT" ] || fail "about page missing"
 ABOUT_URL="$(wp post url "$ABOUT")"
-curl -sL "$ABOUT_URL" | grep -qE "id='s5-bundle-css'|site/dist/s5\.css" \
+curl_until "$ABOUT_URL" 'site/dist/s5.css' \
 	|| fail "served page does not enqueue the compiled S5 bundle"
 pass "served framework page carries the one compiled S5 stylesheet"
 
