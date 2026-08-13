@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Save The Date — Screen Designs v1.4</title>
+<!-- Icon Libraries -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+<style>
+  /* ============================================
+     DESIGN TOKENS — WP ADMIN
+     ============================================ */
+  :root {
+    --wp-admin-bar:#1d2327;
+    --wp-sidebar-bg:#1e1e1e;
+    --wp-sidebar-text:#f0f0f0;
+    --wp-sidebar-text-dim:#a7aaad;
+    --wp-sidebar-hover:rgba(255,255,255,.04);
+    --wp-sidebar-active-bg:rgba(255,255,255,.08);
+    --wp-content-bg:#f0f0f0;
+    --wp-white:#ffffff;
+    --wp-border:#e0e0e0;
+    --wp-border-light:#f0f0f0;
+    --wp-text:#1e1e1e;
+    --wp-text-secondary:#757575;
+    --wp-text-tertiary:#949494;
+    --wp-accent:#3858e9;
+    --wp-accent-hover:#1d35b4;
+    --wp-accent-light:#e8edff;
+    --wp-success:#00a32a;
+    --wp-success-light:#e6f6ea;
+    --wp-destructive:#cc1818;
+    --wp-destructive-light:#fce8e8;
+    --font-body:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif;
+    --font-mono:Menlo,Consolas,monaco,monospace;
+    --gap-xs:4px;--gap-sm:8px;--gap-md:16px;--gap-lg:24px;--gap-xl:32px;--gap-2xl:48px;
+    --radius-sm:2px;--radius-md:4px;--radius-lg:8px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-body);font-size:13px;color:var(--wp-text);background:#e8e8e8;line-height:1.5;-webkit-font-smoothing:antialiased;}
+
+  /* ============================================
+     SAVE THE DATE — THEME CSS
+     (Developer reference — ship these classes)
+     ============================================ */
+
+  /* --- DROPDOWN BUTTON --- */
+  .std-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all .15s;font-family:var(--font-body);line-height:1.3;}
+  .std-btn .std-btn-icon{font-size:16px;}
+  .std-btn .std-btn-caret{font-size:10px;opacity:.7;margin-left:2px;}
+
+  /* Light theme (default) */
+  .std-theme-light .std-btn{background:#3858e9;color:#fff;border-radius:var(--radius-sm);}
+  .std-theme-light .std-btn:hover{background:#1d35b4;}
+
+  /* Dark theme */
+  .std-theme-dark .std-btn{background:#1e1e1e;color:#f0f0f0;border-radius:var(--radius-sm);}
+  .std-theme-dark .std-btn:hover{background:#333;}
+
+  /* --- ICON ROW --- */
+  .std-icons{display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+  .std-icon-item{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:all .15s;}
+  .std-icon-btn{display:flex;align-items:center;justify-content:center;font-size:20px;transition:all .15s;}
+  .std-icon-label{font-size:11px;text-align:center;max-width:60px;line-height:1.2;}
+
+  /* Icon styles: flat */
+  .std-icons-flat .std-icon-btn{width:auto;height:auto;background:none;border:none;}
+  /* Icon styles: rounded */
+  .std-icons-rounded .std-icon-btn{width:44px;height:44px;border-radius:8px;border:1px solid var(--wp-border);background:#fff;}
+  /* Icon styles: circle */
+  .std-icons-circle .std-icon-btn{width:44px;height:44px;border-radius:50%;border:1px solid var(--wp-border);background:#fff;}
+
+  /* Light theme icons */
+  .std-theme-light .std-icon-btn{color:#3858e9;}
+  .std-theme-light .std-icons-rounded .std-icon-btn,
+  .std-theme-light .std-icons-circle .std-icon-btn{background:#fff;border-color:#e0e0e0;}
+  .std-theme-light .std-icon-btn:hover{color:#1d35b4;}
+  .std-theme-light .std-icons-rounded .std-icon-btn:hover,
+  .std-theme-light .std-icons-circle .std-icon-btn:hover{background:#e8edff;border-color:#3858e9;}
+  .std-theme-light .std-icon-label{color:#757575;}
+
+  /* Dark theme icons */
+  .std-theme-dark .std-icon-btn{color:#f0f0f0;}
+  .std-theme-dark .std-icons-rounded .std-icon-btn,
+  .std-theme-dark .std-icons-circle .std-icon-btn{background:#2a2a2a;border-color:#444;}
+  .std-theme-dark .std-icon-btn:hover{color:#a8b8ff;}
+  .std-theme-dark .std-icons-rounded .std-icon-btn:hover,
+  .std-theme-dark .std-icons-circle .std-icon-btn:hover{background:#333;border-color:#666;}
+  .std-theme-dark .std-icon-label{color:#999;}
+
+  /* --- TEXT LINKS --- */
+  .std-links{display:flex;flex-direction:column;gap:10px;}
+  .std-link-item{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;transition:color .15s;text-decoration:underline;font-family:var(--font-body);}
+  .std-link-item .std-link-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+
+  /* Light theme links */
+  .std-theme-light .std-link-item{color:#3858e9;}
+  .std-theme-light .std-link-item:hover{color:#1d35b4;}
+
+  /* Dark theme links */
+  .std-theme-dark .std-link-item{color:#a8b8ff;}
+  .std-theme-dark .std-link-item:hover{color:#d0d8ff;}
+
+  /* Dark theme container bg */
+  .std-theme-dark.std-preview-container{background:#1e1e1e;border-color:#333;}
+  .std-theme-light.std-preview-container{background:#fff;border-color:var(--wp-border);}
+
+  /* ============================================
+     ADMIN UI COMPONENTS
+     ============================================ */
+
+  /* Nav */
+  .screen-nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:var(--wp-admin-bar);display:flex;align-items:center;height:46px;padding:0 20px;}
+  .screen-nav-logo{color:white;font-size:13px;font-weight:600;margin-right:24px;display:flex;align-items:center;gap:8px;opacity:.9;}
+  .screen-nav-tab{color:var(--wp-sidebar-text-dim);font-size:13px;padding:12px 16px;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s;user-select:none;}
+  .screen-nav-tab:hover{color:white;}
+  .screen-nav-tab.active{color:white;border-bottom-color:white;}
+  .screen-nav-badge{margin-left:auto;font-size:11px;color:var(--wp-sidebar-text-dim);background:rgba(255,255,255,.08);padding:3px 10px;border-radius:3px;}
+  .screen{display:none;padding-top:46px;}
+  .screen.active{display:block;}
+
+  /* WP chrome */
+  .wp-admin-bar{background:var(--wp-admin-bar);height:32px;display:flex;align-items:center;padding:0 12px;font-size:12px;color:var(--wp-sidebar-text-dim);gap:16px;}
+  .wp-admin-bar a{color:var(--wp-sidebar-text-dim);text-decoration:none;}
+  .admin-layout{display:flex;min-height:calc(100vh - 78px);}
+  .admin-sidebar{width:160px;background:var(--wp-sidebar-bg);flex-shrink:0;padding-top:8px;}
+  .sidebar-item{display:flex;align-items:center;gap:10px;padding:8px 12px;color:var(--wp-sidebar-text-dim);font-size:13px;cursor:pointer;}
+  .sidebar-item:hover{background:var(--wp-sidebar-hover);color:var(--wp-sidebar-text);}
+  .sidebar-item.active{background:var(--wp-sidebar-active-bg);color:white;}
+  .sidebar-item .icon{width:20px;text-align:center;opacity:.7;font-size:14px;}
+  .sidebar-divider{height:1px;background:rgba(255,255,255,.05);margin:8px 12px;}
+  .sidebar-sub{padding-left:42px;font-size:12px;padding-top:6px;padding-bottom:6px;}
+  .admin-content{flex:1;background:var(--wp-content-bg);min-width:0;}
+
+  /* Editor topbar */
+  .editor-topbar{background:var(--wp-white);border-bottom:1px solid var(--wp-border);display:flex;align-items:center;padding:0 24px;height:56px;gap:16px;}
+  .editor-topbar-title{font-size:15px;font-weight:600;flex:1;display:flex;align-items:center;gap:8px;}
+  .editor-topbar-cpt{font-size:12px;background:var(--wp-accent-light);color:var(--wp-accent);padding:2px 10px;border-radius:3px;font-weight:500;}
+
+  /* Buttons */
+  .btn-primary{background:var(--wp-accent);color:white;border:none;padding:8px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;}
+  .btn-primary:hover{background:var(--wp-accent-hover);}
+  .btn-secondary{background:transparent;color:var(--wp-accent);border:1px solid var(--wp-border);padding:7px 16px;border-radius:var(--radius-sm);font-size:13px;cursor:pointer;}
+  .btn-secondary:hover{border-color:var(--wp-accent);}
+
+  /* Editor body */
+  .editor-body{display:flex;min-height:calc(100vh - 78px - 56px);}
+  .editor-settings-panel{width:280px;background:var(--wp-white);border-right:1px solid var(--wp-border);flex-shrink:0;overflow-y:auto;}
+  .editor-main{flex:1;padding:var(--gap-lg);overflow-y:auto;}
+
+  /* Panels */
+  .panel{border-bottom:1px solid var(--wp-border-light);}
+  .panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer;user-select:none;}
+  .panel-header:hover{background:rgba(0,0,0,.01);}
+  .panel-title{font-size:13px;font-weight:600;}
+  .panel-chevron{color:var(--wp-text-secondary);font-size:14px;transition:transform .2s;}
+  .panel.collapsed .panel-chevron{transform:rotate(-90deg);}
+  .panel.collapsed .panel-body{display:none;}
+  .panel-body{padding:0 20px 20px;}
+
+  /* Form */
+  .section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--wp-text-secondary);margin-bottom:var(--gap-md);}
+  .section-divider{height:1px;background:var(--wp-border-light);margin:var(--gap-lg) 0;}
+  .field-group{margin-bottom:var(--gap-md);}
+  .field-label{font-size:12px;font-weight:600;color:var(--wp-text);margin-bottom:var(--gap-xs);display:block;}
+  .field-sublabel{font-size:11px;color:var(--wp-text-secondary);margin-bottom:var(--gap-sm);display:block;}
+  .field-input{width:100%;padding:8px 12px;border:1px solid var(--wp-border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font-body);background:var(--wp-white);color:var(--wp-text);outline:none;}
+  .field-input:focus{border-color:var(--wp-accent);box-shadow:0 0 0 1px var(--wp-accent);}
+  .field-input::placeholder{color:var(--wp-text-tertiary);}
+  select.field-input{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%23757575' stroke-width='1.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px;}
+  textarea.field-input{min-height:80px;resize:vertical;}
+  .post-title-input{width:100%;border:none;font-size:24px;font-weight:600;color:var(--wp-text);padding:0;outline:none;line-height:1.3;background:transparent;font-family:var(--font-body);}
+  .post-title-input::placeholder{color:var(--wp-text-tertiary);}
+  .post-title-wrapper{padding:24px 24px 16px;border-bottom:1px solid var(--wp-border-light);}
+
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;}
+  .toggle-label-text{font-size:13px;color:var(--wp-text);}
+  .toggle{width:36px;height:20px;background:#ccc;border-radius:10px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;}
+  .toggle.on{background:var(--wp-accent);}
+  .toggle::after{content:'';position:absolute;width:16px;height:16px;background:white;border-radius:50%;top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.15);}
+  .toggle.on::after{transform:translateX(16px);}
+
+  .radio-group{display:inline-flex;gap:0;border:1px solid var(--wp-border);border-radius:var(--radius-sm);overflow:hidden;}
+  .radio-option{padding:6px 14px;font-size:12px;cursor:pointer;border-right:1px solid var(--wp-border);user-select:none;background:var(--wp-white);}
+  .radio-option:last-child{border-right:none;}
+  .radio-option:hover{background:#f9f9f9;}
+  .radio-option.active{background:var(--wp-accent);color:white;}
+
+  .field-grid{display:grid;gap:var(--gap-md);}
+  .field-grid.cols-2{grid-template-columns:1fr 1fr;}
+  .field-grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
+
+  /* Cards */
+  .card{background:var(--wp-white);border:1px solid var(--wp-border);border-radius:var(--radius-sm);margin-bottom:var(--gap-md);}
+  .card-header{padding:16px 24px;border-bottom:1px solid var(--wp-border-light);display:flex;align-items:center;justify-content:space-between;}
+  .card-header-title{font-size:13px;font-weight:600;}
+  .card-body{padding:24px;}
+  .card-tabs{display:flex;border-bottom:1px solid var(--wp-border-light);padding:0 24px;}
+  .card-tab{padding:12px 16px;font-size:12px;color:var(--wp-text-secondary);cursor:pointer;border-bottom:2px solid transparent;user-select:none;}
+  .card-tab:hover{color:var(--wp-text);}
+  .card-tab.active{color:var(--wp-accent);border-bottom-color:var(--wp-accent);font-weight:500;}
+
+  /* Previews */
+  .preview-box{padding:32px 24px;background:#fafafa;border:1px dashed var(--wp-border);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;min-height:80px;}
+  .style-preview-pane{display:none;}
+  .style-preview-pane.active{display:block;}
+
+  /* Override / Customization */
+  .override-toggle-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fafafa;border:1px solid var(--wp-border-light);border-radius:var(--radius-md);margin-bottom:var(--gap-md);}
+  .override-toggle-label{font-size:12px;font-weight:600;color:var(--wp-text);}
+  .override-body{padding:20px;background:#fafafa;border:1px solid var(--wp-border-light);border-radius:var(--radius-md);}
+  .style-options-pane{display:none;}
+  .style-options-pane.active{display:block;}
+
+  .color-picker-row{display:flex;gap:var(--gap-sm);align-items:center;}
+  .color-swatch{width:32px;height:32px;border-radius:var(--radius-sm);border:1px solid var(--wp-border);cursor:pointer;flex-shrink:0;}
+
+  /* Visual selector (radius, icon style) */
+  .visual-selector{display:flex;gap:8px;}
+  .visual-option{width:44px;height:44px;border:2px solid var(--wp-border);display:flex;align-items:center;justify-content:center;cursor:pointer;background:white;border-radius:var(--radius-sm);transition:all .15s;}
+  .visual-option:hover{border-color:var(--wp-accent);}
+  .visual-option.active{border-color:var(--wp-accent);background:var(--wp-accent-light);}
+  .visual-option .vo-inner{width:20px;height:14px;background:var(--wp-accent);}
+  .visual-option .vo-icon{font-size:16px;color:var(--wp-accent);}
+
+  /* Conditional block */
+  .conditional-block{padding:12px 16px;background:#fafafa;border-radius:var(--radius-md);border:1px solid var(--wp-border-light);margin-top:var(--gap-sm);}
+  .conditional-section{display:none;}
+  .conditional-section.visible{display:block;}
+
+  /* Analytics */
+  .analytics-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap-md);margin-bottom:var(--gap-lg);}
+  .stat-card{text-align:center;padding:16px;background:#fafafa;border-radius:var(--radius-md);border:1px solid var(--wp-border-light);}
+  .stat-number{font-size:28px;font-weight:700;line-height:1.1;}
+  .stat-label{font-size:11px;color:var(--wp-text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-top:4px;}
+  .stat-change{font-size:11px;margin-top:4px;color:var(--wp-success);}
+  .stat-change.down{color:var(--wp-destructive);}
+  .chart-placeholder{height:160px;background:linear-gradient(to right,var(--wp-border-light) 1px,transparent 1px),linear-gradient(to top,var(--wp-border-light) 1px,transparent 1px);background-size:calc(100%/7) 40px;border-radius:var(--radius-md);position:relative;margin-bottom:var(--gap-md);overflow:hidden;}
+  .chart-line{position:absolute;bottom:20px;left:0;right:0;height:80px;}
+  .chart-line svg{width:100%;height:100%;}
+  .cal-breakdown{display:flex;gap:var(--gap-sm);flex-wrap:wrap;}
+  .cal-chip{display:flex;align-items:center;gap:6px;padding:4px 10px;background:#fafafa;border:1px solid var(--wp-border-light);border-radius:var(--radius-sm);font-size:11px;color:var(--wp-text-secondary);}
+  .cal-chip .dot{width:8px;height:8px;border-radius:50%;}
+  .shortcode-display{display:flex;align-items:center;gap:var(--gap-sm);padding:8px 12px;background:#f5f5f5;border:1px solid var(--wp-border);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:12px;color:var(--wp-text-secondary);cursor:pointer;}
+  .shortcode-display:hover{border-color:var(--wp-accent);}
+  .shortcode-display .copy-icon{margin-left:auto;opacity:.4;}
+
+  /* ============ SETTINGS ============ */
+  .settings-layout{display:flex;flex:1;}
+  .settings-nav{width:220px;background:var(--wp-white);border-right:1px solid var(--wp-border);flex-shrink:0;padding-top:var(--gap-md);}
+  .settings-nav-header{padding:8px 20px 16px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--wp-text-secondary);}
+  .settings-nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;font-size:13px;color:var(--wp-text-secondary);cursor:pointer;border-left:3px solid transparent;}
+  .settings-nav-item:hover{color:var(--wp-text);background:#fafafa;}
+  .settings-nav-item.active{color:var(--wp-accent);background:var(--wp-accent-light);border-left-color:var(--wp-accent);font-weight:500;}
+  .settings-nav-icon{width:20px;text-align:center;opacity:.6;font-size:14px;}
+
+  .settings-main{flex:1;padding:var(--gap-xl);max-width:760px;}
+  .settings-page-title{font-size:20px;font-weight:600;margin-bottom:var(--gap-xs);}
+  .settings-page-desc{font-size:13px;color:var(--wp-text-secondary);margin-bottom:var(--gap-xl);}
+  .settings-section{margin-bottom:var(--gap-xl);}
+  .settings-section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--wp-text-secondary);margin-bottom:var(--gap-lg);padding-bottom:var(--gap-sm);border-bottom:1px solid var(--wp-border-light);}
+  .settings-row{display:flex;align-items:flex-start;gap:var(--gap-xl);padding:var(--gap-md) 0;border-bottom:1px solid var(--wp-border-light);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row-label{width:180px;flex-shrink:0;}
+  .settings-row-label .field-label{margin-bottom:2px;}
+  .settings-row-content{flex:1;}
+  .settings-note{font-size:12px;color:var(--wp-text-secondary);margin-top:var(--gap-sm);line-height:1.5;}
+
+  .settings-save-bar{padding:var(--gap-lg) 0 0;margin-top:var(--gap-xl);border-top:1px solid var(--wp-border);display:flex;align-items:center;gap:12px;}
+  .save-status{font-size:12px;color:var(--wp-text-secondary);}
+
+  .license-status{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:var(--radius-md);font-size:13px;margin-bottom:var(--gap-md);}
+  .license-status.active{background:var(--wp-success-light);color:var(--wp-success);border:1px solid #b8e6c4;}
+  .license-dot{width:8px;height:8px;border-radius:50%;background:currentColor;}
+
+  /* Style-specific settings grouping — indented block with left accent */
+  .style-settings-group{border-left:3px solid var(--wp-accent);padding-left:24px;margin-left:4px;margin-top:var(--gap-md);}
+  .settings-style-options{display:none;}
+  .settings-style-options.active{display:block;}
+  .custom-colors-section{display:none;}
+  .custom-colors-section.visible{display:block;}
+
+  /* Preview sidebar */
+  .settings-preview{width:320px;flex-shrink:0;padding:var(--gap-xl) var(--gap-lg);border-left:1px solid var(--wp-border);background:#fafafa;position:sticky;top:78px;align-self:flex-start;height:calc(100vh - 78px);overflow-y:auto;}
+  .settings-preview-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--wp-text-secondary);margin-bottom:var(--gap-md);}
+  .preview-style-tabs{display:flex;gap:0;border:1px solid var(--wp-border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:var(--gap-md);width:100%;}
+  .preview-style-tab{flex:1;text-align:center;padding:6px 8px;font-size:11px;cursor:pointer;border-right:1px solid var(--wp-border);background:white;user-select:none;}
+  .preview-style-tab:last-child{border-right:none;}
+  .preview-style-tab.active{background:var(--wp-accent);color:white;}
+
+  .std-preview-container{border:1px solid var(--wp-border);border-radius:var(--radius-md);padding:32px 24px;display:flex;align-items:center;justify-content:center;min-height:120px;transition:all .2s;}
+
+  @media(max-width:1200px){.settings-preview{display:none;}.editor-settings-panel{width:240px;}}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<div class="screen-nav">
+  <div class="screen-nav-logo"><i class="bi bi-calendar-event" style="font-size:16px"></i> Save The Date</div>
+  <div class="screen-nav-tab active" onclick="showScreen('event-editor')">Event Editor</div>
+  <!--<div class="screen-nav-tab" onclick="showScreen('settings')">Settings Page</div> -->
+  <div class="screen-nav-badge">Design Reference v1.4</div>
+</div>
+
+<!-- ============================================
+     SCREEN 1: EVENT EDITOR
+     ============================================ -->
+<div class="screen active" id="screen-event-editor">
+  <div class="wp-admin-bar"><a href="#"><i class="bi bi-house-door"></i> Save The Date</a><span style="margin-left:auto">Howdy, admin</span></div>
+  <div class="admin-layout">
+    <div class="admin-sidebar">
+      <div class="sidebar-item"><div class="icon"><i class="bi bi-speedometer2"></i></div> Dashboard</div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-item active"><div class="icon"><i class="bi bi-calendar-event"></i></div> Events</div>
+      <div class="sidebar-item sidebar-sub active">All Events</div>
+      <div class="sidebar-item sidebar-sub">Add New</div>
+      <div class="sidebar-item sidebar-sub">Analytics</div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-item"><div class="icon"><i class="bi bi-file-earmark-text"></i></div> Posts</div>
+      <div class="sidebar-item"><div class="icon"><i class="bi bi-file-earmark"></i></div> Pages</div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-item" onclick="showScreen('settings')"><div class="icon"><i class="bi bi-gear"></i></div> Settings</div>
+    </div>
+    <div class="admin-content">
+      <div class="editor-topbar">
+        <div class="editor-topbar-title">Edit Event <span class="editor-topbar-cpt">std_event</span></div>
+        <button class="btn-secondary">Preview</button>
+      </div>
+      <div class="editor-body">
+
+        <!-- Main Content -->
+        <div class="editor-main" style="max-width:860px;margin:0 auto;width:100%">
+
+          <!-- Post Title -->
+          <div class="card"><div class="post-title-wrapper"><input type="text" class="post-title-input" placeholder="Add event title" value="My Special Event 2026"></div></div>
+
+          <!-- Publish -->
+          <div class="card">
+            <div class="card-header" style="padding:14px 24px">
+              <div class="card-header-title">Publish</div>
+              <div style="display:flex;gap:8px">
+                <button class="btn-secondary" style="font-size:12px">Save Draft</button>
+                <button class="btn-primary" style="font-size:12px">Update</button>
+              </div>
+            </div>
+            <div class="card-body" style="padding:16px 24px">
+              <div style="display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap">
+                <div class="field-group" style="margin-bottom:0;min-width:160px">
+                  <label class="field-label">Status</label>
+                  <div class="radio-group" style="margin-top:4px"><div class="radio-option active">Published</div><div class="radio-option">Draft</div></div>
+                </div>
+                <div class="field-group" style="margin-bottom:0;min-width:160px">
+                  <label class="field-label">Visibility</label>
+                  <div class="radio-group" style="margin-top:4px"><div class="radio-option active">Public</div><div class="radio-option">Private</div></div>
+                </div>
+                <div class="field-group" style="margin-bottom:0">
+                  <label class="field-label">Published On</label>
+                  <div style="font-size:13px;color:var(--wp-text-secondary);margin-top:4px">Mar 4, 2026 at 20:18</div>
+                </div>
+              </div>
+              <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--wp-border-light)">
+                <a href="#" style="font-size:12px;color:var(--wp-destructive);text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'"><i class="bi bi-trash" style="margin-right:4px"></i>Move to Trash</a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Event Details -->
+          <div class="card">
+            <div class="card-header"><div class="card-header-title">Event Details</div></div>
+            <div class="card-body">
+              <div class="section-label">Date & Time</div>
+              <div class="field-grid cols-2">
+                <div class="field-group"><label class="field-label">Start Date</label><input type="text" class="field-input" value="April 5, 2026"></div>
+                <div class="field-group"><label class="field-label">Start Time</label><input type="text" class="field-input" value="10:00 AM"></div>
+              </div>
+              <div style="height:12px"></div>
+              <div class="field-grid cols-2">
+                <div class="field-group"><label class="field-label">End Date</label><input type="text" class="field-input" value="April 5, 2026"></div>
+                <div class="field-group"><label class="field-label">End Time</label><input type="text" class="field-input" value="12:00 PM"></div>
+              </div>
+              <div style="height:8px"></div>
+              <div class="field-grid cols-2">
+                <div class="field-group"><label class="field-label">Timezone</label><select class="field-input"><option>America/New_York (EST)</option></select></div>
+                <div class="field-group" style="display:flex;align-items:flex-end;padding-bottom:2px"><div class="toggle-row" style="width:100%"><span class="toggle-label-text">All-day event</span><div class="toggle"></div></div></div>
+              </div>
+              <div class="section-divider"></div>
+              <div class="section-label">Description</div>
+              <div class="field-group" style="margin-bottom:0">
+                <label class="field-label">Event Description</label>
+                <span class="field-sublabel">Appears in the calendar event after someone saves it.</span>
+                <textarea class="field-input" style="min-height:100px">Join us for Easter Service at Manna Church! Experience worship, an inspiring message, and family-friendly activities. Doors open at 9:30 AM.</textarea>
+              </div>
+              <div class="section-divider"></div>
+              <div class="section-label">Location</div>
+              <div class="field-group"><label class="field-label">Location Type</label><div class="radio-group"><div class="radio-option active">Physical Address</div><div class="radio-option">Virtual (URL)</div><div class="radio-option">No Location</div></div></div>
+              <div class="conditional-block">
+                <div class="field-group" style="margin-bottom:12px"><label class="field-label">Address</label><input type="text" class="field-input" value="5117 Cliffdale Rd, Fayetteville, NC 28314"></div>
+                <div class="field-group" style="margin-bottom:0"><label class="field-label">Location Notes</label><span class="field-sublabel">Optional. Appears in calendar description.</span><textarea class="field-input" style="min-height:60px">Main sanctuary — enter through lobby doors</textarea></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add To Calendar -->
+          <div class="card" id="editor-preview-card">
+            <div class="card-header"><div class="card-header-title">Add To Calendar</div></div>
+            <div class="card-tabs" id="editor-style-tabs">
+              <div class="card-tab active" data-style="dropdown">Dropdown</div>
+              <div class="card-tab" data-style="icons">Icon Row</div>
+              <div class="card-tab" data-style="links">Text Links</div>
+              <div class="card-tab" data-style="direct">Direct Links</div>
+            </div>
+            <div class="card-body">
+
+              <!-- DROPDOWN PREVIEW -->
+              <div class="style-preview-pane active" data-style="dropdown">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--wp-text-secondary);margin-bottom:10px">Live Preview</div>
+                <div class="preview-box" style="margin-bottom:16px">
+                  <div class="std-btn" style="background:var(--wp-accent);color:#fff;border-radius:var(--radius-sm);">
+                    <i class="bi bi-calendar-plus std-btn-icon"></i> Add to Calendar <i class="bi bi-chevron-down std-btn-caret"></i>
+                  </div>
+                </div>
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--wp-text-secondary);margin-bottom:6px">Shortcode</div>
+                <div class="shortcode-display">[save-the-date id="52"]<span class="copy-icon"><i class="bi bi-clipboard"></i></span></div>
+                <div style="height:20px"></div>
+              </div>
+              <!-- ICON ROW PREVIEW -->
+              <div class="style-preview-pane" data-style="icons">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--wp-text-secondary);margin-bottom:10px">Live Preview</div>
+                <div class="preview-box" style="margin-bottom:16px">
+                  <div class="std-icons std-icons-rounded">
+                    <div class="std-icon-item"><div class="std-icon-btn" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--wp-border);background:#fff;color:var(--wp-accent)"><i class="fa-brands fa-google"></i></div><span class="std-icon-label" style="color:var(--wp-text-secondary)">Google</span></div>
+                    <div class="std-icon-item"><div class="std-icon-btn" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--wp-border);background:#fff;color:var(--wp-accent)"><i class="fa-brands fa-apple"></i></div><span class="std-icon-label" style="color:var(--wp-text-secondary)">Apple</span></div>
+                    <div class="std-icon-item"><div class="std-icon-btn" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--wp-border);background:#fff;color:var(--wp-accent)"><i class="fa-brands fa-microsoft"></i></div><span class="std-icon-label" style="color:var(--wp-text-secondary)">Outlook</span></div>
+                    <div class="std-icon-item"><div class="std-icon-btn" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--wp-border);background:#fff;color:var(--wp-accent)"><i class="fa-brands fa-yahoo"></i></div><span class="std-icon-label" style="color:var(--wp-text-secondary)">Yahoo</span></div>
+                    <div class="std-icon-item"><div class="std-icon-btn" style="width:44px;height:44px;border-radius:8px;border:1px solid var(--wp-border);background:#fff;color:var(--wp-accent)"><i class="bi bi-file-earmark-arrow-down"></i></div><span class="std-icon-label" style="color:var(--wp-text-secondary)">.ics</span></div>
+                  </div>
+                </div>
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--wp-text-secondary);margin-bottom:6px">Shortcode</div>
+                <div class="shortcode-display">[save-the-date id="52" style="icons"]<span class="copy-icon"><i class="bi bi-clipboard"></i></span></div>
+                <div style="height:20px"></div>
+              </div>
+              <!-- TEXT LINKS PREVIEW -->
+              <div class="style-preview-pane" data-style="links">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--wp-text-secondary);margin-bottom:10px">Live Preview</div>
+                <div class="preview-box" style="margin-bottom:16px;justify-content:flex-start;padding-left:48px">
+                  <div class="std-links">
+                    <div class="std-link-item" style="color:var(--wp-accent)"><span class="std-link-icon"><i class="fa-brands fa-google"></i></span> Add to Google Calendar</div>
+                    <div class="std-link-item" style="color:var(--wp-accent)"><span class="std-link-icon"><i class="fa-brands fa-apple"></i></span> Add to Apple Calendar</div>
+                    <div class="std-link-item" style="color:var(--wp-accent)"><span class="std-link-icon"><i class="fa-brands fa-microsoft"></i></span> Add to Outlook</div>
+                    <div class="std-link-item" style="color:var(--wp-accent)"><span class="std-link-icon"><i class="fa-brands fa-yahoo"></i></span> Add to Yahoo Calendar</div>
+                    <div class="std-link-item" style="color:var(--wp-accent)"><span class="std-link-icon"><i class="bi bi-file-earmark-arrow-down"></i></span> Download .ics File</div>
+                  </div>
+                </div>
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--wp-text-secondary);margin-bottom:6px">Shortcode</div>
+                <div class="shortcode-display">[save-the-date id="52" style="links"]<span class="copy-icon"><i class="bi bi-clipboard"></i></span></div>
+                <div style="height:20px"></div>
+              </div>
+
+              <!-- DIRECT LINKS PANE -->
+              <div class="style-preview-pane" data-style="direct">
+                <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--wp-text-secondary);margin-bottom:6px">Downloads event / redirects to service immediately</div>
+                <div style="margin-top:12px">
+
+                  <!-- Apple -->
+                  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--wp-border-light)">
+                    <div style="width:28px;text-align:center;flex-shrink:0"><i class="fa-brands fa-apple" style="font-size:18px;color:#1e1e1e"></i></div>
+                    <span style="width:90px;font-size:13px;color:var(--wp-text-secondary);flex-shrink:0">Apple</span>
+                    <div style="flex:1;padding:6px 10px;background:#f5f5f5;border:1px solid var(--wp-border);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:11px;color:var(--wp-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">https://savethewp.com/cal/apple/my-special-event-2026</div>
+                    <a href="#" style="color:var(--wp-text-secondary);flex-shrink:0;padding:4px"><i class="bi bi-box-arrow-up-right" style="font-size:14px"></i></a>
+                  </div>
+
+                  <!-- Google -->
+                  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--wp-border-light)">
+                    <div style="width:28px;text-align:center;flex-shrink:0"><i class="fa-brands fa-google" style="font-size:18px;color:#4285f4"></i></div>
+                    <span style="width:90px;font-size:13px;color:var(--wp-text-secondary);flex-shrink:0">Google</span>
+                    <div style="flex:1;padding:6px 10px;background:#f5f5f5;border:1px solid var(--wp-border);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:11px;color:var(--wp-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">https://savethewp.com/cal/google/my-special-event-2026</div>
+                    <a href="#" style="color:var(--wp-text-secondary);flex-shrink:0;padding:4px"><i class="bi bi-box-arrow-up-right" style="font-size:14px"></i></a>
+                  </div>
+
+                  <!-- Office 365 -->
+                  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--wp-border-light)">
+                    <div style="width:28px;text-align:center;flex-shrink:0"><i class="fa-brands fa-microsoft" style="font-size:18px;color:#d83b01"></i></div>
+                    <span style="width:90px;font-size:13px;color:var(--wp-text-secondary);flex-shrink:0">Office 365</span>
+                    <div style="flex:1;padding:6px 10px;background:#f5f5f5;border:1px solid var(--wp-border);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:11px;color:var(--wp-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">https://savethewp.com/cal/office365/my-special-event-2026</div>
+                    <a href="#" style="color:var(--wp-text-secondary);flex-shrink:0;padding:4px"><i class="bi bi-box-arrow-up-right" style="font-size:14px"></i></a>
+                  </div>
+
+                  <!-- Outlook -->
+                  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--wp-border-light)">
+                    <div style="width:28px;text-align:center;flex-shrink:0"><i class="fa-brands fa-microsoft" style="font-size:18px;color:#0078d4"></i></div>
+                    <span style="width:90px;font-size:13px;color:var(--wp-text-secondary);flex-shrink:0">Outlook</span>
+                    <div style="flex:1;padding:6px 10px;background:#f5f5f5;border:1px solid var(--wp-border);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:11px;color:var(--wp-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">https://savethewp.com/cal/outlook/my-special-event-2026</div>
+                    <a href="#" style="color:var(--wp-text-secondary);flex-shrink:0;padding:4px"><i class="bi bi-box-arrow-up-right" style="font-size:14px"></i></a>
+                  </div>
+
+                  <!-- Yahoo -->
+                  <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--wp-border-light)">
+                    <div style="width:28px;text-align:center;flex-shrink:0"><i class="fa-brands fa-yahoo" style="font-size:18px;color:#720e9e"></i></div>
+                    <span style="width:90px;font-size:13px;color:var(--wp-text-secondary);flex-shrink:0">Yahoo</span>
+                    <div style="flex:1;padding:6px 10px;background:#f5f5f5;border:1px solid var(--wp-border);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:11px;color:var(--wp-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">https://savethewp.com/cal/yahoo/my-special-event-2026</div>
+                    <a href="#" style="color:var(--wp-text-secondary);flex-shrink:0;padding:4px"><i class="bi bi-box-arrow-up-right" style="font-size:14px"></i></a>
+                  </div>
+
+                  <!-- ICS Download -->
+                  <div style="display:flex;align-items:center;gap:12px;padding:10px 0">
+                    <div style="width:28px;text-align:center;flex-shrink:0"><i class="bi bi-file-earmark-arrow-down" style="font-size:18px;color:var(--wp-text-secondary)"></i></div>
+                    <span style="width:90px;font-size:13px;color:var(--wp-text-secondary);flex-shrink:0">.ics File</span>
+                    <div style="flex:1;padding:6px 10px;background:#f5f5f5;border:1px solid var(--wp-border);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:11px;color:var(--wp-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">https://savethewp.com/cal/ics/my-special-event-2026.ics</div>
+                    <a href="#" style="color:var(--wp-text-secondary);flex-shrink:0;padding:4px"><i class="bi bi-box-arrow-up-right" style="font-size:14px"></i></a>
+                  </div>
+
+                </div>
+                <div style="height:8px"></div>
+              </div>
+
+              <!-- Override toggle -->
+              <div class="override-toggle-bar">
+                <span class="override-toggle-label">Override global button settings for this event</span>
+                <div class="toggle" id="editor-override-toggle"></div>
+              </div>
+
+              <div id="editor-override-options" style="display:none">
+
+                <!-- DROPDOWN OPTIONS -->
+                <div class="style-options-pane active" data-style="dropdown">
+                  <div class="override-body">
+                    <div class="section-label">Colors</div>
+                    <div class="field-grid cols-2" style="margin-bottom:16px">
+                      <div class="field-group"><label class="field-label">Button Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#3858e9"></div><input type="text" class="field-input" value="#3858E9" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                      <div class="field-group"><label class="field-label">Hover Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#1d35b4"></div><input type="text" class="field-input" value="#1D35B4" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                    </div>
+                    <div class="field-grid cols-2" style="margin-bottom:16px">
+                      <div class="field-group"><label class="field-label">Text Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#fff;border-color:#ccc"></div><input type="text" class="field-input" value="#FFFFFF" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                      <div class="field-group"><label class="field-label">Icon Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#fff;border-color:#ccc"></div><input type="text" class="field-input" value="#FFFFFF" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                    </div>
+                    <div class="section-divider" style="margin:16px 0"></div>
+                    <div class="section-label">Shape</div>
+                    <div class="field-group">
+                      <label class="field-label">Border Radius</label>
+                      <div class="visual-selector"><div class="visual-option active"><div class="vo-inner" style="border-radius:0"></div></div><div class="visual-option"><div class="vo-inner" style="border-radius:3px"></div></div><div class="visual-option"><div class="vo-inner" style="border-radius:5px"></div></div><div class="visual-option"><div class="vo-inner" style="border-radius:20px"></div></div></div>
+                    </div>
+                    <div class="section-divider" style="margin:16px 0"></div>
+                    <div class="section-label">Typography</div>
+                    <div class="field-grid cols-2">
+                      <div class="field-group"><label class="field-label">Font Family</label><select class="field-input"><option>System Default</option><option>Inter</option><option>DM Sans</option><option>Roboto</option><option>Open Sans</option><option>Lato</option><option>Poppins</option><option>Inherit from theme</option></select></div>
+                      <div class="field-group"><label class="field-label">Font Size</label><select class="field-input"><option>12px</option><option selected>14px</option><option>16px</option><option>18px</option></select></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ICON ROW OPTIONS -->
+                <div class="style-options-pane" data-style="icons">
+                  <div class="override-body">
+                    <div class="section-label">Colors</div>
+                    <div class="field-grid cols-2" style="margin-bottom:16px">
+                      <div class="field-group"><label class="field-label">Icon Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#3858e9"></div><input type="text" class="field-input" value="#3858E9" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                      <div class="field-group"><label class="field-label">Hover Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#1d35b4"></div><input type="text" class="field-input" value="#1D35B4" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                    </div>
+                    <div class="field-grid cols-2" style="margin-bottom:16px">
+                      <div class="field-group"><label class="field-label">Background</label><div class="color-picker-row"><div class="color-swatch" style="background:#fff;border-color:#ccc"></div><input type="text" class="field-input" value="#FFFFFF" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                      <div class="field-group"><label class="field-label">Border Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#e0e0e0"></div><input type="text" class="field-input" value="#E0E0E0" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                    </div>
+                    <div class="section-divider" style="margin:16px 0"></div>
+                    <div class="section-label">Icon Style</div>
+                    <div class="field-group">
+                      <label class="field-label">Container Shape</label>
+                      <div class="visual-selector">
+                        <div class="visual-option" title="Flat — icon only"><div class="vo-icon"><i class="fa-brands fa-google"></i></div></div>
+                        <div class="visual-option active" title="Rounded square"><div class="vo-icon" style="width:28px;height:28px;background:#e8edff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px"><i class="fa-brands fa-google"></i></div></div>
+                        <div class="visual-option" title="Circle"><div class="vo-icon" style="width:28px;height:28px;background:#e8edff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px"><i class="fa-brands fa-google"></i></div></div>
+                      </div>
+                      <div style="display:flex;gap:8px;font-size:10px;color:var(--wp-text-tertiary);margin-top:4px;padding-left:4px"><span style="width:44px;text-align:center">Flat</span><span style="width:44px;text-align:center">Rounded</span><span style="width:44px;text-align:center">Circle</span></div>
+                    </div>
+                    <div class="section-divider" style="margin:16px 0"></div>
+                    <div class="section-label">Labels</div>
+                    <div class="toggle-row" style="margin-bottom:8px"><span class="toggle-label-text">Show icon labels</span><div class="toggle on label-toggle" data-target="editor-icon-label-typo"></div></div>
+                    <div class="conditional-section visible" id="editor-icon-label-typo">
+                      <div class="field-grid cols-2">
+                        <div class="field-group"><label class="field-label">Font Family</label><select class="field-input"><option>System Default</option><option>Inter</option><option>DM Sans</option><option>Inherit from theme</option></select></div>
+                        <div class="field-group"><label class="field-label">Font Size</label><select class="field-input"><option>10px</option><option selected>11px</option><option>12px</option></select></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- TEXT LINKS OPTIONS -->
+                <div class="style-options-pane" data-style="links">
+                  <div class="override-body">
+                    <div class="section-label">Colors</div>
+                    <div class="field-grid cols-2" style="margin-bottom:16px">
+                      <div class="field-group"><label class="field-label">Link Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#3858e9"></div><input type="text" class="field-input" value="#3858E9" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                      <div class="field-group"><label class="field-label">Hover Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#1d35b4"></div><input type="text" class="field-input" value="#1D35B4" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                    </div>
+                    <div class="field-grid cols-2" style="margin-bottom:16px">
+                      <div class="field-group"><label class="field-label">Icon Color</label><div class="color-picker-row"><div class="color-swatch" style="background:#3858e9"></div><input type="text" class="field-input" value="#3858E9" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div>
+                      <div class="field-group"><label class="field-label">Underline</label><div class="radio-group"><div class="radio-option active">Show</div><div class="radio-option">Hide</div></div></div>
+                    </div>
+                    <div class="section-divider" style="margin:16px 0"></div>
+                    <div class="section-label">Typography</div>
+                    <div class="field-grid cols-2">
+                      <div class="field-group"><label class="field-label">Font Family</label><select class="field-input"><option>System Default</option><option>Inter</option><option>DM Sans</option><option>Roboto</option><option>Inherit from theme</option></select></div>
+                      <div class="field-group"><label class="field-label">Font Size</label><select class="field-input"><option>12px</option><option selected>14px</option><option>16px</option><option>18px</option></select></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Analytics -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-header-title">Analytics</div>
+              <select class="field-input" style="width:auto;padding:4px 28px 4px 10px;font-size:12px"><option>Last 30 days</option><option>Last 7 days</option><option>Last 90 days</option></select>
+            </div>
+            <div class="card-body">
+              <div class="analytics-mini">
+                <div class="stat-card"><div class="stat-number">247</div><div class="stat-label">Total Clicks</div><div class="stat-change">↑ 12%</div></div>
+                <div class="stat-card"><div class="stat-number">58%</div><div class="stat-label">Desktop</div><div class="stat-change down">↓ 3%</div></div>
+                <div class="stat-card"><div class="stat-number">42%</div><div class="stat-label">Mobile</div><div class="stat-change">↑ 3%</div></div>
+              </div>
+              <div class="chart-placeholder"><div class="chart-line"><svg viewBox="0 0 600 80" preserveAspectRatio="none"><polyline points="0,60 40,55 80,50 120,45 160,35 200,40 240,30 280,25 320,20 360,30 400,15 440,20 480,10 520,15 560,8 600,5" fill="none" stroke="var(--wp-accent)" stroke-width="2"/><polyline points="0,60 40,55 80,50 120,45 160,35 200,40 240,30 280,25 320,20 360,30 400,15 440,20 480,10 520,15 560,8 600,5" fill="url(#g1)" stroke="none"/><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--wp-accent)" stop-opacity=".15"/><stop offset="100%" stop-color="var(--wp-accent)" stop-opacity="0"/></linearGradient></defs></svg></div></div>
+              <div class="field-grid cols-2">
+                <div><div class="section-label" style="font-size:10px">By Calendar Type</div><div class="cal-breakdown" style="flex-direction:column"><div class="cal-chip"><div class="dot" style="background:#4285f4"></div> Google — 153 (62%)</div><div class="cal-chip"><div class="dot" style="background:#333"></div> Apple — 59 (24%)</div><div class="cal-chip"><div class="dot" style="background:#0078d4"></div> Outlook — 20 (8%)</div><div class="cal-chip"><div class="dot" style="background:#720e9e"></div> Yahoo — 10 (4%)</div><div class="cal-chip"><div class="dot" style="background:#999"></div> .ics — 5 (2%)</div></div></div>
+                <div><div class="section-label" style="font-size:10px">By Device</div><div class="cal-breakdown" style="flex-direction:column"><div class="cal-chip"><div class="dot" style="background:var(--wp-accent)"></div> Desktop — 143 (58%)</div><div class="cal-chip"><div class="dot" style="background:#e65100"></div> Mobile — 104 (42%)</div></div></div>
+              </div>
+              <div style="margin-top:20px;display:flex;justify-content:flex-end"><button class="btn-secondary" style="font-size:12px"><i class="bi bi-download" style="margin-right:4px"></i> Export CSV</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================
+     SCREEN 2: SETTINGS PAGE
+     ============================================ -->
+<div class="screen" id="screen-settings">
+  <div class="wp-admin-bar"><a href="#"><i class="bi bi-house-door"></i> Save The Date</a><span style="margin-left:auto">Howdy, admin</span></div>
+  <div class="admin-layout">
+    <div class="admin-sidebar">
+      <div class="sidebar-item"><div class="icon"><i class="bi bi-speedometer2"></i></div> Dashboard</div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-item"><div class="icon"><i class="bi bi-calendar-event"></i></div> Events</div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-item"><div class="icon"><i class="bi bi-file-earmark-text"></i></div> Posts</div>
+      <div class="sidebar-item"><div class="icon"><i class="bi bi-file-earmark"></i></div> Pages</div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-item active"><div class="icon"><i class="bi bi-gear"></i></div> Settings</div>
+      <div class="sidebar-item sidebar-sub active">Save The Date</div>
+    </div>
+    <div class="admin-content" style="display:flex;flex-direction:column">
+      <div class="settings-layout">
+
+        <div class="settings-nav">
+          <div class="settings-nav-header">Save The Date</div>
+          <div class="settings-nav-item active" onclick="showSettingsTab('button')"><div class="settings-nav-icon"><i class="bi bi-palette"></i></div> Button Settings</div>
+          <div class="settings-nav-item" onclick="showSettingsTab('analytics')"><div class="settings-nav-icon"><i class="bi bi-bar-chart"></i></div> Analytics</div>
+          <div class="settings-nav-item" onclick="showSettingsTab('advanced')"><div class="settings-nav-icon"><i class="bi bi-sliders"></i></div> Advanced</div>
+          <div class="settings-nav-item" onclick="showSettingsTab('license')"><div class="settings-nav-icon"><i class="bi bi-key"></i></div> License</div>
+        </div>
+
+        <div class="settings-main" id="settings-content">
+
+          <!-- BUTTON SETTINGS -->
+          <div class="settings-tab active" id="tab-button">
+            <div class="settings-page-title">Button Settings</div>
+            <div class="settings-page-desc">Configure the default appearance of your Add to Calendar buttons.</div>
+
+            <div class="settings-section">
+              <div class="settings-section-title">Default Style</div>
+              <div class="settings-row" style="border-bottom:none">
+                <div class="settings-row-label"><label class="field-label">Style</label><span class="field-sublabel">Can be overridden per-event</span></div>
+                <div class="settings-row-content">
+                  <div class="radio-group" id="settings-default-style-radio">
+                    <div class="radio-option active" data-style="dropdown">Dropdown</div>
+                    <div class="radio-option" data-style="icons">Icon Row</div>
+                    <div class="radio-option" data-style="links">Text Links</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- DROPDOWN OPTIONS -->
+            <div class="settings-style-options active" data-style="dropdown">
+              <div class="style-settings-group">
+                <div class="settings-section">
+                  <div class="settings-section-title">Dropdown — Colors</div>
+                  <div class="settings-row">
+                    <div class="settings-row-label"><label class="field-label">Color Scheme</label></div>
+                    <div class="settings-row-content"><div class="radio-group color-scheme-toggle" data-target="dropdown-custom-colors"><div class="radio-option active" data-value="light">Light</div><div class="radio-option" data-value="dark">Dark</div><div class="radio-option" data-value="custom">Custom</div></div></div>
+                  </div>
+                </div>
+                <div class="settings-section custom-colors-section" id="dropdown-custom-colors">
+                  <div class="settings-section-title">Custom Colors</div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Button Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#3858e9"></div><input type="text" class="field-input" value="#3858E9" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Hover Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#1d35b4"></div><input type="text" class="field-input" value="#1D35B4" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Text Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#fff;border-color:#ccc"></div><input type="text" class="field-input" value="#FFFFFF" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Icon Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#fff;border-color:#ccc"></div><input type="text" class="field-input" value="#FFFFFF" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                </div>
+                <div class="settings-section">
+                  <div class="settings-section-title">Dropdown — Shape</div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Border Radius</label></div><div class="settings-row-content"><div class="visual-selector"><div class="visual-option active"><div class="vo-inner" style="border-radius:0"></div></div><div class="visual-option"><div class="vo-inner" style="border-radius:3px"></div></div><div class="visual-option"><div class="vo-inner" style="border-radius:5px"></div></div><div class="visual-option"><div class="vo-inner" style="border-radius:20px"></div></div></div></div></div>
+                </div>
+                <div class="settings-section">
+                  <div class="settings-section-title">Dropdown — Typography</div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Font Family</label></div><div class="settings-row-content"><select class="field-input" style="max-width:220px"><option>System Default</option><option>Inter</option><option>DM Sans</option><option>Roboto</option><option>Open Sans</option><option>Lato</option><option>Poppins</option><option>Inherit from theme</option></select></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Font Size</label></div><div class="settings-row-content"><select class="field-input" style="max-width:220px"><option>12px</option><option selected>14px</option><option>16px</option><option>18px</option></select></div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ICON ROW OPTIONS -->
+            <div class="settings-style-options" data-style="icons">
+              <div class="style-settings-group">
+                <div class="settings-section">
+                  <div class="settings-section-title">Icon Row — Colors</div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Color Scheme</label></div><div class="settings-row-content"><div class="radio-group color-scheme-toggle" data-target="icons-custom-colors"><div class="radio-option active" data-value="light">Light</div><div class="radio-option" data-value="dark">Dark</div><div class="radio-option" data-value="custom">Custom</div></div></div></div>
+                </div>
+                <div class="settings-section custom-colors-section" id="icons-custom-colors">
+                  <div class="settings-section-title">Custom Colors</div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Icon Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#3858e9"></div><input type="text" class="field-input" value="#3858E9" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Hover Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#1d35b4"></div><input type="text" class="field-input" value="#1D35B4" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Background</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#fff;border-color:#ccc"></div><input type="text" class="field-input" value="#FFFFFF" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Border Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#e0e0e0"></div><input type="text" class="field-input" value="#E0E0E0" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                </div>
+                <div class="settings-section">
+                  <div class="settings-section-title">Icon Row — Style</div>
+                  <div class="settings-row">
+                    <div class="settings-row-label"><label class="field-label">Container Shape</label></div>
+                    <div class="settings-row-content">
+                      <div class="visual-selector">
+                        <div class="visual-option" title="Flat"><div class="vo-icon"><i class="fa-brands fa-google"></i></div></div>
+                        <div class="visual-option active" title="Rounded"><div class="vo-icon" style="width:28px;height:28px;background:#e8edff;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px"><i class="fa-brands fa-google"></i></div></div>
+                        <div class="visual-option" title="Circle"><div class="vo-icon" style="width:28px;height:28px;background:#e8edff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px"><i class="fa-brands fa-google"></i></div></div>
+                      </div>
+                      <div style="display:flex;gap:8px;font-size:10px;color:var(--wp-text-tertiary);margin-top:4px;padding-left:4px"><span style="width:44px;text-align:center">Flat</span><span style="width:44px;text-align:center">Rounded</span><span style="width:44px;text-align:center">Circle</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="settings-section">
+                  <div class="settings-section-title">Icon Row — Labels</div>
+                  <div class="settings-row" style="border-bottom:none">
+                    <div class="settings-row-label"><label class="field-label">Show Labels</label><span class="field-sublabel">Text below each icon</span></div>
+                    <div class="settings-row-content">
+                      <div class="toggle-row" style="padding:0"><span class="toggle-label-text">Show icon labels</span><div class="toggle on label-toggle" data-target="settings-icon-label-typo"></div></div>
+                    </div>
+                  </div>
+                  <div class="conditional-section visible" id="settings-icon-label-typo">
+                    <div class="settings-row"><div class="settings-row-label"><label class="field-label">Font Family</label></div><div class="settings-row-content"><select class="field-input" style="max-width:220px"><option>System Default</option><option>Inter</option><option>DM Sans</option><option>Inherit from theme</option></select></div></div>
+                    <div class="settings-row"><div class="settings-row-label"><label class="field-label">Font Size</label></div><div class="settings-row-content"><select class="field-input" style="max-width:220px"><option>10px</option><option selected>11px</option><option>12px</option></select></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TEXT LINKS OPTIONS -->
+            <div class="settings-style-options" data-style="links">
+              <div class="style-settings-group">
+                <div class="settings-section">
+                  <div class="settings-section-title">Text Links — Colors</div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Color Scheme</label></div><div class="settings-row-content"><div class="radio-group color-scheme-toggle" data-target="links-custom-colors"><div class="radio-option active" data-value="light">Light</div><div class="radio-option" data-value="dark">Dark</div><div class="radio-option" data-value="custom">Custom</div></div></div></div>
+                </div>
+                <div class="settings-section custom-colors-section" id="links-custom-colors">
+                  <div class="settings-section-title">Custom Colors</div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Link Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#3858e9"></div><input type="text" class="field-input" value="#3858E9" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Hover Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#1d35b4"></div><input type="text" class="field-input" value="#1D35B4" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Icon Color</label></div><div class="settings-row-content"><div class="color-picker-row"><div class="color-swatch" style="background:#3858e9"></div><input type="text" class="field-input" value="#3858E9" style="width:100px;font-family:var(--font-mono);font-size:12px"></div></div></div>
+                </div>
+                <div class="settings-section">
+                  <div class="settings-section-title">Text Links — Display</div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Underline</label></div><div class="settings-row-content"><div class="radio-group"><div class="radio-option active">Show</div><div class="radio-option">Hide</div></div></div></div>
+                </div>
+                <div class="settings-section">
+                  <div class="settings-section-title">Text Links — Typography</div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Font Family</label></div><div class="settings-row-content"><select class="field-input" style="max-width:220px"><option>System Default</option><option>Inter</option><option>DM Sans</option><option>Roboto</option><option>Inherit from theme</option></select></div></div>
+                  <div class="settings-row"><div class="settings-row-label"><label class="field-label">Font Size</label></div><div class="settings-row-content"><select class="field-input" style="max-width:220px"><option>12px</option><option selected>14px</option><option>16px</option><option>18px</option></select></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-save-bar"><span class="save-status">Settings saved ✓</span><button class="btn-secondary" style="margin-left:auto">Reset to Defaults</button><button class="btn-primary">Save Changes</button></div>
+          </div>
+
+          <!-- ANALYTICS SETTINGS -->
+          <div class="settings-tab" id="tab-analytics" style="display:none">
+            <div class="settings-page-title">Analytics Settings</div>
+            <div class="settings-page-desc">Configure tracking behavior and data retention.</div>
+            <div class="settings-section"><div class="settings-section-title">Tracking</div>
+              <div class="settings-row"><div class="settings-row-label"><label class="field-label">IP Hash Tracking</label></div><div class="settings-row-content"><div class="toggle-row"><span class="toggle-label-text">Enable IP hash tracking</span><div class="toggle on"></div></div><div class="settings-note">IP addresses are hashed for privacy. Enables duplicate detection without storing identifiable info.</div></div></div>
+              <div class="settings-row"><div class="settings-row-label"><label class="field-label">Default Date Range</label></div><div class="settings-row-content"><select class="field-input" style="max-width:200px"><option>1 day</option><option>7 days</option><option selected>30 days</option><option>60 days</option><option>90 days</option></select></div></div>
+            </div>
+            <div class="settings-section"><div class="settings-section-title">Performance</div>
+              <div class="settings-row"><div class="settings-row-label"><label class="field-label">Cache Duration</label></div><div class="settings-row-content"><select class="field-input" style="max-width:200px"><option>15 min</option><option>30 min</option><option selected>1 hour</option><option>2 hours</option></select><div style="margin-top:12px"><button class="btn-secondary" style="font-size:12px;color:var(--wp-destructive);border-color:var(--wp-destructive)">Clear All Caches</button></div></div></div>
+            </div>
+            <div class="settings-section"><div class="settings-section-title">Export</div>
+              <div class="settings-row"><div class="settings-row-label"><label class="field-label">Include IP Hash in CSV</label></div><div class="settings-row-content"><div class="toggle-row"><span class="toggle-label-text">Include hashed IP column</span><div class="toggle"></div></div><div class="settings-note">Off by default.</div></div></div>
+            </div>
+            <div class="settings-save-bar"><span class="save-status">Settings saved ✓</span><button class="btn-secondary" style="margin-left:auto">Reset to Defaults</button><button class="btn-primary">Save Changes</button></div>
+          </div>
+
+          <!-- ADVANCED -->
+          <div class="settings-tab" id="tab-advanced" style="display:none">
+            <div class="settings-page-title">Advanced Settings</div>
+            <div class="settings-page-desc">Plugin behavior and debugging options.</div>
+            <div class="settings-section"><div class="settings-section-title">Data</div>
+              <div class="settings-row"><div class="settings-row-label"><label class="field-label">Uninstall Behavior</label></div><div class="settings-row-content"><div class="toggle-row"><span class="toggle-label-text">Remove all data on uninstall</span><div class="toggle"></div></div><div class="settings-note" style="color:var(--wp-destructive)">⚠️ Permanently deletes all events, click data, and analytics.</div></div></div>
+            </div>
+            <div class="settings-section"><div class="settings-section-title">Debug</div>
+              <div class="settings-row"><div class="settings-row-label"><label class="field-label">Debug Mode</label></div><div class="settings-row-content"><div class="toggle-row"><span class="toggle-label-text">Enable debug logging</span><div class="toggle"></div></div><div class="settings-note">Logs to <code style="font-family:var(--font-mono);font-size:12px;background:#f0f0f0;padding:1px 4px;border-radius:2px">debug.log</code>.</div></div></div>
+            </div>
+            <div class="settings-section"><div class="settings-section-title">Integrations</div>
+              <div class="settings-row"><div class="settings-row-label"><label class="field-label">Google Analytics / GTM</label></div><div class="settings-row-content"><div class="toggle-row"><span class="toggle-label-text">Fire GA events on clicks</span><div class="toggle on"></div></div><div class="settings-note">Sends <code style="font-family:var(--font-mono);font-size:12px;background:#f0f0f0;padding:1px 4px;border-radius:2px">std_calendar_click</code> events.</div></div></div>
+            </div>
+            <div class="settings-save-bar"><span class="save-status">Settings saved ✓</span><button class="btn-secondary" style="margin-left:auto">Reset to Defaults</button><button class="btn-primary">Save Changes</button></div>
+          </div>
+
+          <!-- LICENSE -->
+          <div class="settings-tab" id="tab-license" style="display:none">
+            <div class="settings-page-title">License</div>
+            <div class="settings-page-desc">Manage your Save The Date license key and subscription.</div>
+            <div class="settings-section"><div class="settings-section-title">License Status</div>
+              <div class="license-status active"><div class="license-dot"></div><strong>Active</strong> — Expires April 15, 2027</div>
+              <div class="settings-row"><div class="settings-row-label"><label class="field-label">License Key</label></div><div class="settings-row-content"><div style="display:flex;gap:8px"><input type="text" class="field-input" value="STD-XXXX-XXXX-XXXX-XXXX" style="font-family:var(--font-mono);flex:1"><button class="btn-secondary" style="font-size:12px;white-space:nowrap;color:var(--wp-destructive);border-color:var(--wp-destructive)">Deactivate</button></div></div></div>
+              <div class="settings-row"><div class="settings-row-label"><label class="field-label">Subscription</label></div><div class="settings-row-content"><a href="#" style="font-size:13px;color:var(--wp-accent);text-decoration:underline">Manage Subscription →</a><div class="settings-note">Opens your SureCart customer portal.</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Preview Sidebar -->
+        <div class="settings-preview" id="settings-preview-sidebar">
+          <div class="settings-preview-title">Live Preview</div>
+          <div class="preview-style-tabs" id="settings-preview-tabs">
+            <div class="preview-style-tab active" data-style="dropdown">Dropdown</div>
+            <div class="preview-style-tab" data-style="icons">Icons</div>
+            <div class="preview-style-tab" data-style="links">Links</div>
+          </div>
+
+          <!-- Dropdown preview — light -->
+          <div class="style-preview-pane active" data-style="dropdown" id="sp-dropdown">
+            <div class="std-preview-container std-theme-light" id="preview-dropdown-container">
+              <div class="std-btn"><i class="bi bi-calendar-plus std-btn-icon"></i> Add to Calendar <i class="bi bi-chevron-down std-btn-caret"></i></div>
+            </div>
+          </div>
+          <!-- Icons preview — light -->
+          <div class="style-preview-pane" data-style="icons" id="sp-icons">
+            <div class="std-preview-container std-theme-light" id="preview-icons-container">
+              <div class="std-icons std-icons-rounded">
+                <div class="std-icon-item"><div class="std-icon-btn"><i class="fa-brands fa-google"></i></div><span class="std-icon-label">Google</span></div>
+                <div class="std-icon-item"><div class="std-icon-btn"><i class="fa-brands fa-apple"></i></div><span class="std-icon-label">Apple</span></div>
+                <div class="std-icon-item"><div class="std-icon-btn"><i class="fa-brands fa-microsoft"></i></div><span class="std-icon-label">Outlook</span></div>
+                <div class="std-icon-item"><div class="std-icon-btn"><i class="fa-brands fa-yahoo"></i></div><span class="std-icon-label">Yahoo</span></div>
+                <div class="std-icon-item"><div class="std-icon-btn"><i class="bi bi-file-earmark-arrow-down"></i></div><span class="std-icon-label">.ics</span></div>
+              </div>
+            </div>
+          </div>
+          <!-- Links preview — light -->
+          <div class="style-preview-pane" data-style="links" id="sp-links">
+            <div class="std-preview-container std-theme-light" id="preview-links-container" style="justify-content:flex-start;padding:24px">
+              <div class="std-links">
+                <div class="std-link-item"><span class="std-link-icon"><i class="fa-brands fa-google"></i></span> Google Calendar</div>
+                <div class="std-link-item"><span class="std-link-icon"><i class="fa-brands fa-apple"></i></span> Apple Calendar</div>
+                <div class="std-link-item"><span class="std-link-icon"><i class="fa-brands fa-microsoft"></i></span> Outlook</div>
+                <div class="std-link-item"><span class="std-link-icon"><i class="fa-brands fa-yahoo"></i></span> Yahoo Calendar</div>
+                <div class="std-link-item"><span class="std-link-icon"><i class="bi bi-file-earmark-arrow-down"></i></span> Download .ics</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:20px;padding:16px;background:white;border:1px solid var(--wp-border);border-radius:var(--radius-md)">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--wp-text-secondary);margin-bottom:8px">CSS Classes</div>
+            <div style="font-family:var(--font-mono);font-size:11px;color:var(--wp-text-secondary);line-height:1.8">.std-calendar-button<br>.std-calendar-dropdown<br>.std-calendar-icons<br>.std-calendar-links<br>.std-theme-light<br>.std-theme-dark</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// === UTILITIES ===
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.screen-nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+function showSettingsTab(tab) {
+  document.querySelectorAll('.settings-tab').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'));
+  document.getElementById('tab-' + tab).style.display = 'block';
+  event.target.closest('.settings-nav-item').classList.add('active');
+}
+
+// Toggles
+document.querySelectorAll('.toggle:not(.label-toggle):not(#editor-override-toggle)').forEach(t => {
+  t.addEventListener('click', () => t.classList.toggle('on'));
+});
+
+// Label toggles — show/hide conditional sections
+document.querySelectorAll('.label-toggle').forEach(t => {
+  t.addEventListener('click', () => {
+    t.classList.toggle('on');
+    const target = document.getElementById(t.dataset.target);
+    if (target) target.classList.toggle('visible', t.classList.contains('on'));
+  });
+});
+
+// Generic radio groups
+document.querySelectorAll('.radio-group:not(.color-scheme-toggle):not(#settings-default-style-radio)').forEach(group => {
+  group.querySelectorAll('.radio-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      group.querySelectorAll('.radio-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+    });
+  });
+});
+
+// Visual selectors
+document.querySelectorAll('.visual-selector').forEach(group => {
+  group.querySelectorAll('.visual-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      group.querySelectorAll('.visual-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+    });
+  });
+});
+
+// Panel collapse
+document.querySelectorAll('.panel-header').forEach(h => {
+  h.addEventListener('click', () => h.closest('.panel').classList.toggle('collapsed'));
+});
+
+// === EDITOR: Style tab switching ===
+document.querySelectorAll('#editor-style-tabs .card-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const style = tab.dataset.style;
+    document.querySelectorAll('#editor-style-tabs .card-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('#editor-preview-card .style-preview-pane').forEach(p => p.classList.remove('active'));
+    document.querySelector('#editor-preview-card .style-preview-pane[data-style="'+style+'"]').classList.add('active');
+    document.querySelectorAll('#editor-override-options .style-options-pane').forEach(p => p.classList.remove('active'));
+    const overridePane = document.querySelector('#editor-override-options .style-options-pane[data-style="'+style+'"]');
+    if (overridePane) overridePane.classList.add('active');
+    // Hide override toggle bar for Direct Links — no styling options apply
+    const overrideBar = document.querySelector('.override-toggle-bar');
+    const overrideOptions = document.getElementById('editor-override-options');
+    if (style === 'direct') {
+      overrideBar.style.display = 'none';
+      overrideOptions.style.display = 'none';
+    } else {
+      overrideBar.style.display = '';
+    }
+  });
+});
+
+// Editor override toggle
+document.getElementById('editor-override-toggle').addEventListener('click', function() {
+  this.classList.toggle('on');
+  document.getElementById('editor-override-options').style.display = this.classList.contains('on') ? 'block' : 'none';
+});
+
+// === SETTINGS: Default style radio ===
+document.querySelectorAll('#settings-default-style-radio .radio-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const style = opt.dataset.style;
+    document.querySelectorAll('#settings-default-style-radio .radio-option').forEach(o => o.classList.remove('active'));
+    opt.classList.add('active');
+    // Show matching options
+    document.querySelectorAll('.settings-style-options').forEach(s => s.classList.remove('active'));
+    const target = document.querySelector('.settings-style-options[data-style="'+style+'"]');
+    if (target) target.classList.add('active');
+    // Switch preview
+    switchPreviewStyle(style);
+  });
+});
+
+// === SETTINGS: Preview tab switching ===
+document.querySelectorAll('#settings-preview-tabs .preview-style-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const style = tab.dataset.style;
+    switchPreviewStyle(style);
+  });
+});
+
+function switchPreviewStyle(style) {
+  document.querySelectorAll('#settings-preview-tabs .preview-style-tab').forEach(t => t.classList.remove('active'));
+  const pt = document.querySelector('#settings-preview-tabs .preview-style-tab[data-style="'+style+'"]');
+  if (pt) pt.classList.add('active');
+  document.querySelectorAll('#settings-preview-sidebar .style-preview-pane').forEach(p => p.classList.remove('active'));
+  const pp = document.querySelector('#settings-preview-sidebar .style-preview-pane[data-style="'+style+'"]');
+  if (pp) pp.classList.add('active');
+}
+
+// === Color scheme toggles — show/hide custom colors + update live preview theme ===
+const previewContainers = {
+  'dropdown-custom-colors': 'preview-dropdown-container',
+  'icons-custom-colors': 'preview-icons-container',
+  'links-custom-colors': 'preview-links-container'
+};
+
+document.querySelectorAll('.color-scheme-toggle').forEach(group => {
+  group.querySelectorAll('.radio-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      group.querySelectorAll('.radio-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      const targetId = group.dataset.target;
+      const section = document.getElementById(targetId);
+      if (section) section.classList.toggle('visible', opt.dataset.value === 'custom');
+      // Update preview theme
+      const containerId = previewContainers[targetId];
+      if (containerId) {
+        const container = document.getElementById(containerId);
+        if (container) {
+          container.classList.remove('std-theme-light', 'std-theme-dark');
+          if (opt.dataset.value === 'dark') {
+            container.classList.add('std-theme-dark');
+          } else {
+            container.classList.add('std-theme-light');
+          }
+        }
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
