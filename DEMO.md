@@ -1,10 +1,11 @@
-# S5 Editor MVP — Demo Script ("WordCamp cut")
+# S5 — WordCamp Demo Click-Script
 
-A 5-minute live walkthrough of the S5 editor. The thesis: **one compiler, one
-save door, HTML as the source of truth — an editor that only exposes what the
-author declared editable, and never breaks byte-for-byte fidelity.**
+A ~6-minute live walkthrough. The thesis: **HTML is the source of truth. One
+theme, one compiler, one save door. The editor only exposes what the author
+declared editable — and never breaks byte-for-byte fidelity.**
 
-Target: demo-ready. Everything below runs on the wp-env stack in this repo.
+Everything below runs on the wp-env stack in this repo. The framework ships as a
+**single theme** — there is no companion plugin.
 
 ---
 
@@ -13,125 +14,128 @@ Target: demo-ready. Everything below runs on the wp-env stack in this repo.
 ```bash
 npm install
 npx wp-env start
-npx wp-env run cli wp plugin activate s5-plugin tangible-loops-and-logic
-npx wp-env run cli wp theme activate s5-theme
+npx wp-env run cli wp theme activate s5-theme     # the framework IS the theme
 npx wp-env run cli wp rewrite structure '/%postname%/' --hard
 npx wp-env run cli wp s5 import wp-content/s5-pages
 ```
 
-> **macOS note:** if `wp-env start` fails with
-> `error while creating mount source path … operation not permitted`, Docker
-> Desktop lacks file-sharing permission for the project folder (common under
-> `~/Desktop`). Grant it in **System Settings → Privacy & Security → Files and
-> Folders** (or move the repo outside `~/Desktop`), then retry.
+> **macOS note:** if `wp-env start` fails with `error while creating mount source
+> path … operation not permitted`, run the env from a Docker-mountable mirror
+> (e.g. rsync the repo to `~/s5-work/…` and start wp-env there) or grant Docker
+> file-sharing access to the project folder.
 
-- Admin: <http://localhost:8888/wp-admin/>  (user `admin`, pass `password`)
-- The demo page: **About** (`/about/`) — it carries editable declarations.
+- Admin: <http://localhost:8888/wp-admin/> (user `admin`, pass `password`)
+- Demo page: **About** (`/about/`) — it carries editable declarations.
 
 ---
 
-## 1. The page is real, the editor is a projection  (30s)
+## 1. One theme, real page, editor is a projection  (30s)
 
-1. Open **Pages** in wp-admin. Hover **About** → click **Edit with S5**.
-2. The editor opens: live preview of the *real* page on the left, panel on the
-   right, top bar (back · viewport · Edit/Code · dirty · Update).
-3. Point out: this is the **real rendered page** in the iframe (same canvas URL
-   the public sees, with `?s5-preview=1`), not a mock. Resize with the viewport
-   toggle — those are **real CSS breakpoints**.
+1. In wp-admin, open **Appearance → Themes**: there is one S5 theme, and **no S5
+   plugin** under Plugins. All the framework — compiler, CLI, REST, editor — lives
+   in the theme; the site's own content lives in the theme's fenced `site/` subtree.
+2. Open **Pages** → hover **About** → **Edit with S5**.
+3. The editor opens: **left** = components palette, **center** = live preview of the
+   *real* page, **right** = panel with the page structure + fields, top bar
+   (back · viewport · Edit/Code · dirty · Update).
 
-> Talking point: *the iframe is a preview, never the state store. The source of
-> truth is the canonical HTML; the editor is a projection over it.*
+> *The iframe is a preview, never the state store. The truth is the canonical HTML;
+> the editor is a projection over it.*
 
-## 2. Props-driven selectability — the core idea  (60s)
+## 2. Glass edit — declared, live, one door  (45s)
 
-1. In **Edit** lens, hover the page. Only **declared** elements outline: the
-   hero title, the lede, the "Book a call" button.
-2. Hover the body paragraphs under "How we work" — **nothing happens.** They
-   carry no `data-edit`, so they are **absent from the editor, not greyed out.**
-3. Click the hero title → the panel shows exactly one field (its declared type).
+1. In **Edit** lens, hover the page: only **declared** elements outline (hero title,
+   lede, the button). Click the hero title → the panel shows exactly its field.
+2. Type a new title — the preview updates live, **dirty** lights, **Update** enables.
+3. Click **Update**: `POST /pages/{id}/save` → written into canonical server-side →
+   `Validator::validate` → `Compiler::persist_page` → a WP revision. Preview reloads
+   from the server.
 
-> Talking point: *the editor renders declarations and nothing else. If the
-> author didn't declare it editable, the operator can't touch it — by
-> construction, not by permission checks.*
+## 3. Code edit — same speed, same door  (45s)
 
-## 3. Edit + save through the one door  (60s)
+1. Switch to **Code** lens. CodeMirror shows the **full canonical fragment** (real
+   authored HTML). Edit the same title in code — save through `mode:"canonical"`.
+2. Plant a bogus class (`class="totally-not-real"`) → **Save canonical** → the save
+   is **rejected** with an in-editor diagnostic (rule/line/token) and canonical is
+   unchanged. Remove it, save → green. Show the **Head** sidebar too (title /
+   description / canonical, `mode:"head"`).
 
-1. Edit the hero title text. The preview updates live (feedback), the **dirty**
-   indicator lights, **Update** enables.
-2. Click **Update**. Behind it: `POST /s5/v1/pages/{id}/save` → the value is
-   written into canonical **server-side** via the tag processor →
-   `Validator::validate` → `Compiler::persist_page` → a WP revision. The preview
-   reloads from the server.
-3. Show **Pages → About → Revisions** (or `wp post list --post_type=revision`):
-   the edit created a revision.
+> *Glass and code are two lenses on the SAME canonical, saved through the SAME door.*
 
-> Talking point: *this is the SAME save door the CLI importer uses —
-> `Compiler::persist_page`. The editor is a new caller, not a second pipeline.
-> No "editor format" exists.*
+## 4. Drag a component in  (45s)
 
-## 4. Code lens + loud validation  (60s)
+1. From the **left palette**, drag **hero** (or **cta**) onto a section in the
+   preview — drop it. The server expands the component, assigns **fresh recursive
+   `data-node` ids** (drag it in twice — no id collision), validates, and persists
+   through the one door. The preview reloads with the new block.
+2. The inserted block's own scoped CSS is already live — it rode in through the
+   compiled stylesheet bundle.
 
-1. Switch to the **Code** lens. CodeMirror (shipped in WP core) shows the **full
-   canonical fragment** — the real authored HTML.
-2. Add a bogus class, e.g. `class="totally-not-real"`, to an element. Click
-   **Save canonical**.
-3. The save is **rejected**: a diagnostic list appears (rule, line, token,
-   what's permitted) and **canonical is unchanged.** Loud, never silent.
-4. Remove the bogus class, save again — green.
-5. Show the **Head** form (title / description / canonical URL) — saved through
-   the same endpoint (`mode:head`), separate from the body.
+> *Insert is copy-on-insert: the component expands into plain canonical HTML and
+> stops being a separate abstraction. The compiler owns id uniqueness — the client
+> never assigns ids.*
 
-> Talking point: *the same Authoring Contract gate that guards import guards the
-> editor. A bad edit can't land silently.*
+## 5. Edit the inserted content  (30s)
 
-## 5. Style tab reads the real tokens  (30s)
+1. Click the freshly-inserted hero's title in the glass (or find it in the **right-
+   panel structure list** and click the row — selection syncs both ways with the
+   preview). Edit its text → **Update**. It is immediately editable, like any slot.
 
-1. Click the **Style** tab. Swatches, type ramp, spacing steps, radius samples —
-   all rendered **live from `tokens.css` / `scales.css`**, not hand-built HTML.
-2. Note the **Components** and **Tailwind** tabs: present but disabled — scope
-   markers for what comes after the MVP.
+## 6. Edit the component ITSELF  (45s)
 
-## 6. Loops & Logic: locked where it must be  (45s)
+1. Open the **Components** tab. Grid of every registered component (from the folder
+   scan). Click **cta**.
+2. Edit its `style.css` (e.g. change a color) — the **live preview** updates. Switch
+   to `component.html` / `manifest.json` as needed. Click **Save component**.
+3. The server writes the files and **rebuilds the CSS bundle** — the style change is
+   now global. (Existing inserted instances keep their HTML — copy-on-insert
+   independence — but pick up the new scoped styles.)
 
-1. (If showing the dynamic fixture) open the **sitemap-archive** page in the
-   editor. The static hero title is editable; the `<Loop>` list region shows a
-   **locked "Dynamic — edit in code view"** block in the Edit lens.
-2. Switch to **Code** lens: the L&L `<Loop>` / `<Field>` source is right there,
-   fully editable.
+## 7. Style tab — tokens + CSS mode  (30s)
 
-> Talking point: *dynamic regions aren't faked into a form — they're honestly
-> presented as code, because that's what they are.*
+1. Open the **Style** tab: color swatches, type ramp, spacing, radius — all rendered
+   **live from `tokens.css` / `scales.css`**, read-only, so they can't drift.
+2. Point at the **CSS MODE** switch: **Semantic (active)** vs **Tailwind (coming
+   soon)** — disabled, with a tooltip stating the plan. Click **View compiled
+   stylesheet** to show the real `site/dist/s5.css` that ships.
+
+## 8. Props-off element is untouchable  (20s)
+
+1. Back in **Edit** lens, hover a body paragraph with no `data-edit` — **nothing
+   outlines, nothing selects.** It's absent from the editor by construction, not
+   greyed out by a permission check.
+
+## 9. Revision restore — the undo answer  (20s)
+
+1. **Pages → About → Revisions** (or `wp post list --post_type=revision`). Restore
+   an earlier revision → the served page reverts, the render recompiles on restore.
+   Revisions ARE the undo story for this cut.
 
 ---
 
 ## The one-sentence close
 
-> "HTML in, HTML out, byte-for-byte — one compiler, one save door — and an
-> editor that only ever exposes what the author declared. Everything you just
-> saw went through the exact same pipeline as a command-line import."
+> "One theme, HTML in and HTML out byte-for-byte, one compiler and one save door —
+> drag a component in, edit it, edit the component itself, and every keystroke went
+> through the exact same pipeline as a command-line import."
 
 ---
 
-## Fidelity proof (optional, for a technical audience)
+## Fidelity proof (optional, technical audience)
 
 ```bash
-# Every check green, single clean-slate environment (Steps 0–10 + the editor):
-npm test
-
-# Just the editor contract:
-npm run test:editor
+npm test                  # full suite, single clean-slate environment
+npm run test:editor       # the editor contract
+npm run test:components    # component folders, CSS bundle, server re-key insert
 ```
 
-`npm run test:editor` proves, in real WordPress: the screen is gated behind
-`manage_options`; **no editor asset ships to logged-out visitors** (front-end or
-`?s5-preview=1`); a slot save round-trips through `persist_page`; an invalid
-Code-lens save is rejected with diagnostics and canonical is untouched; a head
-save updates `_s5_head`; the Style tab reads real tokens; and authored
-declarations round-trip **byte-clean**.
+Each acceptance suite passes in isolation. The full single-command run is
+occasionally flaky under Docker load (a write→read serving race that moves between
+suites; every suite is green on its own) — see `DECISIONS.md` D20.
 
-## What this cut deliberately leaves out
+## What this cut deliberately leaves out (post-WordCamp)
 
-Component palette/studio, structure operations (insert/move/duplicate/hide),
-editing-levels UI, MCP, Tailwind mode, undo/redo (we demo **revisions**),
-`contenteditable`, media-library management, and any Style-tab editing. See
-`DECISIONS.md` for every scope call and `EDITOR-DESIGN.md` for the full design.
+Capability-levels UI · undo/redo (revisions are the answer) · full component studio
+(props-panel UI, variant switcher) · move/duplicate/delete polish beyond insert ·
+Tailwind mode function · MCP · the React editor rehome (D19). See `DECISIONS.md` for
+every scope call.
