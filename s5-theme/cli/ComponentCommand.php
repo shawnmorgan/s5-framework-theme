@@ -143,7 +143,18 @@ final class ComponentCommand {
 			\WP_CLI::error( sprintf( 'page "%s" has no canonical source.', $slug ) );
 		}
 
-		$new_canonical = self::splice( $canonical, $component['html'], $at );
+		// Structural law (Amendment A): refuse insert on/inside a data-lock subtree.
+		if ( \S5\ComponentInsert::anchor_is_locked( $canonical, $at ) ) {
+			\WP_CLI::error( sprintf( 'anchor "--at=%s" is inside a locked (data-lock) region — insert refused.', $at ) );
+		}
+
+		// Server-assigned recursive node ids: re-key every data-node in the component
+		// markup to fresh page-unique ids so repeated inserts never collide. The
+		// server owns id uniqueness; the client never assigns ids.
+		$existing = \S5\ComponentInsert::existing_ids( $canonical );
+		$rekeyed  = \S5\ComponentInsert::rekey( $component['html'], $component['name'], $existing );
+
+		$new_canonical = \S5\ComponentInsert::splice( $canonical, $rekeyed['markup'], $at );
 		if ( null === $new_canonical ) {
 			\WP_CLI::error( sprintf( 'insert anchor "--at=%s" not found in page "%s".', $at, $slug ) );
 		}
@@ -179,59 +190,5 @@ final class ComponentCommand {
 				'' !== $at ? ' after node "' . $at . '"' : ' (appended)'
 			)
 		);
-	}
-
-	/**
-	 * Splice component markup into canonical, either after the element carrying
-	 * data-node="$at" (targeted) or appended at the end (default). Surgical byte
-	 * insert — everything already in canonical stays byte-identical.
-	 *
-	 * @param string $canonical Current canonical body HTML.
-	 * @param string $markup    Component HTML to insert.
-	 * @param string $at        data-node anchor, or '' to append.
-	 * @return string|null New canonical, or null if the anchor was not found.
-	 */
-	private static function splice( string $canonical, string $markup, string $at ) {
-		$block = "\n" . $markup . "\n";
-
-		if ( '' === $at ) {
-			return rtrim( $canonical, "\r\n" ) . $block . "\n";
-		}
-
-		// Find the open tag carrying data-node="$at", then its balanced close tag,
-		// and insert the component immediately AFTER that close tag.
-		$pattern = '/<([a-zA-Z][a-zA-Z0-9]*)\b[^>]*\bdata-node=(["\'])' . preg_quote( $at, '/' ) . '\2[^>]*>/';
-		if ( ! preg_match( $pattern, $canonical, $m, PREG_OFFSET_CAPTURE ) ) {
-			return null;
-		}
-		$tag      = $m[1][0];
-		$open_end = (int) $m[0][1] + strlen( $m[0][0] );
-
-		// Self-closing / void element: insert right after the open tag.
-		if ( '/>' === substr( $m[0][0], -2 ) ) {
-			return substr( $canonical, 0, $open_end ) . $block . substr( $canonical, $open_end );
-		}
-
-		$depth  = 1;
-		$offset = $open_end;
-		$len    = strlen( $canonical );
-		$re     = '/<(\/?)' . preg_quote( $tag, '/' ) . '\b[^>]*>/i';
-		while ( $offset < $len && preg_match( $re, $canonical, $tm, PREG_OFFSET_CAPTURE, $offset ) ) {
-			$is_close = '' !== $tm[1][0];
-			$at_pos   = (int) $tm[0][1];
-			$tok_end  = $at_pos + strlen( $tm[0][0] );
-			if ( $is_close ) {
-				--$depth;
-				if ( 0 === $depth ) {
-					return substr( $canonical, 0, $tok_end ) . $block . substr( $canonical, $tok_end );
-				}
-			} else {
-				++$depth;
-			}
-			$offset = $tok_end;
-		}
-
-		// Unbalanced — anchor exists but no close tag found; treat as not insertable.
-		return null;
 	}
 }

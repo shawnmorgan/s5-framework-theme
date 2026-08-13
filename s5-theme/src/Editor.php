@@ -209,6 +209,16 @@ final class Editor {
 			true
 		);
 
+		// Left-panel Components palette (Item 4): thumbnails + click/drag insert
+		// through the one door (mode:"insert"). Depends on the shell + panel selection.
+		wp_enqueue_script(
+			's5-editor-palette',
+			$base . 'palette.js',
+			array( 's5-editor', 's5-editor-panel' ),
+			'0.0.0',
+			true
+		);
+
 		// Code lens: CodeMirror from WP core (no build step, no new deps). Enqueue
 		// the HTML-mode code editor; wp_enqueue_code_editor loads wp-codemirror.
 		$cm_settings = false;
@@ -251,8 +261,43 @@ final class Editor {
 				),
 				'cmSettings' => $cm_settings,
 				'tokens'     => Styles::read_tokens(),
+				'components' => self::components_for_palette(),
 			)
 		);
+	}
+
+	/**
+	 * Registered components as palette entries: name, description, and a preview
+	 * image URL when the component ships preview.png. Drives the left-panel palette
+	 * (Item 4). Discovery is the same directory scan the registry uses.
+	 *
+	 * @return array<int, array{name:string,description:string,preview:string}>
+	 */
+	private static function components_for_palette(): array {
+		$out = array();
+		try {
+			$dir = ComponentRegistry::components_dir();
+		} catch ( \RuntimeException $e ) {
+			return $out; // No components dir yet.
+		}
+		$base_uri = rtrim( (string) get_stylesheet_directory_uri(), '/' ) . '/site/components/';
+		foreach ( ComponentRegistry::list() as $name ) {
+			try {
+				$c = ComponentRegistry::load( $name );
+			} catch ( \RuntimeException $e ) {
+				continue; // Skip a malformed component rather than break the palette.
+			}
+			$preview = '';
+			if ( is_file( $dir . '/' . $name . '/preview.png' ) ) {
+				$preview = $base_uri . rawurlencode( $name ) . '/preview.png';
+			}
+			$out[] = array(
+				'name'        => $name,
+				'description' => (string) $c['description'],
+				'preview'     => $preview,
+			);
+		}
+		return $out;
 	}
 
 	/**

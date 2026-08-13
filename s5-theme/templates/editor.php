@@ -68,6 +68,16 @@ $s5_back_url    = isset( $s5_editor['back_url'] ) ? (string) $s5_editor['back_ur
 	</div>
 
 	<div class="s5-editor__body">
+		<aside class="s5-editor__leftpanel" data-s5-leftpanel aria-label="<?php esc_attr_e( 'Components palette', 's5' ); ?>">
+			<div class="s5-editor__leftpanel-head"><?php esc_html_e( 'Components', 's5' ); ?></div>
+			<div class="s5-editor__palette" data-s5-palette>
+				<p class="s5-editor__hint"><?php esc_html_e( 'Loading components…', 's5' ); ?></p>
+			</div>
+			<p class="s5-editor__palette-hint" data-s5-palette-hint hidden>
+				<?php esc_html_e( 'Click to append, or drag onto an element to insert after it.', 's5' ); ?>
+			</p>
+		</aside>
+
 		<div class="s5-editor__stage" data-s5-stage data-s5-viewport="desktop">
 			<?php if ( '' !== $s5_preview_url ) : ?>
 				<iframe

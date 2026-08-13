@@ -23,6 +23,17 @@ fail() { printf '%s✘%s %s\n' "$RED" "$NC" "$1" >&2; exit 1; }
 WP_ENV="npx wp-env"
 wp() { $WP_ENV run cli wp "$@" 2>/dev/null | tr -d '\r'; }
 
+# Fetch $1 (following redirects) and grep -qF for $2, retrying ~10s to absorb the
+# write->read settle lag between a CLI persist and the web container serving it.
+curl_until() {
+	local url="$1" needle="$2" i
+	for i in $(seq 1 20); do
+		curl -sL "$url" | grep -qF "$needle" && return 0
+		sleep 0.5
+	done
+	return 1
+}
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 PAGES_C="wp-content/s5-pages"
@@ -95,17 +106,28 @@ pass "served framework page carries the one compiled S5 stylesheet"
 # 5. A component's own scoped classes auto-join the vocabulary (D18): a scoped
 #    component inserts through the one door, validates, and renders served.
 # ---------------------------------------------------------------------------
-info "5/6  Scoped component inserts (own classes validate) and renders served…"
+info "5/6  Scoped component inserts (own classes validate); re-key is server-side + recursive…"
 ANCHOR="$(wp post meta get "$ABOUT" _s5_canonical_html | grep -oE 'data-node="[^"]+"' | head -1 | sed 's/data-node="//;s/"$//')"
 [ -n "$ANCHOR" ] || fail "no data-node anchor on the about page"
 BEFORE="$(wp post meta get "$ABOUT" _s5_canonical_html | md5sum)"
+# Insert the SAME component TWICE. The server must re-key every data-node in each
+# inserted subtree to fresh page-unique ids (recursive, server-assigned) — two
+# inserts must NOT collide (Item 4).
 wp s5 component insert hero --page=about --at="$ANCHOR" >/dev/null 2>&1 \
 	|| fail "insert of scoped 'hero' component failed (its own classes should validate)"
+wp s5 component insert hero --page=about --at="$ANCHOR" >/dev/null 2>&1 \
+	|| fail "second hero insert failed"
 wp post meta get "$ABOUT" _s5_canonical_html | grep -qF 'data-s5-component="hero"' \
 	|| fail "hero not stamped into canonical after insert"
-curl -sL "$ABOUT_URL" | grep -qE 'class="hero"' \
+# No duplicate data-node ids anywhere on the page (the compiler owns id uniqueness).
+DUPES="$(wp post meta get "$ABOUT" _s5_canonical_html | grep -oE 'data-node="[^"]+"' | sort | uniq -d | grep -c . || true)"
+[ "$DUPES" = "0" ] || fail "duplicate data-node ids after two inserts ($DUPES) — server re-key failed"
+# Both hero instances carry distinct re-keyed ids for the same slot.
+HERO_TITLES="$(wp post meta get "$ABOUT" _s5_canonical_html | grep -oE 'data-node="hero-[^"]*title[^"]*"' | sort -u | grep -c . || true)"
+[ "$HERO_TITLES" -ge 2 ] || fail "two hero inserts did not produce distinct re-keyed title ids"
+curl_until "$ABOUT_URL" 'class="hero"' \
 	|| fail "inserted hero not rendered on the served page"
-pass "scoped component inserted through the one door, validated, and served"
+pass "component inserted twice through the one door; server-assigned recursive re-key gives unique ids; served"
 
 # ---------------------------------------------------------------------------
 # 6. Restore the corpus → round-trip fidelity byte-clean (no component residue).

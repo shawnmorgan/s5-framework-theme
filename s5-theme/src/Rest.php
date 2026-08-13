@@ -129,10 +129,16 @@ final class Rest {
 			case 'canonical':
 				$canonical = (string) $request->get_param( 'canonical' );
 				return self::persist_canonical( $post_id, $canonical );
+			case 'insert':
+				$canonical = self::build_canonical_from_insert( $post_id, $request );
+				if ( $canonical instanceof \WP_Error ) {
+					return $canonical;
+				}
+				return self::persist_canonical( $post_id, $canonical );
 			default:
 				return new \WP_Error(
 					's5_bad_mode',
-					__( 'Unknown save mode. Expected slots, canonical, or head.', 's5' ),
+					__( 'Unknown save mode. Expected slots, canonical, insert, or head.', 's5' ),
 					array( 'status' => 400 )
 				);
 		}
@@ -228,6 +234,54 @@ final class Rest {
 		}
 
 		return $canonical;
+	}
+
+	/**
+	 * Build a new canonical by inserting a registered component (palette insert).
+	 *
+	 * Expects params: `component` (registered name), optional `at` (data-node anchor;
+	 * absent/empty = append). The component is expanded server-side with fresh,
+	 * recursively re-keyed data-node ids (ComponentInsert), refusing inserts inside a
+	 * data-lock subtree. Copy-on-insert: the result is plain canonical HTML, then
+	 * persist_canonical() runs the SAME validate + one-door persist as every write.
+	 *
+	 * @param int              $post_id Page ID.
+	 * @param \WP_REST_Request $request Request.
+	 * @return string|\WP_Error New canonical, or an error.
+	 */
+	private static function build_canonical_from_insert( int $post_id, \WP_REST_Request $request ) {
+		$name = (string) $request->get_param( 'component' );
+		$at   = (string) $request->get_param( 'at' );
+
+		if ( '' === $name || ! ComponentRegistry::is_registered( $name ) ) {
+			return new \WP_Error( 's5_unknown_component', __( 'Unknown or unregistered component.', 's5' ), array( 'status' => 400 ) );
+		}
+
+		try {
+			$component = ComponentRegistry::load( $name );
+		} catch ( \RuntimeException $e ) {
+			return new \WP_Error( 's5_component_load', $e->getMessage(), array( 'status' => 400 ) );
+		}
+
+		$canonical = Storage::get_canonical_html( $post_id );
+		if ( '' === $canonical ) {
+			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		// Structural law (Amendment A): refuse insert on/inside a data-lock subtree.
+		if ( ComponentInsert::anchor_is_locked( $canonical, $at ) ) {
+			return new \WP_Error( 's5_locked', __( 'Cannot insert into a locked (data-lock) region.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		// Server-assigned recursive node ids, then byte-surgical splice.
+		$existing = ComponentInsert::existing_ids( $canonical );
+		$rekeyed  = ComponentInsert::rekey( $component['html'], $component['name'], $existing );
+		$spliced  = ComponentInsert::splice( $canonical, $rekeyed['markup'], $at );
+		if ( null === $spliced ) {
+			return new \WP_Error( 's5_anchor', __( 'Insert anchor not found.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		return $spliced;
 	}
 
 	/**

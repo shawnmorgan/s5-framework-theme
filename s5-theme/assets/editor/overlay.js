@@ -118,6 +118,13 @@
 			}
 			return;
 		}
+		if ( 's5-drag' === msg.s5 ) {
+			dragging = msg.on ? ( msg.component || '' ) : null;
+			if ( ! dragging ) {
+				clearHover();
+			}
+			return;
+		}
 		if ( 's5-patch' === msg.s5 && msg.node ) {
 			var el = document.querySelector( '[data-node="' + cssEscape( msg.node ) + '"]' );
 			if ( ! el ) {
@@ -161,6 +168,49 @@
 			.replace( /</g, '&lt;' )
 			.replace( />/g, '&gt;' );
 	}
+
+	/* --- drag/drop from the palette: resolve a drop to its nearest data-node --- */
+	var dragging = null; // component name while a palette drag is active.
+
+	// The nearest ancestor (or self) that carries a data-node id — the drop anchor.
+	function nodeAncestor( el ) {
+		while ( el && el !== document.body ) {
+			if ( el.nodeType === 1 && el.hasAttribute( 'data-node' ) ) {
+				return el;
+			}
+			el = el.parentNode;
+		}
+		return null;
+	}
+
+	document.addEventListener( 'dragover', function ( e ) {
+		if ( ! dragging ) {
+			return;
+		}
+		var target = nodeAncestor( e.target );
+		if ( target ) {
+			e.preventDefault(); // allow drop
+			clearHover();
+			target.setAttribute( 'data-s5-hover', '' );
+			hoverEl = target;
+		}
+	} );
+
+	document.addEventListener( 'drop', function ( e ) {
+		if ( ! dragging ) {
+			return;
+		}
+		e.preventDefault();
+		var target = nodeAncestor( e.target );
+		clearHover();
+		if ( target ) {
+			parent.postMessage(
+				{ s5: 's5-drop', component: dragging, node: target.getAttribute( 'data-node' ) || '' },
+				ORIGIN
+			);
+		}
+		dragging = null;
+	} );
 
 	// Mark dynamic (L&L) regions so the parent can present them as locked (B5).
 	document.querySelectorAll( '[data-edit][data-s5-dynamic-region]' ).forEach( function ( n ) {

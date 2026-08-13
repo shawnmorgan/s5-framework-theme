@@ -210,6 +210,26 @@ all-green ISOLATED suites + phpcs + the green baseline, and treat remaining full
 flake as a known harness-robustness issue to finish hardening post-report, not a
 blocker on demo-ready Items 1–3.
 
+**D21 — Palette insert = a new `insert` mode on the EXISTING save door + a shared
+`ComponentInsert` service; server re-keys recursively. (Item 4.)**
+Rejected: a second REST endpoint for inserts; re-keying on the client; keeping the
+CLI's private splice separate from the REST path.
+Why: the one-door law. `POST /s5/v1/pages/{id}/save` gains `mode:"insert"` →
+`build_canonical_from_insert()` → the SAME `persist_canonical()` (validate → compile
+→ mirror → revision) every other write uses. The re-key + splice + lock-check live in
+ONE shared service `src/ComponentInsert.php`, used by BOTH `wp s5 component insert`
+(CLI) and the REST insert, so behavior can't drift. **Server-assigned recursive
+re-key**: `rekey()` rewrites EVERY `data-node` in the inserted subtree (not just root)
+to `<name>-<slot>-<n>`, n = smallest integer unique against the page's existing ids —
+deterministic (no randomness; the runtime forbids it). Verified: two `hero` inserts →
+8 distinct ids, 0 duplicates. **Structural law (Amendment A)**: `anchor_is_locked()`
+refuses insert on/inside a `data-lock` subtree (verified: locked anchor REFUSED, free
+anchor ALLOWED). The palette (`palette.js`, left panel) offers click-to-append/after-
+selection and drag-onto-an-element (overlay resolves the drop to the nearest
+`data-node` → `s5-drop`); after insert the preview reloads from the server so the
+re-keyed instance is immediately editable. Component-internals "hide-only" is deferred
+to when hide/structure-ops UI lands (out of the WordCamp cut per the mission's OUT list).
+
 ## Open / flagged for owner review
 
 - **F1 — data-node is authored, not injected (resolved).** To protect the
