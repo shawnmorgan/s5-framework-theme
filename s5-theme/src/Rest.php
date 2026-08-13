@@ -168,7 +168,13 @@ final class Rest {
 			);
 		}
 
-		return new \WP_REST_Response( array( 'ok' => true, 'name' => $name ), 200 );
+		return new \WP_REST_Response(
+			array(
+				'ok'   => true,
+				'name' => $name,
+			),
+			200
+		);
 	}
 
 	/**

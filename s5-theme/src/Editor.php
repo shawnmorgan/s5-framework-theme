@@ -189,14 +189,14 @@ final class Editor {
 			's5-editor',
 			$base . 'editor.css',
 			array(),
-			'0.0.0'
+			self::asset_ver( 'editor.css' )
 		);
 
 		wp_enqueue_script(
 			's5-editor',
 			$base . 'editor.js',
 			array(),
-			'0.0.0',
+			self::asset_ver( 'editor.js' ),
 			true
 		);
 
@@ -205,7 +205,7 @@ final class Editor {
 			's5-editor-panel',
 			$base . 'panel.js',
 			array( 's5-editor' ),
-			'0.0.0',
+			self::asset_ver( 'panel.js' ),
 			true
 		);
 
@@ -215,7 +215,7 @@ final class Editor {
 			's5-editor-palette',
 			$base . 'palette.js',
 			array( 's5-editor', 's5-editor-panel' ),
-			'0.0.0',
+			self::asset_ver( 'palette.js' ),
 			true
 		);
 
@@ -225,7 +225,7 @@ final class Editor {
 			's5-editor-structure',
 			$base . 'structure.js',
 			array( 's5-editor', 's5-editor-panel' ),
-			'0.0.0',
+			self::asset_ver( 'structure.js' ),
 			true
 		);
 
@@ -235,7 +235,7 @@ final class Editor {
 			's5-editor-componentstab',
 			$base . 'componentstab.js',
 			array( 's5-editor', 'wp-codemirror' ),
-			'0.0.0',
+			self::asset_ver( 'componentstab.js' ),
 			true
 		);
 
@@ -249,7 +249,7 @@ final class Editor {
 			's5-editor-codelens',
 			$base . 'codelens.js',
 			array( 's5-editor', 'wp-codemirror' ),
-			'0.0.0',
+			self::asset_ver( 'codelens.js' ),
 			true
 		);
 
@@ -258,7 +258,7 @@ final class Editor {
 			's5-editor-styles',
 			$base . 'stylestab.js',
 			array( 's5-editor' ),
-			'0.0.0',
+			self::asset_ver( 'stylestab.js' ),
 			true
 		);
 
@@ -397,6 +397,28 @@ final class Editor {
 	}
 
 	/**
+	 * Cache-busting version for an editor asset, from its file mtime.
+	 *
+	 * A hardcoded version never invalidates the browser cache, so a shipped CSS
+	 * or JS fix silently fails to reach a returning presenter. filemtime ties the
+	 * version to the file's content, so every edit busts the cache automatically.
+	 * Falls back to the theme version if the file is unreadable.
+	 *
+	 * @param string $file Filename under assets/editor/ (e.g. 'editor.css').
+	 * @return string Version string.
+	 */
+	private static function asset_ver( string $file ): string {
+		$path  = S5_PLUGIN_DIR . 'assets/editor/' . $file;
+		$mtime = is_readable( $path ) ? filemtime( $path ) : false;
+		if ( false !== $mtime ) {
+			return (string) $mtime;
+		}
+		$theme   = wp_get_theme();
+		$version = $theme->get( 'Version' );
+		return '' !== (string) $version ? (string) $version : '0.0.0';
+	}
+
+	/**
 	 * Enqueue the preview overlay into the canvas (preview requests only).
 	 *
 	 * @return void
@@ -406,7 +428,7 @@ final class Editor {
 			's5-editor-overlay',
 			constant( 'S5\\S5_PLUGIN_URL' ) . 'assets/editor/overlay.js',
 			array(),
-			'0.0.0',
+			self::asset_ver( 'overlay.js' ),
 			true
 		);
 	}

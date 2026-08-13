@@ -301,3 +301,81 @@ live from the files (D5, unchanged). The top-level Tailwind tab stays disabled/i
   Desktop; or move the project out of `~/Desktop`. Phase B code is validated by
   phpcs + `php -l` + `node --check` in the meantime; the full single-env gate
   (Steps 0–10 + editor acceptance) runs the moment the env is reachable.
+
+## Live-browser walkthrough fixes (Aug 12 — DEMO.md dry-run)
+
+Driving DEMO.md as a real user in Chrome surfaced browser-interaction bugs that the
+CLI acceptance gate cannot see (it never renders the editor). Fixes are fix-forward,
+interaction-only, no scope added:
+
+- **W1 — Editor shell collapsed to a ~150px sliver (preview iframe 60px tall).**
+  `.s5-editor` was `position: absolute; inset:0`. Its offset parent in wp-admin is
+  `#wpbody`, which `wp-admin` sets `position: relative` and which sizes to its own
+  content — so `inset:0` resolved against a collapsed ~180px box and the whole
+  editor (preview included) shrank. Fix: `.s5-editor { position: fixed }` (+ z-index)
+  so it anchors to the viewport — the full-screen takeover the editor needs.
+  Verified live: iframe now 917px tall, full page renders.
+- **W2 — "Unsaved changes" shown on a freshly-opened editor (false dirty).**
+  `markClean()` correctly set `hidden=true` on the indicator, but
+  `.s5-editor__dirty { display: inline-flex }` overrode the UA `[hidden]{display:none}`
+  rule, so it stayed visible. (The Update button was already correctly disabled, so
+  the save door was never actually armed — display bug only.) Fix: add
+  `.s5-editor__dirty[hidden] { display: none }`. Verified live: hidden on load,
+  Update disabled.
+- **W3 — Editor assets pinned to hardcoded `ver=0.0.0` (cache never busts).** The
+  stale CSS from W1/W2 kept serving after the fix until a forced cache bypass — the
+  hardcoded version means a shipped fix silently never reaches a returning presenter.
+  Fix: `Editor::asset_ver()` versions every editor CSS/JS by `filemtime` (falls back
+  to theme version). Verified live: after the fix the normal reload served the new
+  CSS with no manual busting.
+
+Flagged, NOT fixed (out of interaction-bug scope):
+
+- **W4 — `test-banner` "TEST CONTENT — placeholder copy" is authored into every
+  corpus page** (`pages/*.html` line 19) with a matching style in
+  `site/styles/components.css`. It renders at the top of the demo About page. This is
+  authored demo content, not an editor bug; removing it touches the corpus and may
+  shift Step 5 canonical/derived assertions. Presenter's call whether it belongs in
+  the WordCamp corpus.
+
+### Harness note — MCP synthetic clicks vs. the editor (methodology, not a product bug)
+
+During the live walkthrough the browser-automation tool's synthetic `computer`
+click/hover events did NOT reliably reach elements: they failed to cross into the
+preview `<iframe>` (glass), and even missed top-document buttons inside the
+fixed-position editor overlay (e.g. the Update button and the Code-lens toggle both
+ignored coordinate clicks). A real hardware mouse does not have this limitation —
+`elementFromPoint` returns the correct target and `pointer-events` is `auto`, so a
+human presenter's clicks land normally.
+
+To verify the PRODUCT rather than the driver, glass/panel interactions were exercised
+by dispatching genuine DOM events that invoke the exact same handlers a real click
+runs: in-iframe `MouseEvent` dispatch for overlay selection, native value-setter +
+`input` event for field typing, and `element.click()` for top-bar buttons. Each was
+confirmed by the resulting DOM state, server state, and a screenshot. This proves every
+S5 code path (overlay → postMessage → panel → stage → one-door save → revision →
+served page) works; only the OS-cursor-into-element hop is simulated. The WordCamp demo
+runs on real hardware input, where these paths work as shown.
+
+- **W5 — Components tab: switching files (style.css / manifest.json) silently kept
+  showing component.html.** `loadIntoCode()` called `cm.toTextArea()`, but
+  `wp.codeEditor.initialize()` returns a WRAPPER whose CodeMirror instance is at
+  `cm.codemirror` — so every file switch threw `TypeError: cm.toTextArea is not a
+  function` at the first line, the old editor was never torn down, and the buffer
+  never changed. The live preview was correct (it reads the in-memory `files.css`),
+  which masked the bug; only the code pane was stuck. This made the Components tab's
+  headline capability — edit a component's style.css — impossible in the browser.
+  Fix: `cm.codemirror.toTextArea()` (guarded), plus a forced `setValue(value)` +
+  `clearHistory()` after re-init so file switching is deterministic. Verified live:
+  style.css now loads with `mode:text/css`, an edit updates the live preview, Save
+  rebuilds the bundle, and the served page's inserted cta button changes color.
+
+- **W6 — flagged, not a bug: revision restore verified; DEMO.md CLI hint corrected.**
+  The Revisions story works end-to-end: S5's `_s5_canonical_html` postmeta is
+  revisioned, the wp-admin "Compare Revisions" screen renders the canonical diff with
+  a working "Restore This Revision" control, and restoring reverts BOTH the canonical
+  and the recompiled served page (verified: restoring an earlier revision flipped the
+  served About page's headline + inserted-component count back). One doc nit: DEMO.md
+  step 9's parenthetical `wp post list --post_type=revision` is fine, but there is no
+  `wp post revision restore` subcommand in this WP-CLI — restore is done from the
+  admin UI (the demo path) or via `wp_restore_post_revision()`. Not a code change.

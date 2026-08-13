@@ -124,7 +124,14 @@
 
 	function loadIntoCode( value ) {
 		if ( cm ) {
-			cm.toTextArea();
+			// wp.codeEditor.initialize returns a WRAPPER; the CodeMirror instance
+			// (which owns toTextArea) is at cm.codemirror. Calling cm.toTextArea()
+			// threw "cm.toTextArea is not a function" on every file switch, so the
+			// old editor was never torn down and switching files (e.g. to style.css)
+			// silently kept showing the previous file.
+			if ( cm.codemirror && 'function' === typeof cm.codemirror.toTextArea ) {
+				cm.codemirror.toTextArea();
+			}
 			cm = null;
 		}
 		codeEl.value = value;
@@ -135,6 +142,13 @@
 				settings.codemirror.mode = mode;
 			}
 			cm = wp.codeEditor.initialize( codeEl, settings );
+			// wp.codeEditor.initialize seeds the CodeMirror doc from the textarea
+			// value at init time; after a previous toTextArea() the reused instance
+			// can retain the prior file's content, so the editor keeps showing the
+			// old file (e.g. component.html when you switch to style.css). Force the
+			// doc to the requested value so file switching is deterministic.
+			cm.codemirror.setValue( value );
+			cm.codemirror.clearHistory();
 			cm.codemirror.on( 'change', function () {
 				files[ activeFile ] = cm.codemirror.getValue();
 				renderPreview();
