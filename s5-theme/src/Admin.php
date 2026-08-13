@@ -95,70 +95,19 @@ final class Admin {
 			array( self::class, 'render_setup_screen' )
 		);
 
-		// New S5 Page (owned by PageAdmin) re-surfaced under S5.
+		// Theme Settings — the settings app (Phase C). Style, Components, Templates,
+		// Integrations, CSS/Tailwind, and Roles all live INSIDE this app as screens
+		// (routed via ?screen=…), NOT as separate top-level submenus and NOT into the
+		// canvas. Per HANDOFF §3 + the Phase A menu contract, the S5 menu is exactly
+		// two items: Setup & Status and Theme Settings.
 		add_submenu_page(
 			self::MENU_SLUG,
-			__( 'Add S5 Page', 's5' ),
-			__( 'Add S5 Page', 's5' ),
-			PageAdmin::CAPABILITY,
-			'edit.php?post_type=page&page=s5-new-page',
-			''
+			__( 'Theme Settings', 's5' ),
+			__( 'Theme Settings', 's5' ),
+			Settings::CAPABILITY,
+			Settings::MENU_SLUG,
+			array( Settings::class, 'render_screen' )
 		);
-
-		// Style (tokens/scales) and Components open the editor's respective panels
-		// via the shared editor screen. They resolve to the most recently edited
-		// framework page, or the setup screen if none exists yet.
-		add_submenu_page(
-			self::MENU_SLUG,
-			__( 'Style', 's5' ),
-			__( 'Style', 's5' ),
-			self::CAPABILITY,
-			self::editor_entry_url( 'style' ),
-			''
-		);
-		add_submenu_page(
-			self::MENU_SLUG,
-			__( 'Components', 's5' ),
-			__( 'Components', 's5' ),
-			self::CAPABILITY,
-			self::editor_entry_url( 'components' ),
-			''
-		);
-	}
-
-	/**
-	 * URL that opens the editor focused on a given panel, or the setup screen when
-	 * there is no framework page to edit yet.
-	 *
-	 * @param string $panel Panel key ('style' | 'components').
-	 * @return string
-	 */
-	private static function editor_entry_url( string $panel ): string {
-		$post_id = self::first_framework_page_id();
-		if ( ! $post_id ) {
-			return 'admin.php?page=' . self::MENU_SLUG;
-		}
-		return add_query_arg( array( 's5-panel' => $panel ), Editor::editor_url( $post_id ) );
-	}
-
-	/**
-	 * ID of a framework page to use as a default editor target (newest first), or 0.
-	 *
-	 * @return int
-	 */
-	private static function first_framework_page_id(): int {
-		$q = get_posts(
-			array(
-				'post_type'      => 'page',
-				'post_status'    => array( 'publish', 'draft', 'private' ),
-				'posts_per_page' => 1,
-				'orderby'        => 'modified',
-				'order'          => 'DESC',
-				'meta_key'       => '_s5_canonical_html', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- one-row bootstrap lookup.
-				'fields'         => 'ids',
-			)
-		);
-		return $q ? (int) $q[0] : 0;
 	}
 
 	// --- Status model ---

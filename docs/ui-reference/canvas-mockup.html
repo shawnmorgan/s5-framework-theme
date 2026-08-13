@@ -1,0 +1,1492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S5 Editor — Canvas (Design Reference)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+/* ============================================================================
+   S5 EDITOR — CANVAS DESIGN REFERENCE
+   ----------------------------------------------------------------------------
+   Layout model (per CrocoBuilder, NOT the current right-sidebar-jams-everything
+   build):
+     • TOP TOOLBAR  — logo · settings · Tools(Components/Styleguide/CSS·Tailwind)
+                      │ viewport control │ Edit/Code lens │ undo/redo · View · Save
+                      (no AI button — authoring is agent-driven, not an on-site bot)
+     • LEFT PANEL   — dual-purpose: registered-Components palette by default (the
+                      ONLY things droppable, Webflow/Sanity client model — plus the
+                      single Embed primitive); flips to the PROP editor on select.
+                      Props = content only; Style = variants + t-shirt sizing +
+                      theme-role color; tag/SEO tucked in Advanced. No CSS classes.
+     • CENTER STAGE — swaps with the lens: Edit = live preview iframe, Code =
+                      canonical-HTML source view.
+     • RIGHT PANEL  — STRUCTURE TREE ONLY, always. Selection-synced with the
+                      stage + left panel.
+
+   The TOOL is dark; the SITE preview is light (the deliberate contrast move).
+   Two token layers below:
+     --s5e-*  → the EDITOR tool chrome (dark).
+     --s5-*   → the real S5 design system (from tokens.css / scales.css), used
+                inside the light preview + code view so swatches never drift.
+   ============================================================================ */
+
+/* --- EDITOR TOOL TOKENS (dark chrome) ------------------------------------- */
+:root {
+  --s5e-canvas:#0e0f13;          /* deepest — behind the stage */
+  --s5e-bg:#15171d;              /* panels */
+  --s5e-bg-2:#1b1e26;            /* raised (toolbar, cards) */
+  --s5e-bg-3:#232733;            /* hover / inputs */
+  --s5e-line:#2b2f3a;            /* borders */
+  --s5e-line-soft:#22252e;
+  --s5e-text:#e6e8ee;            /* primary text */
+  --s5e-text-dim:#9aa0ad;        /* secondary */
+  --s5e-text-faint:#6b7180;      /* tertiary */
+  --s5e-accent:#5b8cff;          /* tool accent (blue) */
+  --s5e-accent-soft:rgba(91,140,255,.14);
+  --s5e-brand:#25d366;           /* Croco-green mark / primary CTA nod */
+  --s5e-brand-2:#1fae53;
+  --s5e-danger:#ff5c5c;
+  --s5e-radius-sm:5px;
+  --s5e-radius-md:8px;
+  --s5e-radius-lg:11px;
+  --s5e-gap-1:6px; --s5e-gap-2:10px; --s5e-gap-3:16px; --s5e-gap-4:24px;
+  --s5e-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --s5e-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --s5e-topbar-h:52px;
+
+  /* --- REAL S5 DESIGN SYSTEM (tokens.css / scales.css) — used in preview --- */
+  --s5-color-brand:#2271b1; --s5-color-brand-strong:#135e96; --s5-color-accent:#f0c33c;
+  --s5-color-ink:#1e1e1e; --s5-color-ink-soft:#3c434a; --s5-color-muted:#6c7278;
+  --s5-color-surface:#ffffff; --s5-color-surface-alt:#f6f7f7; --s5-color-line:#dcdcde;
+  --s5-font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --s5-text-md:1rem; --s5-text-lg:1.2rem; --s5-text-xl:1.44rem; --s5-text-xxxl:2.074rem;
+  --s5-space-md:1rem; --s5-space-lg:1.5rem; --s5-space-xl:2rem;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  font-family:var(--s5e-sans);
+  font-size:13px;
+  color:var(--s5e-text);
+  background:var(--s5e-canvas);
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+button{font-family:inherit;cursor:pointer;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--s5e-line);border-radius:6px;border:2px solid transparent;background-clip:content-box;}
+::-webkit-scrollbar-thumb:hover{background:#3a3f4c;background-clip:content-box;}
+
+/* ============================================================================
+   TOP TOOLBAR
+   ============================================================================ */
+.tb{
+  height:var(--s5e-topbar-h);
+  background:var(--s5e-bg-2);
+  border-bottom:1px solid var(--s5e-line);
+  display:flex;align-items:center;
+  padding:0 12px;gap:14px;
+  position:relative;z-index:40;
+}
+.tb-group{display:flex;align-items:center;gap:8px;}
+.tb-group.center{position:absolute;left:50%;transform:translateX(-50%);gap:18px;}
+.tb-group.right{margin-left:auto;}
+
+.tb-logo{
+  width:32px;height:32px;border-radius:var(--s5e-radius-md);
+  background:var(--s5e-brand);color:#04220f;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:15px;flex-shrink:0;
+}
+.tb-icon-btn{
+  width:32px;height:32px;border-radius:var(--s5e-radius-sm);
+  background:transparent;border:1px solid transparent;color:var(--s5e-text-dim);
+  display:flex;align-items:center;justify-content:center;font-size:14px;transition:.12s;
+}
+.tb-icon-btn:hover{background:var(--s5e-bg-3);color:var(--s5e-text);}
+.tb-tools{
+  display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;
+  background:transparent;border:1px solid transparent;border-radius:var(--s5e-radius-sm);
+  color:var(--s5e-text-dim);font-size:13px;
+}
+.tb-tools:hover{background:var(--s5e-bg-3);color:var(--s5e-text);}
+.tb-sep{width:1px;height:22px;background:var(--s5e-line);}
+
+/* Tools dropdown */
+.tools-wrap{position:relative;}
+.tools-menu{
+  position:absolute;top:calc(100% + 8px);left:0;min-width:230px;
+  background:var(--s5e-bg-2);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);
+  padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.55);display:none;z-index:60;
+}
+.tools-menu.open{display:block;}
+.tools-item{
+  display:flex;align-items:center;gap:11px;width:100%;padding:9px 11px;
+  background:transparent;border:none;border-radius:var(--s5e-radius-sm);
+  color:var(--s5e-text);font-size:13px;text-align:left;transition:.1s;white-space:nowrap;
+}
+.tools-item:hover{background:var(--s5e-bg-3);}
+.tools-item > i{flex:0 0 16px;width:16px;text-align:center;color:var(--s5e-text-dim);font-size:13px;}
+.tools-item .ti-label{font-weight:500;}
+.tools-item .ti-note{margin-left:auto;padding-left:16px;font-size:11px;color:var(--s5e-text-faint);}
+
+/* viewport segmented control */
+.vp{
+  display:flex;align-items:center;background:var(--s5e-bg);
+  border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);padding:3px;gap:2px;
+}
+.vp-btn{
+  display:flex;align-items:center;gap:7px;height:28px;padding:0 12px;
+  background:transparent;border:none;border-radius:var(--s5e-radius-sm);
+  color:var(--s5e-text-dim);font-size:12.5px;transition:.12s;white-space:nowrap;
+}
+.vp-btn:hover{color:var(--s5e-text);}
+.vp-btn.active{background:var(--s5e-accent-soft);color:#a9c3ff;box-shadow:inset 0 0 0 1px rgba(91,140,255,.3);}
+.vp-btn i{font-size:13px;}
+
+/* lens toggle — the KEY move: lives in the toolbar, not the sidebar */
+.lens{
+  display:flex;align-items:center;background:var(--s5e-bg);
+  border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);padding:3px;gap:2px;
+}
+.lens-btn{
+  display:flex;align-items:center;gap:7px;height:28px;padding:0 14px;
+  background:transparent;border:none;border-radius:var(--s5e-radius-sm);
+  color:var(--s5e-text-dim);font-size:12.5px;font-weight:500;transition:.12s;
+}
+.lens-btn:hover{color:var(--s5e-text);}
+.lens-btn.active{background:var(--s5e-bg-3);color:var(--s5e-text);box-shadow:inset 0 0 0 1px var(--s5e-line);}
+
+.tb-text-btn{
+  display:flex;align-items:center;gap:7px;height:32px;padding:0 10px;
+  background:transparent;border:none;color:var(--s5e-text-dim);font-size:13px;transition:.12s;border-radius:var(--s5e-radius-sm);
+}
+.tb-text-btn:hover{background:var(--s5e-bg-3);color:var(--s5e-text);}
+.tb-save{
+  display:flex;align-items:center;gap:8px;height:34px;padding:0 18px;
+  background:var(--s5e-accent);color:#fff;border:none;border-radius:var(--s5e-radius-md);
+  font-size:13px;font-weight:600;transition:.12s;
+}
+.tb-save:hover{background:#4a7bef;}
+.tb-save:disabled{opacity:.5;cursor:default;}
+.dirty-dot{width:7px;height:7px;border-radius:50%;background:var(--s5e-accent);display:inline-block;}
+
+/* ============================================================================
+   BODY — 3 columns
+   ============================================================================ */
+.body{
+  display:grid;
+  grid-template-columns:var(--left-w,264px) 1fr var(--right-w,270px);
+  height:calc(100vh - var(--s5e-topbar-h));
+}
+.panel{
+  background:var(--s5e-bg);
+  min-height:0;overflow-y:auto;
+  display:flex;flex-direction:column;
+}
+.panel.left{border-right:1px solid var(--s5e-line);}
+.panel.right{border-left:1px solid var(--s5e-line);}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:14px 16px 10px;position:sticky;top:0;background:var(--s5e-bg);z-index:2;
+}
+.panel-head h2{font-size:13px;font-weight:700;letter-spacing:.2px;}
+.panel-head .sub{font-size:11px;color:var(--s5e-text-faint);}
+
+/* ---------- LEFT: components palette ---------- */
+.palette{padding:0 16px 20px;}
+.palette-intro{
+  font-size:12px;line-height:1.55;color:var(--s5e-text-dim);
+  background:var(--s5e-bg-2);border:1px solid var(--s5e-line-soft);border-radius:var(--s5e-radius-md);
+  padding:11px 12px;margin:2px 0 18px;
+}
+.palette-note{
+  display:flex;align-items:flex-start;gap:7px;font-size:11px;line-height:1.5;
+  color:var(--s5e-text-faint);margin-top:10px;
+}
+.palette-note i{margin-top:2px;color:var(--s5e-accent);opacity:.8;}
+.pal-item.embed{border-style:dashed;border-color:var(--s5e-line);}
+.pal-item.embed:hover{border-color:var(--s5e-text-faint);}
+.pal-item .prim-badge{
+  position:absolute;top:7px;right:8px;font-size:9px;font-weight:700;letter-spacing:.5px;
+  text-transform:uppercase;color:var(--s5e-text-faint);background:var(--s5e-bg);
+  padding:1px 5px;border-radius:3px;border:1px solid var(--s5e-line);
+}
+.palette-group{margin-top:6px;}
+.palette-group + .palette-group{margin-top:20px;}
+.palette-label{
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+  color:var(--s5e-text-faint);margin-bottom:10px;
+}
+.palette-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.pal-item{
+  aspect-ratio:1.35;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+  background:var(--s5e-bg-2);border:1px solid var(--s5e-line-soft);border-radius:var(--s5e-radius-md);
+  color:var(--s5e-text-dim);transition:.12s;position:relative;user-select:none;
+}
+.pal-item:hover{border-color:var(--s5e-accent);color:var(--s5e-text);background:var(--s5e-bg-3);transform:translateY(-1px);}
+.pal-item i{font-size:19px;opacity:.85;}
+.pal-item span{font-size:12px;font-weight:500;}
+
+/* ---------- LEFT: prop / content editor (shown on selection) ---------- */
+.props{display:none;padding:0 16px 24px;flex-direction:column;}
+.props.active{display:flex;}
+.palette.hidden{display:none;}
+.props-crumb{
+  display:flex;align-items:center;gap:8px;font-size:12px;color:var(--s5e-text-dim);
+  padding:2px 0 14px;
+}
+.props-crumb .tag{
+  font-family:var(--s5e-mono);font-size:11px;background:var(--s5e-accent-soft);color:#a9c3ff;
+  padding:2px 8px;border-radius:4px;
+}
+.props-crumb .back{color:var(--s5e-text-faint);background:none;border:none;font-size:12px;padding:0;}
+.props-crumb .back:hover{color:var(--s5e-text);}
+.prop-tabs{display:flex;gap:2px;background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);padding:3px;margin-bottom:16px;}
+.prop-tab{flex:1;height:28px;border:none;background:transparent;color:var(--s5e-text-dim);border-radius:var(--s5e-radius-sm);font-size:12px;transition:.12s;}
+.prop-tab:hover{color:var(--s5e-text);}
+.prop-tab.active{background:var(--s5e-bg-3);color:var(--s5e-text);box-shadow:inset 0 0 0 1px var(--s5e-line);}
+.field{margin-bottom:16px;}
+.field-label{display:block;font-size:11px;font-weight:600;color:var(--s5e-text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;}
+.input,.textarea,.select{
+  width:100%;padding:9px 11px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);
+  border-radius:var(--s5e-radius-sm);color:var(--s5e-text);font-size:13px;font-family:inherit;outline:none;transition:.12s;
+}
+.input:focus,.textarea:focus,.select:focus{border-color:var(--s5e-accent);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+.textarea{min-height:88px;resize:vertical;line-height:1.5;}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%239aa0ad' stroke-width='1.4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px;}
+.field-hint{font-size:11px;color:var(--s5e-text-faint);margin-top:6px;line-height:1.5;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.seg{display:inline-flex;background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);overflow:hidden;}
+.seg-opt{padding:7px 13px;font-size:12px;color:var(--s5e-text-dim);border-right:1px solid var(--s5e-line);transition:.12s;user-select:none;}
+.seg-opt:last-child{border-right:none;}
+.seg-opt:hover{background:var(--s5e-bg-3);color:var(--s5e-text);}
+.seg-opt.active{background:var(--s5e-accent);color:#fff;}
+.seg.wide{display:flex;width:100%;}
+.seg.wide .seg-opt{flex:1;text-align:center;padding:7px 6px;}
+.field-label .opt{font-weight:400;text-transform:none;letter-spacing:0;color:var(--s5e-text-faint);font-size:10.5px;margin-left:6px;}
+
+/* tab panels */
+.ptab-panel{display:none;}
+.ptab-panel.active{display:block;}
+
+/* color swatches (theme roles only) */
+.swatch-row{display:flex;gap:9px;}
+.swatch{
+  width:30px;height:30px;border-radius:var(--s5e-radius-sm);background:var(--sw);
+  border:2px solid var(--s5e-line);padding:0;transition:.12s;
+}
+.swatch:hover{transform:translateY(-1px);}
+.swatch.active{border-color:var(--s5e-text);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+
+/* ---------- Ollie-style step sliders (snap to scale ladder) ---------- */
+.sz-val{font-family:var(--s5e-mono);font-size:10.5px;color:var(--s5e-accent);letter-spacing:.3px;}
+.step-slider{
+  -webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer;margin:2px 0 0;
+  /* dashed ladder track: repeating dashes = the 8 ladder ticks */
+  --tick:#3a3f4c;
+}
+.step-slider::-webkit-slider-runnable-track{
+  height:4px;border-radius:3px;
+  background:
+    repeating-linear-gradient(90deg,var(--tick) 0 2px,transparent 2px 14.28%),
+    var(--s5e-bg-3);
+}
+.step-slider::-moz-range-track{
+  height:4px;border-radius:3px;
+  background:
+    repeating-linear-gradient(90deg,var(--tick) 0 2px,transparent 2px 14.28%),
+    var(--s5e-bg-3);
+}
+.step-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--s5e-accent);border:2px solid var(--s5e-bg);box-shadow:0 0 0 1px var(--s5e-accent);
+  margin-top:-6px;transition:transform .1s;
+}
+.step-slider::-webkit-slider-thumb:hover{transform:scale(1.12);}
+.step-slider::-moz-range-thumb{
+  width:15px;height:15px;border-radius:50%;background:var(--s5e-accent);
+  border:2px solid var(--s5e-bg);box-shadow:0 0 0 1px var(--s5e-accent);
+}
+.slider-scale{display:flex;justify-content:space-between;font-family:var(--s5e-mono);font-size:10px;color:var(--s5e-text-faint);margin-top:3px;}
+
+/* media prop field: thumbnail + library link */
+.media-field{display:flex;gap:12px;align-items:center;background:var(--s5e-bg-2);border:1px solid var(--s5e-line-soft);border-radius:var(--s5e-radius-md);padding:10px;}
+.media-thumb{width:64px;height:48px;border-radius:var(--s5e-radius-sm);overflow:hidden;background:var(--s5e-bg-3);flex-shrink:0;position:relative;display:flex;align-items:center;justify-content:center;}
+.media-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.media-thumb .media-thumb-ph{display:none;color:var(--s5e-text-faint);font-size:16px;}
+.media-thumb.noimg .media-thumb-ph{display:block;}
+.media-meta{display:flex;flex-direction:column;gap:7px;min-width:0;}
+.media-name{font-size:12px;color:var(--s5e-text);font-family:var(--s5e-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.media-lib{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;padding:6px 11px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:12px;transition:.12s;}
+.media-lib:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+
+/* container (non-leaf) note */
+.container-note{display:flex;gap:11px;align-items:flex-start;background:var(--s5e-bg-2);border:1px solid var(--s5e-line-soft);border-radius:var(--s5e-radius-md);padding:13px;font-size:12.5px;line-height:1.5;color:var(--s5e-text-dim);}
+.container-note i{color:var(--s5e-accent);font-size:14px;margin-top:1px;opacity:.85;}
+.container-note strong{color:var(--s5e-text);}
+
+/* Ollie "Dimensions" group: title + link toggle + edge rows */
+.dim-group{background:var(--s5e-bg-2);border:1px solid var(--s5e-line-soft);border-radius:var(--s5e-radius-md);padding:12px 13px;}
+.dim-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.dim-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--s5e-text-dim);}
+.dim-link{width:26px;height:26px;border-radius:var(--s5e-radius-sm);background:transparent;border:1px solid var(--s5e-line);color:var(--s5e-text-faint);font-size:11px;display:flex;align-items:center;justify-content:center;transition:.12s;}
+.dim-link:hover{color:var(--s5e-text);border-color:var(--s5e-text-faint);}
+.dim-link.linked{background:var(--s5e-accent-soft);border-color:rgba(91,140,255,.4);color:#a9c3ff;}
+.dim-row{display:grid;grid-template-columns:20px 1fr 34px;align-items:center;gap:9px;margin-bottom:6px;}
+.dim-edge{color:var(--s5e-text-faint);font-size:11px;text-align:center;}
+.dim-val{text-align:right;}
+
+/* ---------- CENTER STAGE ---------- */
+.stage-wrap{background:var(--s5e-canvas);min-height:0;display:flex;flex-direction:column;position:relative;}
+
+/* Edit lens: live preview */
+.stage-scroll{flex:1;overflow:auto;display:flex;justify-content:center;padding:26px;}
+.stage-frame{
+  width:100%;max-width:var(--frame-max,1180px);background:#fff;border-radius:10px;
+  box-shadow:0 10px 40px rgba(0,0,0,.5);align-self:flex-start;transition:max-width .22s ease;
+  /* NOTE: intentionally NO overflow:hidden. An overflow-clip on any ancestor
+     clips the selection outline + floating tag of elements near its edge —
+     that's the bug where only the mid-page h1 showed a highlight. The page
+     content is rectangular, so border-radius alone is enough cosmetically. */
+}
+.stage-frame > .site{border-radius:10px;}
+.stage-frame.mobile{max-width:390px;}
+.stage-frame.tablet{max-width:768px;}
+
+/* --- the rendered S5 page (real design system, light) --- */
+.site{color:var(--s5-color-ink);font-family:var(--s5-font-sans);line-height:1.5;}
+.site .wrap{max-width:1000px;margin:0 auto;padding:0 40px;}
+.site-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:20px 40px;border-bottom:1px solid var(--s5-color-line);}
+.site-header .brand{font-weight:700;text-decoration:none;color:var(--s5-color-ink);font-size:17px;}
+.site-header .nav ul{display:flex;gap:1.5rem;list-style:none;align-items:center;}
+.site-header .nav a{text-decoration:none;color:var(--s5-color-ink-soft);font-size:14px;}
+.site-header .nav-cta{font-weight:600;}
+.hero{display:grid;gap:1rem;padding:64px 40px;max-width:1000px;margin:0 auto;}
+.eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:.78rem;font-weight:700;color:var(--s5-color-brand);}
+.hero h1{font-size:var(--s5-text-xxxl);line-height:1.15;letter-spacing:-.01em;max-width:18ch;}
+.lede{max-width:60ch;color:var(--s5-color-ink-soft);font-size:1.05rem;}
+.hero-actions{display:flex;gap:.75rem;margin-top:.5rem;}
+.btn{display:inline-block;padding:.6rem 1.1rem;border-radius:.375rem;text-decoration:none;font-size:.95rem;font-weight:500;}
+.btn--primary{background:var(--s5-color-brand);color:#fff;}
+.btn--ghost{background:transparent;border:1px solid var(--s5-color-line);color:var(--s5-color-ink);}
+.hero picture img{width:100%;height:auto;border-radius:10px;margin-top:1rem;display:block;}
+.hero .media-ph{margin-top:1rem;border-radius:10px;height:280px;background:
+  linear-gradient(135deg,#eef2f6,#dde6ee);display:flex;align-items:center;justify-content:center;color:#9aa9b8;font-size:13px;}
+.features{padding:40px;max-width:1000px;margin:0 auto;display:grid;gap:1.5rem;}
+.features h2{font-size:var(--s5-text-xl);}
+.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;list-style:none;}
+.feature-grid .card{display:grid;gap:.5rem;padding:20px;border:1px solid var(--s5-color-line);border-radius:10px;background:var(--s5-color-surface-alt);}
+.feature-grid .card h3{font-size:1.05rem;}
+.feature-grid .card p{color:var(--s5-color-ink-soft);font-size:.92rem;}
+.cta{display:grid;gap:.75rem;text-align:center;padding:56px 40px;max-width:720px;margin:0 auto;}
+.cta h2{font-size:var(--s5-text-xl);}
+.cta p{color:var(--s5-color-ink-soft);}
+.cta .btn{justify-self:center;margin-top:.5rem;}
+
+/* selection outline on the glass — applies to EVERY selectable element */
+.sel-outline{outline:2px solid var(--s5e-accent);outline-offset:2px;border-radius:3px;position:relative;}
+.sel-tag{
+  position:absolute;top:-25px;left:-2px;z-index:30;background:var(--s5e-accent);color:#fff;font-size:11px;font-weight:600;
+  border-radius:4px 4px 0 0;display:flex;align-items:stretch;white-space:nowrap;font-family:var(--s5e-sans);
+  box-shadow:0 2px 8px rgba(0,0,0,.3);
+}
+.sel-tag .sel-name{display:flex;align-items:center;padding:3px 9px;}
+.sel-tag .sel-tools{display:flex;align-items:stretch;border-left:1px solid rgba(255,255,255,.28);}
+.sel-tag .sel-act{
+  display:flex;align-items:center;justify-content:center;width:26px;background:transparent;border:none;
+  color:#fff;font-size:11px;cursor:pointer;transition:.1s;
+}
+.sel-tag .sel-act:hover{background:rgba(255,255,255,.18);}
+.sel-tag .sel-act:last-child{border-radius:0 4px 0 0;}
+
+/* DISABLED element — turned OFF: removed from the canvas AND from output.
+   (Distinct from responsive Visibility, which only hides at a breakpoint.) */
+.is-disabled{display:none !important;}
+
+/* Code lens: canonical HTML source */
+.codeview{flex:1;display:none;flex-direction:column;min-height:0;background:#0c0d11;}
+.codeview.active{display:flex;}
+.stage-wrap.code .stage-scroll{display:none;}
+.code-head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:11px 18px;border-bottom:1px solid var(--s5e-line);background:var(--s5e-bg-2);
+}
+.code-head .title{font-size:12px;font-weight:600;color:var(--s5e-text-dim);letter-spacing:.3px;}
+.code-head .actions{display:flex;gap:8px;}
+.code-btn{display:flex;align-items:center;gap:6px;padding:5px 11px;background:transparent;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:12px;transition:.12s;}
+.code-btn:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+.code-body{flex:1;overflow:auto;display:flex;font-family:var(--s5e-mono);font-size:12.5px;line-height:1.65;}
+.code-gutter{padding:16px 0;text-align:right;color:#454b59;user-select:none;background:#0c0d11;position:sticky;left:0;}
+.code-gutter span{display:block;padding:0 14px 0 18px;}
+.code-pre{padding:16px 20px 16px 8px;white-space:pre;color:#cfd3dc;flex:1;}
+.tok-tag{color:#7ea6ff;}
+.tok-attr{color:#c9a9ff;}
+.tok-str{color:#7fd6a3;}
+.tok-cmt{color:#5a6070;font-style:italic;}
+.tok-el{color:#e5c07b;}
+.code-foot{
+  display:flex;align-items:center;gap:16px;padding:8px 18px;border-top:1px solid var(--s5e-line);background:var(--s5e-bg-2);font-size:12px;color:var(--s5e-text-dim);
+}
+.code-foot .ok{color:var(--s5e-brand);}
+.code-foot .hidden-count{display:inline-flex;align-items:center;gap:6px;color:#d8b46a;}
+.code-foot .hidden-count i{font-size:11px;}
+.code-foot .dot{width:6px;height:6px;border-radius:50%;background:var(--s5e-brand);display:inline-block;margin-right:5px;}
+
+/* ---------- RIGHT: structure tree ONLY ---------- */
+.tree{padding:4px 8px 24px;font-size:13px;}
+.tnode{user-select:none;}
+.trow{
+  display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--s5e-radius-sm);
+  color:var(--s5e-text-dim);transition:.1s;position:relative;
+}
+.trow:hover{background:var(--s5e-bg-2);color:var(--s5e-text);}
+.trow.selected{background:var(--s5e-accent-soft);color:#c8d8ff;box-shadow:inset 0 0 0 1px rgba(91,140,255,.35);}
+/* DISABLED row in the structure tree — red-lined */
+.trow.row-disabled{color:var(--s5e-danger);}
+.trow.row-disabled .tlabel{text-decoration:line-through;text-decoration-color:var(--s5e-danger);}
+.trow.row-disabled .ttype{color:var(--s5e-danger);opacity:.6;}
+.trow.row-disabled .tico{color:var(--s5e-danger);opacity:.8;}
+.trow.row-disabled::after{content:"\f05e";font-family:"Font Awesome 6 Free";font-weight:900;font-size:10px;margin-left:auto;color:var(--s5e-danger);}
+
+/* template-part row badge */
+.trow .part-badge{margin-left:auto;color:var(--s5e-text-faint);font-size:10px;opacity:.7;}
+.tnode.part .trow{color:var(--s5e-text-faint);}
+
+/* Enabled/Disabled toggle at top of the Content view */
+.enable-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;margin-bottom:16px;border-radius:var(--s5e-radius-md);border:1px solid var(--s5e-line-soft);background:var(--s5e-bg-2);}
+.enable-row.off{border-color:rgba(214,54,56,.4);background:rgba(214,54,56,.08);}
+.enable-label{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--s5e-text);}
+.enable-row.on .enable-label i{color:var(--s5e-brand);}
+.enable-row.off .enable-label i{color:var(--s5e-danger);}
+.enable-label em{font-style:normal;font-weight:400;font-size:11px;color:var(--s5e-text-faint);margin-left:2px;}
+.trow .twist{width:14px;text-align:center;font-size:10px;color:var(--s5e-text-faint);transition:transform .15s;flex-shrink:0;}
+.tnode.collapsed > .trow .twist{transform:rotate(-90deg);}
+.trow .tico{width:16px;text-align:center;font-size:12px;opacity:.7;flex-shrink:0;}
+.trow .tlabel{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.trow .ttype{color:var(--s5e-text-faint);font-family:var(--s5e-mono);font-size:11px;margin-left:4px;}
+.tchildren{margin-left:14px;border-left:1px solid var(--s5e-line-soft);padding-left:4px;}
+.tnode.collapsed > .tchildren{display:none;}
+.leaf .twist{visibility:hidden;}
+
+/* resize hint bars (visual only) */
+.panel.left{position:relative;}
+
+/* ============================================================================
+   PAGE SETTINGS DRAWER (opened by the toolbar gear)
+   ============================================================================ */
+.scrim{
+  position:fixed;inset:0;background:rgba(6,7,10,.55);backdrop-filter:blur(1px);
+  opacity:0;visibility:hidden;transition:.2s;z-index:70;
+}
+.scrim.open{opacity:1;visibility:visible;}
+.drawer{
+  position:fixed;top:0;left:0;bottom:0;width:400px;max-width:92vw;z-index:80;
+  background:var(--s5e-bg);border-right:1px solid var(--s5e-line);
+  display:flex;flex-direction:column;
+  transform:translateX(-102%);transition:transform .22s cubic-bezier(.4,0,.2,1);
+  box-shadow:24px 0 60px rgba(0,0,0,.5);
+}
+.drawer.open{transform:translateX(0);}
+.drawer-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px 6px;
+}
+.drawer-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;}
+.drawer-title i{color:var(--s5e-text-dim);font-size:14px;}
+.drawer-close{
+  width:30px;height:30px;border-radius:var(--s5e-radius-sm);background:transparent;border:none;
+  color:var(--s5e-text-dim);font-size:16px;display:flex;align-items:center;justify-content:center;transition:.12s;
+}
+.drawer-close:hover{background:var(--s5e-bg-3);color:var(--s5e-text);}
+.drawer-sub{padding:0 18px 14px;font-size:12px;color:var(--s5e-text-faint);border-bottom:1px solid var(--s5e-line);}
+.drawer-path{font-family:var(--s5e-mono);color:var(--s5e-text-dim);}
+.drawer-body{flex:1;overflow-y:auto;padding:6px 18px 20px;}
+.drawer-sec{padding:18px 0;border-bottom:1px solid var(--s5e-line-soft);}
+.drawer-sec:last-child{border-bottom:none;}
+.drawer-sec-head{
+  display:flex;align-items:center;gap:9px;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.6px;color:var(--s5e-text-dim);margin-bottom:14px;
+}
+.drawer-sec-head i{color:var(--s5e-accent);font-size:12px;opacity:.85;}
+.drawer-sec-head{display:flex;align-items:center;gap:9px;}
+
+/* template conditions */
+.cond-group{margin-bottom:16px;}
+.cond-group-label{font-size:12px;color:var(--s5e-text-dim);margin-bottom:8px;}
+.cond-inc{color:#7ee2a8;font-weight:700;}
+.cond-exc{color:#ff9d9d;font-weight:700;}
+.cond-row{display:grid;grid-template-columns:1.1fr .7fr 1.2fr auto;gap:6px;align-items:center;margin-bottom:8px;}
+.cond-row .select{padding:7px 9px;font-size:12px;padding-right:24px;background-position:right 8px center;}
+.cond-del{width:28px;height:30px;border-radius:var(--s5e-radius-sm);background:transparent;border:1px solid var(--s5e-line);color:var(--s5e-text-faint);font-size:11px;transition:.12s;}
+.cond-del:hover{color:var(--s5e-danger);border-color:var(--s5e-danger);}
+.cond-add{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;background:transparent;border:1px dashed var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:12px;transition:.12s;}
+.cond-add:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+.cond-preview{display:flex;gap:10px;align-items:flex-start;background:var(--s5e-accent-soft);border:1px solid rgba(91,140,255,.3);border-radius:var(--s5e-radius-md);padding:12px;margin-top:8px;font-size:12px;line-height:1.5;color:#c8d8ff;}
+.cond-preview i{color:var(--s5e-accent);margin-top:1px;}
+.cond-preview strong{color:#e6ecff;}
+
+/* input with prefix affix (permalink) */
+.input-affix{display:flex;align-items:stretch;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);overflow:hidden;}
+.input-affix:focus-within{border-color:var(--s5e-accent);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+.input-affix .affix{display:flex;align-items:center;padding:0 4px 0 11px;font-size:12px;color:var(--s5e-text-faint);font-family:var(--s5e-mono);white-space:nowrap;}
+.input.bare{border:none;background:transparent;padding-left:0;}
+.input.bare:focus{box-shadow:none;}
+
+/* toggle switch */
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 0;}
+.switch-label{font-size:13px;color:var(--s5e-text);}
+.switch-label .opt{display:block;font-size:11px;color:var(--s5e-text-faint);margin-top:2px;}
+.switch{width:38px;height:22px;border-radius:11px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);position:relative;padding:0;transition:.15s;flex-shrink:0;}
+.switch .knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--s5e-text-dim);transition:.15s;}
+.switch.on{background:var(--s5e-accent);border-color:var(--s5e-accent);}
+.switch.on .knob{left:18px;background:#fff;}
+
+/* OG image + social preview */
+.og-drop{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--s5e-bg-3);border:1px dashed var(--s5e-line);border-radius:var(--s5e-radius-sm);font-size:12.5px;color:var(--s5e-text-dim);}
+.og-drop i{font-size:15px;}
+.og-replace{margin-left:auto;background:transparent;border:1px solid var(--s5e-line);color:var(--s5e-text-dim);font-size:11px;padding:4px 10px;border-radius:var(--s5e-radius-sm);transition:.12s;}
+.og-replace:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+.og-preview{margin-top:12px;background:var(--s5e-bg-2);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);padding:12px 14px;}
+.ogp-domain{font-size:11px;color:var(--s5e-text-faint);text-transform:lowercase;margin-bottom:5px;}
+.ogp-title{font-size:14px;color:#9fc0ff;line-height:1.35;margin-bottom:4px;}
+.ogp-desc{font-size:12px;color:var(--s5e-text-dim);line-height:1.45;}
+
+/* schema chips + code */
+.schema-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;font-size:12px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:20px;color:var(--s5e-text-dim);}
+.chip.active{background:var(--s5e-accent-soft);border-color:rgba(91,140,255,.4);color:#a9c3ff;}
+.chip.active i{font-size:10px;}
+.chip.add{border-style:dashed;cursor:pointer;}
+.chip.add:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+.schema-code{
+  background:#0c0d11;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);
+  padding:12px 14px;font-family:var(--s5e-mono);font-size:12px;line-height:1.6;color:#cfd3dc;
+  white-space:pre;overflow-x:auto;
+}
+.ok-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--s5e-brand);margin-right:6px;}
+
+.drawer-foot{display:flex;gap:10px;padding:14px 18px;border-top:1px solid var(--s5e-line);background:var(--s5e-bg-2);}
+.drawer-btn{flex:1;height:38px;border-radius:var(--s5e-radius-md);font-size:13px;font-weight:600;border:1px solid transparent;transition:.12s;}
+.drawer-btn.ghost{background:transparent;border-color:var(--s5e-line);color:var(--s5e-text-dim);}
+.drawer-btn.ghost:hover{border-color:var(--s5e-text-faint);color:var(--s5e-text);}
+.drawer-btn.primary{background:var(--s5e-accent);color:#fff;}
+.drawer-btn.primary:hover{background:#4a7bef;}
+</style>
+</head>
+<body>
+
+<!-- ========================= TOP TOOLBAR ========================= -->
+<header class="tb">
+  <div class="tb-group">
+    <div class="tb-logo">S5</div>
+    <button class="tb-icon-btn" id="pageSettingsBtn" title="Page settings"><i class="fa-solid fa-gear"></i></button>
+    <div class="tools-wrap">
+      <button class="tb-tools" id="toolsBtn"><i class="fa-solid fa-screwdriver-wrench" style="font-size:12px"></i> Tools <i class="fa-solid fa-chevron-down" style="font-size:9px;opacity:.6"></i></button>
+      <div class="tools-menu" id="toolsMenu">
+        <button class="tools-item"><i class="fa-solid fa-cubes"></i><span class="ti-label">Components</span><span class="ti-note">registered library</span></button>
+        <button class="tools-item"><i class="fa-solid fa-swatchbook"></i><span class="ti-label">Styleguide</span><span class="ti-note">tokens &amp; scales</span></button>
+        <button class="tools-item"><i class="fa-solid fa-code"></i><span class="ti-label">CSS / Tailwind</span><span class="ti-note">source layers</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tb-group center">
+    <!-- viewport -->
+    <div class="vp" role="group" aria-label="Preview width">
+      <button class="vp-btn active" data-vp="desktop"><i class="fa-solid fa-display"></i> All</button>
+      <button class="vp-btn" data-vp="tablet"><i class="fa-solid fa-tablet-screen-button"></i> 768–991px</button>
+      <button class="vp-btn" data-vp="mobile"><i class="fa-solid fa-mobile-screen-button"></i> ≤767px</button>
+      <button class="vp-btn" title="Custom width"><i class="fa-solid fa-pen"></i></button>
+    </div>
+
+    <!-- LENS TOGGLE — in the toolbar, swaps the CENTER panel -->
+    <div class="lens" role="group" aria-label="Editing lens">
+      <button class="lens-btn active" data-lens="edit"><i class="fa-solid fa-arrow-pointer" style="font-size:11px"></i> Edit</button>
+      <button class="lens-btn" data-lens="code"><i class="fa-solid fa-code" style="font-size:12px"></i> Code</button>
+    </div>
+  </div>
+
+  <div class="tb-group right">
+    <button class="tb-icon-btn" title="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+    <button class="tb-icon-btn" title="Redo"><i class="fa-solid fa-rotate-right"></i></button>
+    <div class="tb-sep"></div>
+    <button class="tb-text-btn"><i class="fa-regular fa-eye"></i> View</button>
+    <button class="tb-save" id="saveBtn"><span class="dirty-dot" id="dirtyDot" style="display:none"></span> Save</button>
+  </div>
+</header>
+
+<!-- ================= PAGE SETTINGS DRAWER (gear) ================= -->
+<!-- Page-SCOPED, not element-scoped: standard WP page options, page meta / SEO,
+     and JSON-LD schema injection. Slides over the left; dim scrim behind. -->
+<div class="scrim" id="drawerScrim"></div>
+<aside class="drawer" id="pageDrawer" aria-label="Page settings">
+  <div class="drawer-head">
+    <div class="drawer-title"><i class="fa-solid fa-gear"></i> Page Settings</div>
+    <button class="drawer-close" id="drawerClose" title="Close"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-sub">Home <span class="drawer-path">/</span></div>
+
+  <div class="drawer-body">
+
+    <!-- WP PAGE OPTIONS -->
+    <section class="drawer-sec">
+      <div class="drawer-sec-head"><i class="fa-brands fa-wordpress"></i> Page Options</div>
+      <div class="field">
+        <label class="field-label">Title</label>
+        <input class="input" value="Home">
+      </div>
+      <div class="field">
+        <label class="field-label">Permalink</label>
+        <div class="input-affix"><span class="affix">series5technology.com/</span><input class="input bare" value=""></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Status</label>
+          <select class="select"><option>Published</option><option>Draft</option><option>Pending</option><option>Private</option></select>
+        </div>
+        <div class="field">
+          <label class="field-label">Template</label>
+          <select class="select"><option>Default (S5)</option><option>Full width</option><option>Landing (no chrome)</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Parent</label>
+        <select class="select"><option>— none (top level) —</option><option>About</option><option>Work</option></select>
+      </div>
+      <div class="switch-row">
+        <div class="switch-label">Set as homepage <span class="opt">this page is the front page</span></div>
+        <button class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>
+      </div>
+      <div class="switch-row">
+        <div class="switch-label">Show in navigation</div>
+        <button class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>
+      </div>
+    </section>
+
+    <!-- PAGE META / SEO -->
+    <section class="drawer-sec">
+      <div class="drawer-sec-head"><i class="fa-solid fa-magnifying-glass"></i> Page Meta &amp; SEO</div>
+      <div class="field">
+        <label class="field-label">SEO Title <span class="opt" id="titleCount">58 / 60</span></label>
+        <input class="input" value="Series 5 Technology — Ship faster with an agent-native web stack">
+      </div>
+      <div class="field">
+        <label class="field-label">Meta Description <span class="opt" id="descCount">142 / 160</span></label>
+        <textarea class="textarea">Series 5 Technology builds agent-native systems that turn intent into shipped software. Strategy, automation &amp; delivery for teams that move quickly.</textarea>
+      </div>
+      <div class="field">
+        <label class="field-label">Canonical URL</label>
+        <input class="input" value="https://series5technology.com/" style="font-family:var(--s5e-mono);font-size:12px">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Index</label>
+          <div class="seg wide"><div class="seg-opt active">Index</div><div class="seg-opt">Noindex</div></div>
+        </div>
+        <div class="field">
+          <label class="field-label">Follow</label>
+          <div class="seg wide"><div class="seg-opt active">Follow</div><div class="seg-opt">Nofollow</div></div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Social / OG Image</label>
+        <div class="og-drop"><i class="fa-regular fa-image"></i> <span>og-cover.png</span> <button class="og-replace">Replace</button></div>
+      </div>
+      <div class="og-preview">
+        <div class="ogp-domain">series5technology.com</div>
+        <div class="ogp-title">Series 5 Technology — Ship faster with an agent-native web stack</div>
+        <div class="ogp-desc">Agent-native systems that turn intent into shipped software.</div>
+      </div>
+    </section>
+
+    <!-- SCHEMA INJECTION -->
+    <section class="drawer-sec">
+      <div class="drawer-sec-head"><i class="fa-solid fa-diagram-project"></i> Schema (JSON-LD)</div>
+      <div class="field">
+        <label class="field-label">Schema Type</label>
+        <select class="select"><option>Organization</option><option>WebPage</option><option>Article</option><option>Product</option><option>FAQPage</option><option>BreadcrumbList</option><option>Custom…</option></select>
+      </div>
+      <div class="schema-chips">
+        <span class="chip active">Organization <i class="fa-solid fa-check"></i></span>
+        <span class="chip">WebSite</span>
+        <span class="chip">BreadcrumbList</span>
+        <span class="chip add"><i class="fa-solid fa-plus"></i> Add</span>
+      </div>
+      <div class="field">
+        <label class="field-label">JSON-LD <span class="opt">injected into &lt;head&gt; on render</span></label>
+        <pre class="schema-code">{
+  <span class="tok-attr">"@context"</span>: <span class="tok-str">"https://schema.org"</span>,
+  <span class="tok-attr">"@type"</span>: <span class="tok-str">"Organization"</span>,
+  <span class="tok-attr">"name"</span>: <span class="tok-str">"Series 5 Technology"</span>,
+  <span class="tok-attr">"url"</span>: <span class="tok-str">"https://series5technology.com/"</span>,
+  <span class="tok-attr">"logo"</span>: <span class="tok-str">"…/assets/logo.svg"</span>
+}</pre>
+        <p class="field-hint"><span class="ok-dot"></span> Valid JSON-LD · validated against schema.org on save</p>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="drawer-foot">
+    <button class="drawer-btn ghost" id="drawerCancel">Cancel</button>
+    <button class="drawer-btn primary">Apply</button>
+  </div>
+</aside>
+
+<!-- ============ TEMPLATE DRAWER (gear, in TEMPLATE mode) ============
+     When the canvas is editing a TEMPLATE (loaded with ?template=…), the gear
+     opens THIS drawer instead of Page Settings: display options + the conditions
+     that decide where the template applies. A template has no title/permalink/SEO
+     of its own — it's a rule + a layout. -->
+<aside class="drawer" id="tplDrawer" aria-label="Template display &amp; conditions">
+  <div class="drawer-head">
+    <div class="drawer-title"><i class="fa-solid fa-layer-group"></i> Display &amp; Conditions</div>
+    <button class="drawer-close" id="tplDrawerClose" title="Close"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="drawer-sub" id="tplDrawerSub">Single Post <span class="drawer-path">templates/single.html</span></div>
+
+  <div class="drawer-body">
+
+    <!-- DISPLAY OPTIONS -->
+    <section class="drawer-sec">
+      <div class="drawer-sec-head"><i class="fa-solid fa-desktop"></i> Display Options</div>
+      <div class="field">
+        <label class="field-label">Content Width</label>
+        <div class="seg wide"><div class="seg-opt active">Theme default</div><div class="seg-opt">Full width</div><div class="seg-opt">Narrow</div></div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label class="field-label">Header</label>
+          <select class="select"><option>Show (site-header)</option><option>Hide</option><option>Transparent</option></select>
+        </div>
+        <div class="field">
+          <label class="field-label">Footer</label>
+          <select class="select"><option>Show (site-footer)</option><option>Hide</option></select>
+        </div>
+      </div>
+      <div class="switch-row" style="border-top:1px solid var(--s5e-line-soft);padding-top:12px">
+        <div class="switch-label">Show featured image <span class="opt">at top of template</span></div>
+        <button class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>
+      </div>
+      <div class="switch-row">
+        <div class="switch-label">Show page title</div>
+        <button class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>
+      </div>
+    </section>
+
+    <!-- CONDITIONS -->
+    <section class="drawer-sec">
+      <div class="drawer-sec-head"><i class="fa-solid fa-code-branch"></i> Conditions <span style="margin-left:auto;font-size:11px;color:var(--s5e-text-faint)">where this template applies</span></div>
+
+      <div class="cond-group">
+        <div class="cond-group-label"><span class="cond-inc">Include</span> when</div>
+        <div class="cond-row">
+          <select class="select cond-sel"><option>Post type</option><option>Taxonomy</option><option>Post</option><option>Author</option><option>Template</option></select>
+          <select class="select cond-op"><option>is</option><option>is not</option></select>
+          <select class="select"><option>Post</option><option>Page</option><option>Product</option><option>All singular</option></select>
+          <button class="cond-del" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <button class="cond-add"><i class="fa-solid fa-plus"></i> Add include rule</button>
+      </div>
+
+      <div class="cond-group">
+        <div class="cond-group-label"><span class="cond-exc">Exclude</span> when</div>
+        <div class="cond-row">
+          <select class="select cond-sel"><option>Taxonomy</option><option>Post type</option><option>Post</option></select>
+          <select class="select cond-op"><option>is</option><option>is not</option></select>
+          <select class="select"><option>Category: News</option><option>Category: Docs</option></select>
+          <button class="cond-del" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <button class="cond-add"><i class="fa-solid fa-plus"></i> Add exclude rule</button>
+      </div>
+
+      <div class="field" style="margin-top:16px">
+        <label class="field-label">Priority <span class="opt">higher wins when multiple templates match</span></label>
+        <input class="input mono" value="10" style="width:90px">
+      </div>
+
+      <div class="cond-preview">
+        <i class="fa-solid fa-circle-info"></i>
+        <span>Applies to <strong>all single Posts</strong>, except those in <strong>Category: News</strong>. Priority 10.</span>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="drawer-foot">
+    <button class="drawer-btn ghost" id="tplDrawerCancel">Cancel</button>
+    <button class="drawer-btn primary">Apply</button>
+  </div>
+</aside>
+
+<!-- ========================= BODY ========================= -->
+<div class="body">
+
+  <!-- ------------------ LEFT PANEL ------------------ -->
+  <aside class="panel left">
+    <div class="panel-head">
+      <h2 id="leftTitle">Add</h2>
+      <span class="sub" id="leftSub">Registered components · drag to place</span>
+    </div>
+
+    <!-- default: palette — ONLY registered components + the one embed primitive.
+         No page-builder primitives. What the editor can see is what we register
+         (Webflow / Sanity client model). -->
+    <div class="palette" id="palette">
+      <p class="palette-intro">These are the only elements you can add. Everything here is a component we&rsquo;ve registered — safe, on-brand, and contract-valid. Need something new? Ask us to register it.</p>
+
+      <div class="palette-group">
+        <div class="palette-label">Sections</div>
+        <div class="palette-grid">
+          <button class="pal-item"><i class="fa-solid fa-star"></i><span>Hero</span></button>
+          <button class="pal-item"><i class="fa-solid fa-bullhorn"></i><span>CTA</span></button>
+          <button class="pal-item"><i class="fa-solid fa-table-columns"></i><span>Feature Grid</span></button>
+          <button class="pal-item"><i class="fa-solid fa-tags"></i><span>Pricing</span></button>
+          <button class="pal-item"><i class="fa-solid fa-quote-left"></i><span>Testimonial</span></button>
+          <button class="pal-item"><i class="fa-regular fa-circle-question"></i><span>FAQ</span></button>
+        </div>
+      </div>
+
+      <div class="palette-group">
+        <div class="palette-label">Content</div>
+        <div class="palette-grid">
+          <button class="pal-item"><i class="fa-regular fa-square"></i><span>Card</span></button>
+          <button class="pal-item"><i class="fa-solid fa-heading"></i><span>Rich Text</span></button>
+          <button class="pal-item"><i class="fa-regular fa-image"></i><span>Media</span></button>
+          <button class="pal-item"><i class="fa-solid fa-hand-pointer"></i><span>Button</span></button>
+        </div>
+      </div>
+
+      <div class="palette-group">
+        <div class="palette-label">Dynamic</div>
+        <div class="palette-grid">
+          <button class="pal-item"><i class="fa-solid fa-infinity"></i><span>Query Loop</span></button>
+          <button class="pal-item"><i class="fa-solid fa-bars"></i><span>Nav Menu</span></button>
+        </div>
+      </div>
+
+      <div class="palette-group">
+        <div class="palette-label">Primitive</div>
+        <div class="palette-grid">
+          <button class="pal-item embed"><i class="fa-solid fa-code"></i><span>Embed</span><span class="prim-badge">raw</span></button>
+        </div>
+        <p class="palette-note"><i class="fa-solid fa-circle-info"></i> Embed is the only raw primitive — for third-party HTML/scripts we can&rsquo;t wrap in a component.</p>
+      </div>
+    </div>
+
+    <!-- on selection: prop / content editor (Elementor-style) -->
+    <div class="props" id="props">
+      <div class="props-crumb">
+        <button class="back" id="propsBack" title="Back to components"><i class="fa-solid fa-arrow-left"></i></button>
+        <span id="propsName">Heading</span>
+        <span class="tag" id="propsTag">h1</span>
+      </div>
+
+      <div class="prop-tabs">
+        <button class="prop-tab active" data-ptab="content">Content</button>
+        <button class="prop-tab" data-ptab="style">Style</button>
+        <button class="prop-tab" data-ptab="advanced">Advanced</button>
+      </div>
+
+      <!-- CONTENT: props for the SELECTED element — fields rendered per type
+           (JS fills #contentFields from the element's data-el). No classes/CSS. -->
+      <div class="ptab-panel active" data-panel="content">
+        <div id="contentFields"><!-- populated by renderContent() --></div>
+      </div>
+
+      <!-- STYLE: component variants + t-shirt sizing only. No raw CSS. -->
+      <div class="ptab-panel" data-panel="style">
+        <div class="field">
+          <label class="field-label">Variant</label>
+          <div class="seg wide" id="variantSeg">
+            <div class="seg-opt active">Default</div>
+            <div class="seg-opt">Emphasis</div>
+            <div class="seg-opt">Muted</div>
+          </div>
+          <p class="field-hint">Variants come from the component&rsquo;s registered design system — not free-form styling.</p>
+        </div>
+        <!-- Text Size — single XXS→XXL step slider (Ollie style) -->
+        <div class="field">
+          <label class="field-label">Text Size <span class="opt sz-val" data-for="size">LG</span></label>
+          <input type="range" class="step-slider" id="sizeSlider" min="0" max="7" step="1" value="6"
+                 data-scale="XXS,XS,SM,MD,LG,XL,XXL,XXXL" data-target="size">
+          <div class="slider-scale"><span>XXS</span><span>XXL</span></div>
+        </div>
+
+        <!-- Spacing group — Ollie "Dimensions": label + link toggle + edge sliders -->
+        <div class="field dim-group">
+          <div class="dim-head">
+            <span class="dim-title">Spacing</span>
+            <button class="dim-link" id="spaceLink" title="Link top &amp; bottom"><i class="fa-solid fa-link"></i></button>
+          </div>
+          <div class="dim-row">
+            <span class="dim-edge"><i class="fa-solid fa-arrow-up-long"></i></span>
+            <input type="range" class="step-slider" min="0" max="7" step="1" value="3"
+                   data-scale="XXS,XS,SM,MD,LG,XL,XXL,XXXL" data-target="space-top">
+            <span class="dim-val sz-val" data-for="space-top">MD</span>
+          </div>
+          <div class="dim-row">
+            <span class="dim-edge"><i class="fa-solid fa-arrow-down-long"></i></span>
+            <input type="range" class="step-slider" min="0" max="7" step="1" value="3"
+                   data-scale="XXS,XS,SM,MD,LG,XL,XXL,XXXL" data-target="space-bottom">
+            <span class="dim-val sz-val" data-for="space-bottom">MD</span>
+          </div>
+          <p class="field-hint">Snaps to the S5 space ladder (xxs…xxxl). No arbitrary pixel values.</p>
+        </div>
+        <div class="field">
+          <label class="field-label">Color <span class="opt">theme roles only</span></label>
+          <div class="swatch-row">
+            <button class="swatch active" style="--sw:#1e1e1e" title="Ink"></button>
+            <button class="swatch" style="--sw:#2271b1" title="Brand"></button>
+            <button class="swatch" style="--sw:#f0c33c" title="Accent"></button>
+            <button class="swatch" style="--sw:#6c7278" title="Muted"></button>
+          </div>
+          <p class="field-hint">Locked to theme roles from the styleguide. No hex picker.</p>
+        </div>
+      </div>
+
+      <!-- ADVANCED: tag + SEO/meta lives here, out of the way. -->
+      <div class="ptab-panel" data-panel="advanced">
+        <div class="field">
+          <label class="field-label">HTML Tag</label>
+          <div class="seg" id="tagSeg">
+            <div class="seg-opt active">H1</div>
+            <div class="seg-opt">H2</div>
+            <div class="seg-opt">H3</div>
+            <div class="seg-opt">P</div>
+          </div>
+          <p class="field-hint">Changes the semantic element. Affects document outline &amp; SEO.</p>
+        </div>
+        <div class="field">
+          <label class="field-label">Anchor ID <span class="opt">optional</span></label>
+          <input class="input" value="top" style="font-family:var(--s5e-mono);font-size:12px">
+        </div>
+        <div class="field">
+          <label class="field-label">Alt / ARIA label <span class="opt">optional</span></label>
+          <input class="input" value="" placeholder="Describe this element for assistive tech">
+        </div>
+        <div class="field">
+          <label class="field-label">Visibility</label>
+          <div class="seg wide"><div class="seg-opt active">All</div><div class="seg-opt">Desktop</div><div class="seg-opt">Mobile</div></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ------------------ CENTER STAGE ------------------ -->
+  <main class="stage-wrap" id="stage">
+
+    <!-- EDIT lens: live preview -->
+    <div class="stage-scroll" id="stageScroll">
+      <div class="stage-frame" id="frame">
+        <div class="site">
+
+          <header class="site-header">
+            <a class="brand" href="#">Series&nbsp;5</a>
+            <nav class="nav">
+              <ul>
+                <li><a href="#">Work</a></li>
+                <li><a href="#">Approach</a></li>
+                <li><a href="#">About</a></li>
+                <li><a class="btn btn--primary nav-cta" href="#">Book a call</a></li>
+              </ul>
+            </nav>
+          </header>
+
+          <section class="hero" id="el-hero" data-el="Hero" data-kind="section" data-tag="section.hero">
+            <p class="eyebrow" data-el="Eyebrow" data-kind="text" data-tag="p.eyebrow">Agent-native delivery</p>
+            <h1 id="el-h1" data-el="Heading" data-kind="heading" data-tag="h1">Turn intent into shipped software — without a page builder in the way.</h1>
+            <p class="lede" data-el="Lede" data-kind="text" data-tag="p.lede">We design systems where humans &amp; agents author the same canonical HTML, so what you approve is exactly what ships. No drift, no “rebuild it in the builder” tax.</p>
+            <p class="hero-actions" data-el="Actions" data-kind="group" data-tag="p.hero-actions">
+              <a class="btn btn--primary" href="/book-a-call/" data-el="Button" data-kind="button" data-tag="a.btn--primary">Book a working session</a>
+              <a class="btn btn--ghost" href="/commerce/" data-el="Button" data-kind="button" data-tag="a.btn--ghost">See the work →</a>
+            </p>
+            <div class="media-ph" data-el="Media" data-kind="media"
+                 data-src="assets/hero.png" data-alt="A delivery pipeline from intent to production" data-tag="picture">hero.png · assets/hero-wide.avif</div>
+          </section>
+
+          <section class="features" data-el="Features" data-kind="section" data-tag="section.features">
+            <h2 data-el="Heading" data-kind="heading" data-tag="h2">What we do</h2>
+            <ul class="feature-grid" data-el="Feature grid" data-kind="collection" data-tag="ul.feature-grid">
+              <li class="card" data-el="Card" data-kind="card" data-tag="li.card"><h3>Strategy</h3><p>Map the shortest path from a business goal to a running system — then cut everything that isn’t on it.</p></li>
+              <li class="card" data-el="Card" data-kind="card" data-tag="li.card"><h3>Automation</h3><p>Agent workflows that do the repetitive build &amp; ops work, reviewed by the people accountable for it.</p></li>
+              <li class="card" data-el="Card" data-kind="card" data-tag="li.card"><h3>Delivery</h3><p>Production sites &amp; apps on infrastructure you own, with round-trip fidelity you can verify on every deploy.</p></li>
+            </ul>
+          </section>
+
+          <section class="cta" data-el="CTA" data-kind="section" data-tag="section.cta">
+            <h2 data-el="Heading" data-kind="heading" data-tag="h2">Have something to ship this quarter?</h2>
+            <p data-el="Text" data-kind="text" data-tag="p">Tell us the outcome you need. We’ll tell you the shortest honest path to it.</p>
+            <a class="btn btn--primary" href="/book-a-call/" data-el="Button" data-kind="button" data-tag="a.btn--primary">Start a project</a>
+          </section>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- CODE lens: canonical HTML source (same center panel) -->
+    <div class="codeview" id="codeview">
+      <div class="code-head">
+        <span class="title">HTML document · canonical source</span>
+        <div class="actions">
+          <button class="code-btn"><i class="fa-solid fa-list-ul"></i> Fold all</button>
+          <button class="code-btn"><i class="fa-solid fa-align-left"></i> Format</button>
+        </div>
+      </div>
+      <div class="code-body">
+        <div class="code-gutter" id="gutter"></div>
+        <pre class="code-pre" id="codePre"></pre>
+      </div>
+      <div class="code-foot">
+        <span class="ok"><span class="dot"></span>0 errors</span>
+        <span>0 warnings</span>
+        <span class="hidden-count" id="hiddenCount" style="display:none"><i class="fa-solid fa-ban"></i> 0 disabled · not compiled</span>
+        <span style="margin-left:auto;color:var(--s5e-text-faint)">Contract-clean · closed vocabulary validated</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- ------------------ RIGHT PANEL: structure ONLY ------------------ -->
+  <aside class="panel right">
+    <div class="panel-head">
+      <h2>Structure</h2>
+      <span class="sub">Elements tree</span>
+    </div>
+    <div class="tree" id="tree">
+      <!-- built by JS from the preview DOM so it stays in sync -->
+    </div>
+  </aside>
+
+</div>
+
+<script>
+/* ============================================================
+   LENS TOGGLE — swaps the CENTER panel (Edit ↔ Code)
+   ============================================================ */
+const stage = document.getElementById('stage');
+const codeview = document.getElementById('codeview');
+document.querySelectorAll('.lens-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.lens-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const lens = btn.dataset.lens;
+    if(lens==='code'){ stage.classList.add('code'); codeview.classList.add('active'); }
+    else { stage.classList.remove('code'); codeview.classList.remove('active'); }
+  });
+});
+
+/* ============================================================
+   VIEWPORT — resize the preview frame
+   ============================================================ */
+const frame = document.getElementById('frame');
+document.querySelectorAll('.vp-btn[data-vp]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.vp-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    frame.classList.remove('mobile','tablet');
+    if(btn.dataset.vp==='mobile') frame.classList.add('mobile');
+    if(btn.dataset.vp==='tablet') frame.classList.add('tablet');
+  });
+});
+
+/* ============================================================
+   SELECTION — click glass or tree node → outline + left props
+   ============================================================ */
+const palette = document.getElementById('palette');
+const props   = document.getElementById('props');
+const leftTitle = document.getElementById('leftTitle');
+const leftSub = document.getElementById('leftSub');
+const propsName = document.getElementById('propsName');
+const propsTag = document.getElementById('propsTag');
+let selectedEl = null;
+
+function clearSel(){
+  document.querySelectorAll('.sel-outline').forEach(e=>{
+    e.classList.remove('sel-outline');
+    const t=e.querySelector(':scope > .sel-tag'); if(t) t.remove();
+  });
+  document.querySelectorAll('.trow.selected').forEach(r=>r.classList.remove('selected'));
+}
+function showPalette(){
+  palette.classList.remove('hidden'); props.classList.remove('active');
+  leftTitle.textContent='Add'; leftSub.textContent='Registered components · drag to place';
+}
+function showProps(name,tag){
+  palette.classList.add('hidden'); props.classList.add('active');
+  leftTitle.textContent='Properties'; leftSub.textContent='Editing selection';
+  propsName.textContent=name||'Element'; propsTag.textContent=tag||'';
+}
+function selectEl(el){
+  if(!el) return;
+  clearSel();
+  selectedEl=el;
+  el.classList.add('sel-outline');
+  const tag=document.createElement('span');
+  tag.className='sel-tag';
+  tag.innerHTML='<span class="sel-name">'+(el.dataset.el||'Element')+'</span>'
+    +'<span class="sel-tools">'
+    +  '<button class="sel-act" data-act="edit" title="Edit"><i class="fa-solid fa-pen"></i></button>'
+    +  '<button class="sel-act" data-act="dupe" title="Duplicate"><i class="fa-regular fa-copy"></i></button>'
+    +  '<button class="sel-act" data-act="disable" title="Disable (remove from output)"><i class="fa-solid fa-eye-slash"></i></button>'
+    +'</span>';
+  el.appendChild(tag);
+  // wire the mini toolbar
+  tag.querySelector('[data-act="edit"]').addEventListener('click',(e)=>{ e.stopPropagation(); document.querySelector('.prop-tab[data-ptab="content"]').click(); });
+  tag.querySelector('[data-act="dupe"]').addEventListener('click',(e)=>{ e.stopPropagation(); markDirty(); });
+  tag.querySelector('[data-act="disable"]').addEventListener('click',(e)=>{ e.stopPropagation(); toggleDisabled(el); });
+  showProps(el.dataset.el, el.dataset.tag);
+  // sync tree
+  const row=document.querySelector('.trow[data-ref="'+el.id+'"]');
+  if(row) row.classList.add('selected');
+  // render the Content tab for THIS element's type
+  renderContent(el);
+}
+
+/* ---- per-type Content fields (props reflect the real selection) ---- */
+function escP(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function ownText(el){
+  // direct text of the element, ignoring the injected .sel-tag
+  let t='';
+  el.childNodes.forEach(n=>{ if(n.nodeType===3) t+=n.textContent; });
+  t=t.trim();
+  if(!t){ const h=el.querySelector('h1,h2,h3,h4'); if(h) t=h.textContent.trim(); }
+  return t;
+}
+function renderContent(el){
+  const host=document.getElementById('contentFields');
+  const kind=el.dataset.kind||'text';
+  let html='';
+  if(kind==='heading'||kind==='text'){
+    html = field('Text', `<textarea class="textarea">${escP(ownText(el))}</textarea>`);
+  }
+  else if(kind==='button'){
+    const label=ownText(el).replace(/\s+/g,' ').trim();  // ownText excludes the injected .sel-tag
+    html = field('Button Text', `<input class="input" value="${escP(label)}">`)
+         + field('Link', `<input class="input" value="${escP(el.getAttribute('href')||'')}" placeholder="/path/  or  https://…" style="font-family:var(--s5e-mono);font-size:12px">`)
+         + field('Open in', `<div class="seg wide"><div class="seg-opt active">Same tab</div><div class="seg-opt">New tab</div></div>`);
+  }
+  else if(kind==='media'){
+    const src=el.dataset.src||'', alt=el.dataset.alt||'';
+    html = `<div class="field"><label class="field-label">Image</label>
+        <div class="media-field">
+          <div class="media-thumb"><img src="${escP(src)}" alt="" onerror="this.style.display='none';this.parentNode.classList.add('noimg')"><span class="media-thumb-ph"><i class="fa-regular fa-image"></i></span></div>
+          <div class="media-meta">
+            <div class="media-name">${escP(src.split('/').pop()||'no image')}</div>
+            <button class="media-lib"><i class="fa-regular fa-images"></i> Media Library</button>
+          </div>
+        </div></div>`
+      + field('Alt text', `<input class="input" value="${escP(alt)}" placeholder="Describe the image">`);
+  }
+  else if(kind==='card'){
+    const h=el.querySelector('h3'), p=el.querySelector('p');
+    html = field('Heading', `<input class="input" value="${escP(h?h.textContent.trim():'')}">`)
+         + field('Body', `<textarea class="textarea">${escP(p?p.textContent.trim():'')}</textarea>`);
+  }
+  else { // container: section / group / collection
+    const n=el.querySelectorAll('[data-el]').length;
+    html = `<div class="container-note"><i class="fa-solid fa-layer-group"></i>
+        <div><strong>${escP(el.dataset.el)}</strong> is a container.<br>
+        Select an item inside it to edit content. Layout &amp; spacing are on the <b>Style</b> tab.</div></div>`
+      + (n?`<p class="field-hint">${n} editable element${n>1?'s':''} inside.</p>`:'');
+  }
+  // Enabled/Disabled toggle — sits at the top of the Content view for every
+  // element. Disabled = removed from canvas + not compiled (distinct from the
+  // responsive Visibility control on Advanced). This is how you turn a
+  // disabled element back ON after it has vanished from the glass.
+  const isDisabled = el.dataset.disabled==='true';
+  const enableRow =
+    `<div class="enable-row ${isDisabled?'off':'on'}">
+       <div class="enable-label"><i class="fa-solid ${isDisabled?'fa-ban':'fa-circle-check'}"></i>
+         <span>${isDisabled?'Disabled':'Enabled'}</span>
+         <em>${isDisabled?'removed from output':'renders in output'}</em>
+       </div>
+       <button class="switch ${isDisabled?'':'on'}" id="enableSwitch" role="switch" aria-checked="${!isDisabled}"><span class="knob"></span></button>
+     </div>`;
+  host.innerHTML=enableRow+html;
+  const es=host.querySelector('#enableSwitch');
+  if(es) es.addEventListener('click',()=>toggleDisabled(el));
+  host.querySelectorAll('.input,.textarea').forEach(f=>f.addEventListener('input',markDirty));
+  host.querySelectorAll('.seg').forEach(seg=>seg.querySelectorAll('.seg-opt').forEach(o=>
+    o.addEventListener('click',()=>{seg.querySelectorAll('.seg-opt').forEach(x=>x.classList.remove('active'));o.classList.add('active');markDirty();})));
+}
+function field(label,inner){ return `<div class="field"><label class="field-label">${label}</label>${inner}</div>`; }
+
+/* DISABLED = element is turned OFF: removed from the canvas AND excluded from
+   compiled output. NOT the same as responsive visibility (All/Desktop/Mobile),
+   which only controls WHERE an enabled element renders.
+   The compiler drops [data-disabled="true"] before render, so disabled nodes
+   never reach the served HTML. Because a disabled element vanishes from the
+   glass, you re-enable it from the STRUCTURE tree (its row is red-lined) →
+   its Content view carries the Enabled/Disabled toggle. */
+function setDisabled(el, disabled){
+  if(disabled){ el.dataset.disabled='true'; el.classList.add('is-disabled'); }
+  else { delete el.dataset.disabled; el.classList.remove('is-disabled'); }
+  // red-line the tree row
+  const row=document.querySelector('.trow[data-ref="'+el.id+'"]');
+  if(row) row.classList.toggle('row-disabled',disabled);
+  updateDisabledCount();
+  markDirty();
+}
+function toggleDisabled(el){
+  const willDisable = el.dataset.disabled!=='true';
+  setDisabled(el, willDisable);
+  if(willDisable){
+    // it's gone from the canvas — move selection to its tree row so the user
+    // still has a handle to re-enable it from the Content view.
+    const row=document.querySelector('.trow[data-ref="'+el.id+'"]');
+    document.querySelectorAll('.sel-outline').forEach(e=>{e.classList.remove('sel-outline');const t=e.querySelector(':scope > .sel-tag');if(t)t.remove();});
+    if(row){ document.querySelectorAll('.trow.selected').forEach(r=>r.classList.remove('selected')); row.classList.add('selected'); }
+    renderContent(el);            // Content view now shows the Enabled/Disabled toggle (off)
+  } else {
+    selectEl(el);                 // back on the canvas, reselect normally
+  }
+}
+function updateDisabledCount(){
+  const n=document.querySelectorAll('[data-disabled="true"]').length;
+  const badge=document.getElementById('hiddenCount');
+  if(badge){ badge.style.display = n? 'inline-flex':'none'; badge.innerHTML = '<i class="fa-solid fa-ban"></i> '+n+' disabled · not compiled'; }
+}
+document.querySelectorAll('[data-el]').forEach(el=>{
+  el.addEventListener('click',(e)=>{ e.stopPropagation(); selectEl(el); });
+});
+document.getElementById('propsBack').addEventListener('click',()=>{ clearSel(); selectedEl=null; showPalette(); });
+document.getElementById('stageScroll').addEventListener('click',()=>{ clearSel(); selectedEl=null; showPalette(); });
+
+/* prop tabs — switch active tab AND its panel */
+document.querySelectorAll('.prop-tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.prop-tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const name=t.dataset.ptab;
+    document.querySelectorAll('.ptab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===name));
+  });
+});
+/* any segmented control inside props → single active + dirty */
+document.querySelectorAll('.props .seg').forEach(seg=>{
+  seg.querySelectorAll('.seg-opt').forEach(o=>{
+    o.addEventListener('click',()=>{ seg.querySelectorAll('.seg-opt').forEach(x=>x.classList.remove('active')); o.classList.add('active'); markDirty(); });
+  });
+});
+/* color swatches */
+document.querySelectorAll('.swatch').forEach(s=>{
+  s.addEventListener('click',()=>{ document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active')); s.classList.add('active'); markDirty(); });
+});
+
+/* Ollie-style step sliders — readout label + optional linked top/bottom */
+function sliderLabel(sl){
+  const steps=sl.dataset.scale.split(',');
+  const out=document.querySelector('.sz-val[data-for="'+sl.dataset.target+'"]');
+  if(out) out.textContent=steps[+sl.value];
+}
+const spaceLink=document.getElementById('spaceLink');
+document.querySelectorAll('.step-slider').forEach(sl=>{
+  sliderLabel(sl);
+  sl.addEventListener('input',()=>{
+    sliderLabel(sl); markDirty();
+    // if spacing is linked, mirror top <-> bottom
+    if(spaceLink && spaceLink.classList.contains('linked') &&
+       (sl.dataset.target==='space-top' || sl.dataset.target==='space-bottom')){
+      const other = sl.dataset.target==='space-top' ? 'space-bottom' : 'space-top';
+      const twin=document.querySelector('.step-slider[data-target="'+other+'"]');
+      if(twin){ twin.value=sl.value; sliderLabel(twin); }
+    }
+  });
+});
+if(spaceLink){
+  spaceLink.addEventListener('click',()=>{
+    const on=spaceLink.classList.toggle('linked');
+    spaceLink.querySelector('i').className = on ? 'fa-solid fa-link' : 'fa-solid fa-link-slash';
+    if(on){ // snap bottom to top on link
+      const top=document.querySelector('.step-slider[data-target="space-top"]');
+      const bot=document.querySelector('.step-slider[data-target="space-bottom"]');
+      if(top&&bot){ bot.value=top.value; sliderLabel(bot); }
+    }
+  });
+}
+
+/* tools dropdown */
+const toolsBtn=document.getElementById('toolsBtn');
+const toolsMenu=document.getElementById('toolsMenu');
+toolsBtn.addEventListener('click',(e)=>{ e.stopPropagation(); toolsMenu.classList.toggle('open'); });
+document.addEventListener('click',()=>toolsMenu.classList.remove('open'));
+toolsMenu.addEventListener('click',(e)=>e.stopPropagation());
+
+/* gear drawer — opens PAGE settings on a page, DISPLAY & CONDITIONS on a template.
+   Template mode is signalled by ?template=<file> (set when the canvas is embedded
+   from the theme-settings Templates tab). */
+const params=new URLSearchParams(location.search);
+const TEMPLATE_MODE=params.has('template');
+const TEMPLATE_FILE=params.get('template')||'';
+
+const pageDrawer=document.getElementById('pageDrawer');
+const tplDrawer=document.getElementById('tplDrawer');
+const drawerScrim=document.getElementById('drawerScrim');
+const activeDrawer=()=> TEMPLATE_MODE ? tplDrawer : pageDrawer;
+function openDrawer(){ activeDrawer().classList.add('open'); drawerScrim.classList.add('open'); }
+function closeDrawer(){ pageDrawer.classList.remove('open'); tplDrawer.classList.remove('open'); drawerScrim.classList.remove('open'); }
+document.getElementById('pageSettingsBtn').addEventListener('click',openDrawer);
+document.getElementById('drawerClose').addEventListener('click',closeDrawer);
+document.getElementById('drawerCancel').addEventListener('click',closeDrawer);
+document.getElementById('tplDrawerClose').addEventListener('click',closeDrawer);
+document.getElementById('tplDrawerCancel').addEventListener('click',closeDrawer);
+drawerScrim.addEventListener('click',closeDrawer);
+document.addEventListener('keydown',(e)=>{ if(e.key==='Escape') closeDrawer(); });
+
+/* in template mode: relabel the gear + show the template name in the drawer */
+if(TEMPLATE_MODE){
+  document.getElementById('pageSettingsBtn').title='Display & conditions';
+  const nice = TEMPLATE_FILE.split('/').pop().replace(/\.html$/,'').replace(/(^|-)(\w)/g,(m,a,b)=>(a?' ':'')+b.toUpperCase());
+  const sub=document.getElementById('tplDrawerSub');
+  if(sub && TEMPLATE_FILE) sub.innerHTML = (nice||'Template')+' <span class="drawer-path">'+TEMPLATE_FILE+'</span>';
+}
+
+/* condition add/remove (visual) */
+document.querySelectorAll('.cond-del').forEach(b=>b.addEventListener('click',()=>b.closest('.cond-row').remove()));
+document.querySelectorAll('.cond-add').forEach(b=>b.addEventListener('click',()=>{
+  const group=b.closest('.cond-group');
+  const proto=group.querySelector('.cond-row');
+  if(proto){ const clone=proto.cloneNode(true); clone.querySelector('.cond-del').addEventListener('click',()=>clone.remove()); group.insertBefore(clone,b); }
+}));
+/* toggle switches */
+document.querySelectorAll('.switch').forEach(sw=>{
+  sw.addEventListener('click',()=>{ const on=sw.classList.toggle('on'); sw.setAttribute('aria-checked',on); });
+});
+/* schema type chips */
+document.querySelectorAll('.schema-chips .chip:not(.add)').forEach(c=>{
+  c.addEventListener('click',()=>c.classList.toggle('active'));
+});
+
+/* dirty state */
+function markDirty(){ document.getElementById('dirtyDot').style.display='inline-block'; }
+document.querySelectorAll('.input,.textarea,.select').forEach(f=>f.addEventListener('input',markDirty));
+
+/* ============================================================
+   STRUCTURE TREE — generated by WALKING the real preview DOM, so every
+   row maps 1:1 to an actual glass element. No hand-kept ref list to drift
+   (that drift is what made most rows fall through to "template part").
+   ============================================================ */
+const KIND_ICON={heading:'fa-heading',text:'fa-align-left',button:'fa-hand-pointer',
+  media:'fa-image',card:'fa-square',section:'fa-table-cells-large',
+  group:'fa-object-group',collection:'fa-border-all'};
+let elSeq=0;
+
+// Template parts are real WP parts, not page content — shown but flagged.
+const TEMPLATE_PARTS=[
+  {label:'nav', type:'s5-part · site-header', ico:'fa-bars'},
+];
+const TEMPLATE_PARTS_END=[
+  {label:'site-footer', type:'s5-part', ico:'fa-window-minimize'},
+];
+
+function buildTreeFromDOM(el, container){
+  // ensure the glass element has a stable id we can select by
+  if(!el.id) el.id='el-'+(++elSeq);
+  const kids=[...el.children].filter(c=>c.dataset && c.dataset.el);
+  const node=document.createElement('div');
+  node.className='tnode'+(kids.length?'':' leaf');
+  const row=document.createElement('div');
+  row.className='trow';
+  row.dataset.ref=el.id;
+  const ico=KIND_ICON[el.dataset.kind]||'fa-cube';
+  row.innerHTML='<span class="twist"><i class="fa-solid fa-chevron-down"></i></span>'
+    +'<span class="tico"><i class="fa-solid '+ico+'"></i></span>'
+    +'<span class="tlabel">'+el.dataset.el+'<span class="ttype">'+(el.dataset.tag||'')+'</span></span>';
+  node.appendChild(row);
+  row.querySelector('.twist').addEventListener('click',(e)=>{ e.stopPropagation(); node.classList.toggle('collapsed'); });
+  // row → select the actual glass element (works for EVERY node now)
+  row.addEventListener('click',()=>{ selectEl(el); });
+  if(kids.length){
+    const kc=document.createElement('div'); kc.className='tchildren';
+    kids.forEach(k=>buildTreeFromDOM(k,kc));
+    node.appendChild(kc);
+  }
+  container.appendChild(node);
+}
+
+function templatePartRow(p, container){
+  const node=document.createElement('div'); node.className='tnode leaf part';
+  const row=document.createElement('div'); row.className='trow';
+  row.innerHTML='<span class="twist"></span>'
+    +'<span class="tico"><i class="fa-solid '+p.ico+'"></i></span>'
+    +'<span class="tlabel">'+p.label+'<span class="ttype">'+p.type+'</span></span>'
+    +'<span class="part-badge" title="Template part — edit in its own template"><i class="fa-solid fa-puzzle-piece"></i></span>';
+  node.appendChild(row);
+  row.addEventListener('click',()=>{
+    document.querySelectorAll('.trow.selected').forEach(r=>r.classList.remove('selected'));
+    row.classList.add('selected');
+    clearSel(); selectedEl=null; showProps(p.label, p.type);
+    document.getElementById('contentFields').innerHTML =
+      '<div class="container-note"><i class="fa-solid fa-puzzle-piece"></i><div><strong>'+p.label+
+      '</strong> is a template part.<br>It renders on every page — edit it from its own template, not here.</div></div>';
+  });
+  container.appendChild(node);
+}
+
+(function initTree(){
+  const treeRoot=document.getElementById('tree');
+  TEMPLATE_PARTS.forEach(p=>templatePartRow(p,treeRoot));
+  // walk each top-level [data-el] block in the live preview
+  document.querySelectorAll('.site > [data-el]').forEach(sec=>buildTreeFromDOM(sec,treeRoot));
+  TEMPLATE_PARTS_END.forEach(p=>templatePartRow(p,treeRoot));
+})();
+
+/* ============================================================
+   CODE VIEW — canonical HTML with light syntax highlight
+   ============================================================ */
+const codeLines = [
+  ['cmt','<!-- served canonical HTML · byte-clean round-trip -->'],
+  ['','<s5-part name="site-header"></s5-part>'],
+  ['',''],
+  ['tag','<main data-s5="home">'],
+  ['tag','  <section class="hero" id="top">'],
+  ['tag','    <p class="eyebrow">Agent-native delivery</p>'],
+  ['tag','    <h1>Turn intent into shipped software — without a page builder in the way.</h1>'],
+  ['tag','    <p class="lede">We design systems where humans &amp; agents author the same canonical HTML…</p>'],
+  ['tag','    <p class="hero-actions">'],
+  ['tag','      <a class="btn btn--primary" href="/book-a-call/">Book a working session</a>'],
+  ['tag','      <a class="btn btn--ghost" href="/commerce/">See the work →</a>'],
+  ['tag','    </p>'],
+  ['tag','    <picture>'],
+  ['tag','      <source media="(min-width: 800px)" srcset="assets/hero-wide.avif" type="image/avif">'],
+  ['tag','      <img src="assets/hero.png" width="1200" height="640" alt="…" loading="eager">'],
+  ['tag','    </picture>'],
+  ['tag','  </section>'],
+  ['',''],
+  ['tag','  <section class="features" aria-labelledby="features-h">'],
+  ['tag','    <h2 id="features-h">What we do</h2>'],
+  ['tag','    <ul class="feature-grid">'],
+  ['tag','      <li class="card"><h3>Strategy</h3><p>Map the shortest path…</p></li>'],
+  ['tag','      <li class="card"><h3>Automation</h3><p>Agent workflows…</p></li>'],
+  ['tag','      <li class="card"><h3>Delivery</h3><p>Production sites &amp; apps…</p></li>'],
+  ['tag','    </ul>'],
+  ['tag','  </section>'],
+  ['',''],
+  ['tag','  <section class="cta" data-s5="cta">'],
+  ['tag','    <h2>Have something to ship this quarter?</h2>'],
+  ['tag','    <a class="btn btn--primary" href="/book-a-call/">Start a project</a>'],
+  ['tag','  </section>'],
+  ['tag','</main>'],
+  ['',''],
+  ['','<s5-part name="site-footer"></s5-part>'],
+];
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function hi(line){
+  let s=esc(line);
+  s=s.replace(/(&lt;\/?)([a-z0-9-]+)/g,'$1<span class="tok-tag">$2</span>');
+  s=s.replace(/([a-z-]+)=(&quot;|")/g,'<span class="tok-attr">$1</span>=$2');
+  s=s.replace(/(&quot;|")([^&"]*?)(&quot;|")/g,'$1<span class="tok-str">$2</span>$3');
+  return s;
+}
+const gutter=document.getElementById('gutter');
+const codePre=document.getElementById('codePre');
+codePre.innerHTML = codeLines.map(([k,t])=>{
+  if(k==='cmt') return '<span class="tok-cmt">'+esc(t)+'</span>';
+  return hi(t);
+}).join('\n');
+gutter.innerHTML = codeLines.map((_,i)=>'<span>'+(i+1)+'</span>').join('');
+</script>
+</body>
+</html>

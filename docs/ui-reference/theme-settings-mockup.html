@@ -1,0 +1,1810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S5 Framework — Theme Settings (Design Reference)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+/* ============================================================================
+   S5 FRAMEWORK — THEME SETTINGS (design reference)
+   ----------------------------------------------------------------------------
+   A page inside WP admin: mocked WP admin bar (top) + WP admin menu (left).
+   The PAGE itself is the S5 tool — DARK chrome (same s5e-* tokens as the canvas
+   editor) so both tools read as one product.
+
+   Four screens, toggled by a LEFT SUB-NAV inside the page:
+     • General      — theme identity, homepage, template parts, build status
+     • StyleGuide   — token editors + a Client-First-style specimen of the real
+                      primitives (headings, buttons, cards…) rendered LIGHT from
+                      those tokens, so people SEE what the tokens produce
+     • Components   — the registered component library (what the canvas can drop),
+                      each with enable/disable + variants
+     • CSS/Tailwind — the source layers (tokens/scales/components/utilities) as
+                      read-mostly panels; the closed vocabulary the validator enforces
+
+   Token layers:
+     --s5e-*  → the tool chrome (dark)
+     --s5-*   → the real S5 design system (tokens.css / scales.css), used in the
+                StyleGuide specimen so swatches/primitives never drift
+   ============================================================================ */
+
+/* --- TOOL CHROME TOKENS (dark) ------------------------------------------- */
+:root{
+  --s5e-canvas:#0e0f13; --s5e-bg:#15171d; --s5e-bg-2:#1b1e26; --s5e-bg-3:#232733;
+  --s5e-line:#2b2f3a; --s5e-line-soft:#22252e;
+  --s5e-text:#e6e8ee; --s5e-text-dim:#9aa0ad; --s5e-text-faint:#6b7180;
+  --s5e-accent:#5b8cff; --s5e-accent-soft:rgba(91,140,255,.14);
+  --s5e-brand:#25d366; --s5e-brand-2:#1fae53;
+  --s5e-danger:#d63638; --s5e-warning:#dba617;
+  --s5e-radius-sm:5px; --s5e-radius-md:8px; --s5e-radius-lg:11px;
+  --s5e-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --s5e-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+
+  /* WP admin chrome */
+  --wp-bar:#1d2327; --wp-bar-2:#2c3338; --wp-menu:#1d2327; --wp-menu-hover:#2c3338;
+  --wp-menu-current:#2271b1; --wp-text:#c3c4c7; --wp-text-dim:#a7aaad;
+  --wp-adminbar-h:32px; --wp-menu-w:160px;
+
+  /* REAL S5 design system (tokens.css / scales.css) — used in StyleGuide specimen */
+  --s5-color-brand:#2271b1; --s5-color-brand-strong:#135e96; --s5-color-accent:#f0c33c;
+  --s5-color-ink:#1e1e1e; --s5-color-ink-soft:#3c434a; --s5-color-muted:#6c7278;
+  --s5-color-surface:#ffffff; --s5-color-surface-alt:#f6f7f7; --s5-color-line:#dcdcde;
+  --s5-color-success:#2a9d5c; --s5-color-warning:#f0c33c; --s5-color-danger:#d63638;
+  --s5-text-xxs:0.694rem; --s5-text-xs:0.833rem; --s5-text-sm:0.9rem; --s5-text-md:1rem;
+  --s5-text-lg:1.2rem; --s5-text-xl:1.44rem; --s5-text-xxl:1.728rem; --s5-text-xxxl:2.074rem;
+  --s5-space-xxs:0.25rem; --s5-space-xs:0.5rem; --s5-space-sm:0.75rem; --s5-space-md:1rem;
+  --s5-space-lg:1.5rem; --s5-space-xl:2rem; --s5-space-xxl:3rem; --s5-space-xxxl:4rem;
+  --s5-radius-xxs:2px; --s5-radius-xs:4px; --s5-radius-sm:6px; --s5-radius-md:8px;
+  --s5-radius-lg:12px; --s5-radius-xl:16px; --s5-radius-xxl:24px; --s5-radius-xxxl:32px;
+  --s5-font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;}
+body{font-family:var(--s5e-sans);font-size:13px;color:var(--s5e-text);background:var(--s5e-canvas);-webkit-font-smoothing:antialiased;}
+button{font-family:inherit;cursor:pointer;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-thumb{background:var(--s5e-line);border-radius:6px;border:2px solid transparent;background-clip:content-box;}
+
+/* ============================================================================
+   WP ADMIN CHROME (mocked)
+   ============================================================================ */
+.wp-adminbar{
+  position:fixed;top:0;left:0;right:0;height:var(--wp-adminbar-h);z-index:100;
+  background:var(--wp-bar);display:flex;align-items:center;color:var(--wp-text);font-size:13px;
+}
+.wp-adminbar .abi{display:flex;align-items:center;gap:7px;padding:0 11px;height:100%;color:#c3c4c7;}
+.wp-adminbar .abi i{font-size:15px;opacity:.9;}
+.wp-adminbar .abi:hover{background:var(--wp-bar-2);color:#72aee6;}
+.wp-adminbar .ab-right{margin-left:auto;display:flex;align-items:center;}
+.wp-adminbar .ab-avatar{width:20px;height:20px;border-radius:50%;background:#2271b1;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+
+.wp-menu{
+  position:fixed;top:var(--wp-adminbar-h);left:0;bottom:0;width:var(--wp-menu-w);z-index:90;
+  background:var(--wp-menu);overflow-y:auto;padding-top:8px;
+}
+.wp-mi{display:flex;align-items:center;gap:9px;padding:9px 12px;color:var(--wp-text-dim);font-size:13px;cursor:pointer;transition:.1s;}
+.wp-mi i{width:18px;text-align:center;font-size:15px;opacity:.8;}
+.wp-mi:hover{background:var(--wp-menu-hover);color:#72aee6;}
+.wp-mi.current{background:var(--wp-menu-current);color:#fff;font-weight:600;box-shadow:inset 4px 0 0 #72aee6;}
+.wp-mi.current i{opacity:1;}
+.wp-menu-sep{height:1px;background:#3c4145;margin:8px 0;}
+
+/* ============================================================================
+   PAGE (S5 tool, dark) — sits inside the WP content area
+   ============================================================================ */
+.page{
+  position:fixed;top:var(--wp-adminbar-h);left:var(--wp-menu-w);right:0;bottom:0;
+  background:var(--s5e-canvas);display:flex;flex-direction:column;overflow:hidden;
+}
+.page-head{
+  display:flex;align-items:center;gap:14px;padding:16px 24px;border-bottom:1px solid var(--s5e-line);
+  background:var(--s5e-bg-2);
+}
+.page-logo{width:34px;height:34px;border-radius:var(--s5e-radius-md);background:var(--s5e-brand);color:#04220f;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;}
+.page-title h1{font-size:16px;font-weight:700;letter-spacing:.2px;}
+.page-title p{font-size:12px;color:var(--s5e-text-faint);margin-top:1px;}
+.page-head .status-pill{
+  margin-left:auto;display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:20px;
+  background:rgba(37,211,102,.12);border:1px solid rgba(37,211,102,.35);color:#7ee2a8;font-size:12px;font-weight:600;
+}
+.page-head .status-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--s5e-brand);}
+.page-head .save-btn{display:flex;align-items:center;gap:8px;height:36px;padding:0 18px;background:var(--s5e-accent);color:#fff;border:none;border-radius:var(--s5e-radius-md);font-size:13px;font-weight:600;}
+.page-head .save-btn:hover{background:#4a7bef;}
+
+.page-body{flex:1;display:grid;grid-template-columns:210px 1fr;min-height:0;}
+
+/* ---- left sub-nav ---- */
+.subnav{background:var(--s5e-bg);border-right:1px solid var(--s5e-line);padding:14px 10px;overflow-y:auto;}
+.subnav-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--s5e-text-faint);padding:6px 10px 10px;}
+.snav{display:flex;align-items:center;gap:11px;width:100%;padding:10px 12px;margin-bottom:3px;background:transparent;border:none;border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:13.5px;text-align:left;transition:.1s;}
+.snav i{width:17px;text-align:center;font-size:14px;opacity:.85;}
+.snav:hover{background:var(--s5e-bg-2);color:var(--s5e-text);}
+.snav.active{background:var(--s5e-accent-soft);color:#c8d8ff;box-shadow:inset 0 0 0 1px rgba(91,140,255,.35);font-weight:600;}
+.snav .snav-sub{display:block;font-size:11px;color:var(--s5e-text-faint);font-weight:400;margin-top:1px;}
+.snav.active .snav-sub{color:#8fa8d6;}
+
+/* ---- screen area ---- */
+.screen-wrap{overflow-y:auto;min-height:0;}
+.screen{display:none;padding:28px 32px 60px;max-width:1100px;}
+.screen.active{display:block;}
+.screen-head{margin-bottom:24px;}
+.screen-head h2{font-size:20px;font-weight:700;letter-spacing:-.01em;}
+.screen-head p{color:var(--s5e-text-dim);font-size:13px;margin-top:5px;max-width:70ch;line-height:1.5;}
+
+/* generic settings cards */
+.card{background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-lg);margin-bottom:20px;overflow:hidden;}
+.card-head{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--s5e-line-soft);}
+.card-head i{color:var(--s5e-accent);font-size:14px;opacity:.9;}
+.card-head h3{font-size:14px;font-weight:700;}
+.card-head .card-note{margin-left:auto;font-size:11px;color:var(--s5e-text-faint);}
+.card-body{padding:18px;}
+
+/* per-card edit toolbar (pencil → +/✓) */
+.edit-tools{margin-left:auto;display:flex;align-items:center;gap:4px;}
+.edit-btn{width:28px;height:28px;border-radius:var(--s5e-radius-sm);background:transparent;border:1px solid transparent;color:var(--s5e-text-dim);display:flex;align-items:center;justify-content:center;font-size:12px;transition:.12s;}
+.edit-btn[hidden]{display:none;}
+.edit-btn:hover{background:var(--s5e-bg-3);color:var(--s5e-text);}
+.edit-btn.save{color:var(--s5e-brand);border-color:rgba(37,211,102,.35);}
+.edit-btn.save:hover{background:rgba(37,211,102,.14);}
+.edit-btn.add{color:var(--s5e-accent);border-color:rgba(91,140,255,.3);}
+.card.editing .card-head{background:var(--s5e-bg-3);}
+
+/* editable token inputs (shown only in edit mode) */
+.token-hex-input,.scale-val-input{
+  font-family:var(--s5e-mono);font-size:12px;color:var(--s5e-text);
+  background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:4px;
+  padding:4px 8px;width:100px;outline:none;transition:.12s;
+}
+.token-hex-input:focus,.scale-val-input:focus{border-color:var(--s5e-accent);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+.scale-val-input{width:88px;text-align:right;}
+.token-sw.editable{cursor:pointer;position:relative;}
+.token-sw.editable::after{content:"\f304";font-family:"Font Awesome 6 Free";font-weight:900;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:rgba(255,255,255,.85);background:rgba(0,0,0,.35);border-radius:3px;opacity:0;transition:.12s;}
+.token-sw.editable:hover::after{opacity:1;}
+.token-color .token-name-input{font-size:12.5px;color:var(--s5e-text);background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:4px;padding:3px 7px;width:100%;outline:none;}
+.token-color .token-name-input:focus{border-color:var(--s5e-accent);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+.token-del{width:24px;height:24px;border-radius:4px;background:transparent;border:none;color:var(--s5e-text-faint);font-size:11px;flex-shrink:0;transition:.12s;}
+.token-del:hover{color:var(--s5e-danger);background:rgba(214,54,56,.1);}
+
+.field{margin-bottom:16px;}
+.field:last-child{margin-bottom:0;}
+.field-label{display:block;font-size:11px;font-weight:600;color:var(--s5e-text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px;}
+.field-label .opt{font-weight:400;text-transform:none;letter-spacing:0;color:var(--s5e-text-faint);font-size:10.5px;margin-left:6px;}
+.input,.select,.textarea{width:100%;padding:9px 11px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text);font-size:13px;font-family:inherit;outline:none;transition:.12s;}
+.input:focus,.select:focus,.textarea:focus{border-color:var(--s5e-accent);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' fill='none' stroke='%239aa0ad' stroke-width='1.4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px;}
+.field-hint{font-size:11px;color:var(--s5e-text-faint);margin-top:6px;line-height:1.5;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.mono{font-family:var(--s5e-mono);font-size:12px;}
+
+.switch-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--s5e-line-soft);}
+.switch-row:last-child{border-bottom:none;}
+.switch-label{font-size:13px;color:var(--s5e-text);}
+.switch-label .sub{display:block;font-size:11px;color:var(--s5e-text-faint);margin-top:2px;}
+.switch{width:38px;height:22px;border-radius:11px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);position:relative;padding:0;transition:.15s;flex-shrink:0;}
+.switch .knob{position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--s5e-text-dim);transition:.15s;}
+.switch.on{background:var(--s5e-accent);border-color:var(--s5e-accent);}
+.switch.on .knob{left:18px;background:#fff;}
+
+/* template rows */
+.tpl-row{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--s5e-line-soft);}
+.tpl-row:last-child{border-bottom:none;}
+.tpl-ico{width:34px;height:34px;border-radius:var(--s5e-radius-sm);background:var(--s5e-bg-3);display:flex;align-items:center;justify-content:center;color:var(--s5e-accent);font-size:14px;flex-shrink:0;}
+.tpl-meta{min-width:0;flex:1;}
+.tpl-name{font-size:13.5px;font-weight:600;color:var(--s5e-text);}
+.tpl-name .tpl-file{font-family:var(--s5e-mono);font-size:11px;font-weight:400;color:var(--s5e-text-faint);margin-left:9px;}
+.tpl-applies{font-size:11.5px;color:var(--s5e-text-dim);margin-top:2px;}
+.tpl-status{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.tpl-status.active{background:rgba(37,211,102,.12);color:#7ee2a8;}
+.tpl-status.default{background:var(--s5e-bg-3);color:var(--s5e-text-faint);}
+.tpl-status .d{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.tpl-edit{width:34px;height:34px;border-radius:var(--s5e-radius-sm);background:transparent;border:1px solid var(--s5e-line);color:var(--s5e-text-dim);font-size:13px;flex-shrink:0;transition:.12s;}
+.tpl-edit:hover{border-color:var(--s5e-accent);color:var(--s5e-text);background:var(--s5e-accent-soft);}
+.tpl-row.row-off{opacity:.5;}
+.tpl-row.row-off .tpl-name{text-decoration:line-through;text-decoration-color:var(--s5e-text-faint);}
+.tpl-addbtn{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:6px 12px;background:transparent;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-accent);font-size:12px;font-weight:500;transition:.12s;}
+.tpl-addbtn:hover{background:var(--s5e-accent-soft);border-color:var(--s5e-accent);}
+.card-head .card-note + .tpl-addbtn{margin-left:12px;}
+/* inline add form */
+.tpl-addform{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:end;padding:14px;margin-top:10px;background:var(--s5e-bg-2);border:1px dashed var(--s5e-accent);border-radius:var(--s5e-radius-md);}
+.tpl-addform .field{margin-bottom:0;}
+.tpl-addform .field-label{margin-bottom:5px;}
+.taf-save{height:36px;padding:0 14px;background:var(--s5e-accent);color:#fff;border:none;border-radius:var(--s5e-radius-sm);font-size:12.5px;font-weight:600;}
+.taf-cancel{height:36px;padding:0 12px;background:transparent;border:1px solid var(--s5e-line);color:var(--s5e-text-dim);border-radius:var(--s5e-radius-sm);font-size:12.5px;}
+.taf-cancel:hover{color:var(--s5e-text);}
+.tpl-del{width:34px;height:34px;border-radius:var(--s5e-radius-sm);background:transparent;border:1px solid var(--s5e-line);color:var(--s5e-text-faint);font-size:12px;flex-shrink:0;transition:.12s;}
+.tpl-del:hover{color:var(--s5e-danger);border-color:var(--s5e-danger);background:rgba(214,54,56,.08);}
+.tpl-custom-badge{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--s5e-accent);background:var(--s5e-accent-soft);border:1px solid rgba(91,140,255,.3);padding:1px 6px;border-radius:4px;margin-left:9px;vertical-align:middle;}
+
+/* head & integrations: webhook rows */
+.wh-row{display:flex;align-items:center;gap:10px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);padding:8px 10px;}
+.wh-url{flex:1;min-width:0;font-size:12px;color:var(--s5e-text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* build & deploy status */
+.deploy-status{display:grid;grid-template-columns:repeat(3,1fr) auto;gap:14px;align-items:center;padding-bottom:14px;}
+.ds-item{display:flex;flex-direction:column;gap:5px;}
+.ds-k{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--s5e-text-faint);}
+.ds-v{font-size:13px;color:var(--s5e-text);display:flex;align-items:center;gap:7px;}
+.ds-v.ok{color:#7ee2a8;font-weight:600;}
+.ds-v.ok .d{width:7px;height:7px;border-radius:50%;background:var(--s5e-brand);}
+.ds-env{width:auto;padding:6px 28px 6px 9px;font-size:12.5px;}
+.deploy-btn{display:flex;align-items:center;gap:8px;height:38px;padding:0 16px;background:var(--s5e-accent);color:#fff;border:none;border-radius:var(--s5e-radius-md);font-size:13px;font-weight:600;align-self:end;}
+.deploy-btn:hover{background:#4a7bef;}
+
+/* redirects table */
+.rdr-row{display:grid;grid-template-columns:1fr auto 1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--s5e-line-soft);}
+.rdr-row:last-of-type{border-bottom:none;}
+.rdr-row .arrow{color:var(--s5e-text-faint);font-size:11px;}
+.rdr-row input{background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text);font-size:12px;font-family:var(--s5e-mono);padding:7px 9px;outline:none;}
+.rdr-row input:focus{border-color:var(--s5e-accent);}
+.rdr-code{font-size:11px;font-weight:700;color:#7ee2a8;background:rgba(37,211,102,.12);padding:3px 8px;border-radius:4px;}
+
+/* media upload field (logo / favicon) */
+.media-field{display:flex;gap:12px;align-items:center;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);padding:9px;}
+.media-thumb{width:52px;height:52px;border-radius:var(--s5e-radius-sm);overflow:hidden;background:var(--s5e-bg);flex-shrink:0;display:flex;align-items:center;justify-content:center;border:1px solid var(--s5e-line);}
+.media-thumb img{width:100%;height:100%;object-fit:contain;display:block;padding:6px;}
+.media-thumb .media-thumb-ph{display:none;color:var(--s5e-text-faint);font-size:16px;}
+.media-thumb.noimg img{display:none;}
+.media-thumb.noimg .media-thumb-ph{display:block;}
+.media-meta{display:flex;flex-direction:column;gap:7px;min-width:0;}
+.media-name{font-size:12px;color:var(--s5e-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.media-lib{display:inline-flex;align-items:center;gap:7px;align-self:flex-start;padding:5px 10px;background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:11.5px;transition:.12s;}
+.media-lib:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+
+/* ============================================================================
+   STYLEGUIDE screen
+   ============================================================================ */
+.sg-grid{display:grid;grid-template-columns:340px 1fr;gap:22px;align-items:start;}
+@media(max-width:1000px){.sg-grid{grid-template-columns:1fr;}}
+
+/* token editors (left) */
+.token-color{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--s5e-line-soft);}
+.token-color:last-child{border-bottom:none;}
+.token-sw{width:30px;height:30px;border-radius:var(--s5e-radius-sm);border:2px solid var(--s5e-line);flex-shrink:0;}
+.token-meta{min-width:0;flex:1;}
+.token-name{font-size:12.5px;color:var(--s5e-text);}
+.token-var{font-family:var(--s5e-mono);font-size:10.5px;color:var(--s5e-text-faint);}
+.token-hex{font-family:var(--s5e-mono);font-size:12px;color:var(--s5e-text-dim);background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:4px;padding:4px 8px;}
+
+.scale-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--s5e-line-soft);font-size:12.5px;}
+.scale-row:last-child{border-bottom:none;}
+.scale-key{font-family:var(--s5e-mono);color:var(--s5e-text-dim);}
+.scale-val{font-family:var(--s5e-mono);color:var(--s5e-text);}
+.scale-bar{height:8px;border-radius:4px;background:var(--s5e-accent);opacity:.8;}
+
+/* the specimen (right) — LIGHT, real primitives from the tokens */
+.specimen{
+  background:var(--s5-color-surface);color:var(--s5-color-ink);font-family:var(--s5-font-sans);
+  border-radius:var(--s5e-radius-lg);border:1px solid var(--s5e-line);overflow:hidden;
+}
+.specimen-bar{display:flex;align-items:center;gap:9px;padding:10px 16px;background:var(--s5-color-surface-alt);border-bottom:1px solid var(--s5-color-line);color:var(--s5-color-muted);font-size:12px;font-family:var(--s5e-sans);}
+.specimen-bar .dot{width:9px;height:9px;border-radius:50%;background:#ff5f56;box-shadow:15px 0 0 #ffbd2e,30px 0 0 #27c93f;margin-right:22px;}
+.specimen-body{padding:26px 28px;}
+.specimen-section{padding:14px 0;border-bottom:1px solid var(--s5-color-line);}
+.specimen-section:last-child{border-bottom:none;}
+.specimen-section > .sg-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--s5-color-muted);margin-bottom:14px;font-family:var(--s5e-sans);}
+/* real S5 primitives */
+.specimen h1{font-size:var(--s5-text-xxxl);line-height:1.15;letter-spacing:-.01em;margin-bottom:8px;}
+.specimen h2{font-size:var(--s5-text-xxl);line-height:1.2;margin-bottom:8px;}
+.specimen h3{font-size:var(--s5-text-xl);margin-bottom:6px;}
+.specimen h4{font-size:var(--s5-text-lg);margin-bottom:6px;}
+.specimen p{font-size:var(--s5-text-md);color:var(--s5-color-ink-soft);line-height:1.6;max-width:60ch;}
+.specimen .lede{font-size:var(--s5-text-lg);color:var(--s5-color-ink-soft);}
+.specimen .eyebrow{text-transform:uppercase;letter-spacing:.08em;font-size:var(--s5-text-xs);font-weight:700;color:var(--s5-color-brand);}
+.specimen small{font-size:var(--s5-text-xs);color:var(--s5-color-muted);}
+.sg-btns{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+.btn{display:inline-block;padding:.6rem 1.1rem;border-radius:var(--s5-radius-sm);text-decoration:none;font-size:.95rem;font-weight:500;border:1px solid transparent;cursor:pointer;}
+.btn--primary{background:var(--s5-color-brand);color:#fff;}
+.btn--strong{background:var(--s5-color-brand-strong);color:#fff;}
+.btn--ghost{background:transparent;border-color:var(--s5-color-line);color:var(--s5-color-ink);}
+.btn--accent{background:var(--s5-color-accent);color:#1e1e1e;}
+.btn--sm{padding:.4rem .8rem;font-size:.83rem;}
+.btn--lg{padding:.8rem 1.5rem;font-size:1.1rem;}
+.sg-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.sg-card{padding:16px;border:1px solid var(--s5-color-line);border-radius:var(--s5-radius-md);background:var(--s5-color-surface-alt);}
+.sg-card h4{margin-bottom:5px;font-size:var(--s5-text-md);}
+.sg-card p{font-size:var(--s5-text-sm);}
+.sg-swatches{display:flex;gap:0;border-radius:var(--s5-radius-md);overflow:hidden;border:1px solid var(--s5-color-line);}
+.sg-swatch{flex:1;height:56px;display:flex;align-items:flex-end;padding:6px;font-size:10px;color:#fff;font-family:var(--s5e-mono);text-shadow:0 1px 2px rgba(0,0,0,.4);}
+.sg-badges{display:flex;gap:8px;flex-wrap:wrap;}
+.badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;}
+.badge--success{background:rgba(42,157,92,.15);color:#1d7a45;}
+.badge--warning{background:rgba(240,195,60,.2);color:#8a6d10;}
+.badge--danger{background:rgba(214,54,56,.12);color:#b32527;}
+.badge--muted{background:#eef0f2;color:#6c7278;}
+.sg-inputs{display:grid;gap:10px;max-width:340px;}
+.sg-input{width:100%;padding:9px 11px;border:1px solid var(--s5-color-line);border-radius:var(--s5-radius-sm);font-size:14px;color:var(--s5-color-ink);background:#fff;}
+.type-ramp > *{margin-bottom:2px;}
+
+/* ============================================================================
+   COMPONENTS screen
+   ============================================================================ */
+.comp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+@media(max-width:900px){.comp-grid{grid-template-columns:1fr;}}
+.comp-card{background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-lg);padding:16px;display:flex;flex-direction:column;gap:12px;}
+.comp-card.off{opacity:.6;}
+.comp-top{display:flex;align-items:flex-start;gap:12px;}
+.comp-ico{width:40px;height:40px;border-radius:var(--s5e-radius-md);background:var(--s5e-bg-3);display:flex;align-items:center;justify-content:center;color:var(--s5e-accent);font-size:17px;flex-shrink:0;}
+.comp-name{font-size:14px;font-weight:700;}
+.comp-slug{font-family:var(--s5e-mono);font-size:11px;color:var(--s5e-text-faint);margin-top:2px;}
+.comp-desc{font-size:12px;color:var(--s5e-text-dim);line-height:1.5;}
+.comp-meta{display:flex;align-items:center;gap:14px;font-size:11px;color:var(--s5e-text-faint);padding-top:10px;border-top:1px solid var(--s5e-line-soft);}
+.comp-meta .m{display:flex;align-items:center;gap:6px;}
+.comp-variants{display:flex;gap:6px;flex-wrap:wrap;}
+.vchip{font-family:var(--s5e-mono);font-size:10.5px;padding:3px 8px;border-radius:4px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);color:var(--s5e-text-dim);}
+.comp-card{cursor:pointer;transition:.12s;}
+.comp-card:hover{border-color:var(--s5e-accent);}
+.comp-open{width:30px;height:30px;border-radius:var(--s5e-radius-sm);background:transparent;border:1px solid var(--s5e-line);color:var(--s5e-text-dim);font-size:12px;transition:.12s;}
+.comp-open:hover{border-color:var(--s5e-accent);color:var(--s5e-text);background:var(--s5e-accent-soft);}
+.registered-note{display:flex;gap:11px;align-items:flex-start;background:var(--s5e-bg-2);border:1px solid var(--s5e-line-soft);border-radius:var(--s5e-radius-md);padding:14px;margin-bottom:20px;font-size:12.5px;line-height:1.55;color:var(--s5e-text-dim);}
+.registered-note i{color:var(--s5e-accent);font-size:15px;margin-top:1px;}
+.registered-note strong{color:var(--s5e-text);}
+
+/* ============================================================================
+   CSS/TAILWIND screen
+   ============================================================================ */
+.layer-tabs{display:flex;gap:2px;background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);padding:3px;margin-bottom:16px;width:fit-content;}
+.layer-tab{display:flex;align-items:center;gap:8px;height:32px;padding:0 15px;background:transparent;border:none;border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:12.5px;font-family:var(--s5e-mono);transition:.12s;}
+.layer-tab:hover{color:var(--s5e-text);}
+.layer-tab.active{background:var(--s5e-bg-3);color:var(--s5e-text);box-shadow:inset 0 0 0 1px var(--s5e-line);}
+.layer-tab .lock{font-size:10px;opacity:.6;}
+.code-panel{background:#0c0d11;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-lg);overflow:hidden;}
+.code-panel-head{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--s5e-bg-2);border-bottom:1px solid var(--s5e-line);font-size:12px;}
+.code-panel-head .path{font-family:var(--s5e-mono);color:var(--s5e-text-dim);}
+.code-panel-head .tag{margin-left:auto;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:4px;}
+.tag.readonly{background:rgba(219,166,23,.15);color:#e0b64a;}
+.tag.editable{background:rgba(37,211,102,.14);color:#7ee2a8;}
+
+/* css screen header + engine toggle */
+.css-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;}
+.engine-toggle{display:flex;background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);padding:3px;flex-shrink:0;}
+.engine-btn{height:32px;padding:0 16px;background:transparent;border:none;border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:12.5px;font-weight:600;transition:.12s;}
+.engine-btn.active{background:var(--s5e-accent);color:#fff;}
+.layer-tab i:first-child{font-size:12px;opacity:.85;margin-right:2px;}
+
+/* integrations */
+.int-card{background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-lg);margin-bottom:16px;overflow:hidden;}
+.int-card.off{opacity:.62;}
+.int-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--s5e-line-soft);}
+.int-ico{width:34px;height:34px;border-radius:var(--s5e-radius-sm);background:var(--s5e-bg-3);display:flex;align-items:center;justify-content:center;color:var(--s5e-accent);font-size:14px;flex-shrink:0;}
+.int-name-input{background:transparent;border:1px solid transparent;border-radius:var(--s5e-radius-sm);color:var(--s5e-text);font-size:14px;font-weight:600;padding:5px 8px;outline:none;flex:1;min-width:0;}
+.int-name-input:hover{border-color:var(--s5e-line);}
+.int-name-input:focus{border-color:var(--s5e-accent);background:var(--s5e-bg-3);}
+.int-head .switch{flex-shrink:0;}
+.int-del{width:32px;height:32px;border-radius:var(--s5e-radius-sm);background:transparent;border:1px solid transparent;color:var(--s5e-text-faint);font-size:12px;flex-shrink:0;transition:.12s;}
+.int-del:hover{color:var(--s5e-danger);background:rgba(214,54,56,.1);}
+.int-body{padding:16px;}
+.int-code{width:100%;min-height:90px;background:#0c0d11;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:#cfd3dc;font-family:var(--s5e-mono);font-size:12px;line-height:1.5;padding:11px 13px;outline:none;resize:vertical;}
+.int-code:focus{border-color:var(--s5e-accent);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+.int-controls{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin-top:14px;}
+.int-ctrl{min-width:180px;}
+.int-ctrl > label{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--s5e-text-faint);margin-bottom:7px;}
+.int-cond{margin-top:16px;padding-top:14px;border-top:1px solid var(--s5e-line-soft);}
+
+/* condition rule builder (shared by integrations) */
+.cond-group{margin-bottom:8px;}
+.cond-group-label{font-size:12px;color:var(--s5e-text-dim);margin-bottom:8px;}
+.cond-inc{color:#7ee2a8;font-weight:700;}
+.cond-exc{color:#ff9d9d;font-weight:700;}
+.cond-row{display:grid;grid-template-columns:1.1fr .7fr 1.2fr auto;gap:6px;align-items:center;margin-bottom:8px;max-width:640px;}
+.cond-row .select{padding:7px 9px;font-size:12px;padding-right:24px;background-position:right 8px center;}
+.cond-del{width:28px;height:32px;border-radius:var(--s5e-radius-sm);background:transparent;border:1px solid var(--s5e-line);color:var(--s5e-text-faint);font-size:11px;transition:.12s;}
+.cond-del:hover{color:var(--s5e-danger);border-color:var(--s5e-danger);}
+.cond-add{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;background:transparent;border:1px dashed var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:12px;transition:.12s;}
+.cond-add:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+.tag.editable{background:rgba(37,211,102,.14);color:#7ee2a8;}
+.code-body{display:flex;font-family:var(--s5e-mono);font-size:12.5px;line-height:1.65;max-height:440px;overflow:auto;}
+.code-gutter{padding:14px 0;text-align:right;color:#454b59;user-select:none;background:#0c0d11;position:sticky;left:0;}
+.code-gutter span{display:block;padding:0 14px 0 18px;}
+.code-pre{padding:14px 20px 14px 8px;white-space:pre;color:#cfd3dc;flex:1;}
+.tok-sel{color:#e5c07b;} .tok-prop{color:#7ea6ff;} .tok-val{color:#7fd6a3;} .tok-cmt{color:#5a6070;font-style:italic;} .tok-var{color:#c9a9ff;}
+.vocab-note{display:flex;gap:11px;align-items:flex-start;background:rgba(219,166,23,.08);border:1px solid rgba(219,166,23,.3);border-radius:var(--s5e-radius-md);padding:14px;margin-top:16px;font-size:12.5px;line-height:1.55;color:var(--s5e-text-dim);}
+.vocab-note i{color:var(--s5e-warning);font-size:15px;margin-top:1px;}
+.vocab-note strong{color:var(--s5e-text);}
+
+/* ============================================================================
+   ROLES & ACCESS
+   ============================================================================ */
+.roles-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px;}
+.role-card{background:var(--s5e-bg-2);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);padding:16px;}
+.role-card[data-role="developer"]{border-color:rgba(126,166,255,.4);}
+.role-card[data-role="marketer"]{border-color:rgba(219,166,23,.35);}
+.role-card[data-role="client"]{border-color:var(--s5e-line);}
+.role-top{display:flex;align-items:center;gap:12px;margin-bottom:11px;}
+.role-ico{width:38px;height:38px;border-radius:var(--s5e-radius-sm);display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--s5e-bg);border:1px solid var(--s5e-line);flex-shrink:0;}
+.role-card[data-role="developer"] .role-ico{color:#7ea6ff;}
+.role-card[data-role="marketer"] .role-ico{color:var(--s5e-warning);}
+.role-card[data-role="client"] .role-ico{color:var(--s5e-text-dim);}
+.role-top h3{font-size:15px;margin:0;}
+.role-sub{font-size:11px;color:var(--s5e-text-faint);margin:2px 0 0;}
+.role-desc{font-size:12.5px;line-height:1.55;color:var(--s5e-text-dim);margin:0;}
+.card-body{padding:16px 18px 18px;}
+.card-hint{font-size:12.5px;color:var(--s5e-text-dim);margin:0 0 14px;line-height:1.5;}
+.perm-scroll{overflow-x:auto;margin:0 -18px;padding:0 18px;}
+.perm-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px;}
+.perm-table th,.perm-table td{padding:9px 14px;text-align:left;border-bottom:1px solid var(--s5e-line-soft);}
+.perm-table th:first-child,.perm-table td:first-child{padding-left:2px;}
+.perm-table th:last-child,.perm-table td:last-child{padding-right:2px;}
+.perm-table thead th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--s5e-text-faint);font-weight:700;border-bottom-color:var(--s5e-line);}
+.perm-role{text-align:center !important;width:120px;}
+.perm-role i{margin-right:5px;opacity:.7;}
+.perm-table td.perm-cap{color:var(--s5e-text);font-weight:500;}
+.perm-table td.perm-mark{text-align:center;}
+.perm-group td{background:var(--s5e-bg);font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--s5e-text-faint);font-weight:700;padding-top:13px;padding-bottom:7px;}
+/* interactive toggle cells */
+.perm-mark-btn{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:6px;border:1px solid transparent;font-size:11px;cursor:pointer;transition:.12s;padding:0;}
+.perm-mark-btn.on{background:rgba(42,157,92,.16);color:#7ee2a8;}
+.perm-mark-btn.off{background:rgba(255,255,255,.04);color:var(--s5e-text-faint);}
+.perm-mark-btn:hover{border-color:var(--s5e-accent);}
+.perm-mark-btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+/* legend spans (non-interactive) */
+.perm-yes{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:5px;background:rgba(42,157,92,.16);color:#7ee2a8;font-size:9px;}
+.perm-no{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:5px;background:rgba(255,255,255,.04);color:var(--s5e-text-faint);font-size:9px;}
+.perm-legend{font-size:12px;color:var(--s5e-text-dim);margin:14px 0 0;display:flex;align-items:center;gap:6px;}
+@media(max-width:900px){.roles-grid{grid-template-columns:1fr;}}
+
+/* users & role assignment */
+.user-list{display:flex;flex-direction:column;gap:8px;}
+.user-row{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:14px;padding:11px 12px;background:var(--s5e-bg-2);border:1px solid var(--s5e-line-soft);border-radius:var(--s5e-radius-md);}
+.user-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0;}
+.user-id{min-width:0;}
+.user-name{font-size:13px;font-weight:600;color:var(--s5e-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-email{font-size:11.5px;color:var(--s5e-text-faint);font-family:var(--s5e-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.user-wp{font-size:11px;color:var(--s5e-text-faint);}
+.user-wp .user-wp-role{color:var(--s5e-text-dim);}
+.user-role-sel{padding:7px 26px 7px 10px;font-size:12px;min-width:132px;}
+.user-role-sel.role-developer{border-color:rgba(126,166,255,.5);color:#a9c3ff;}
+.user-role-sel.role-marketer{border-color:rgba(219,166,23,.5);color:#e8c765;}
+.user-role-sel.role-client{border-color:var(--s5e-line);color:var(--s5e-text-dim);}
+.user-pending{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--s5e-warning);background:rgba(219,166,23,.12);border:1px solid rgba(219,166,23,.3);padding:2px 7px;border-radius:20px;}
+@media(max-width:720px){.user-row{grid-template-columns:auto 1fr;grid-auto-rows:auto;}.user-row .user-wp{grid-column:2;}.user-row .user-role-sel{grid-column:2;justify-self:start;}}
+
+/* ============================================================================
+   TEMPLATE EDITOR — full-screen canvas modal
+   ============================================================================ */
+.tpl-modal{position:fixed;inset:0;z-index:210;background:var(--s5e-canvas);display:none;flex-direction:column;}
+.tpl-modal.open{display:flex;}
+.tpl-modal-bar{display:flex;align-items:center;gap:14px;height:48px;padding:0 16px;background:var(--s5e-bg-2);border-bottom:1px solid var(--s5e-line);flex-shrink:0;}
+.tpl-modal-back{display:flex;align-items:center;gap:8px;height:32px;padding:0 12px;background:transparent;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:13px;transition:.12s;}
+.tpl-modal-back:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+.tpl-modal-title{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;}
+.tpl-modal-title i{color:var(--s5e-accent);font-size:13px;}
+.tpl-modal-file{font-size:11px;font-weight:400;color:var(--s5e-text-faint);}
+.tpl-modal-badge{margin-left:auto;font-size:11px;font-weight:600;color:#e0b64a;background:rgba(219,166,23,.14);border:1px solid rgba(219,166,23,.3);padding:5px 11px;border-radius:20px;}
+.tpl-modal-stage{flex:1;min-height:0;background:var(--s5e-canvas);}
+.tpl-modal-stage iframe{width:100%;height:100%;border:0;display:block;}
+
+/* ============================================================================
+   COMPONENT BUILDER — full-screen modal
+   ============================================================================ */
+.cb-modal{position:fixed;inset:0;z-index:200;background:var(--s5e-canvas);display:none;flex-direction:column;}
+.cb-modal.open{display:flex;}
+.cb-top{display:flex;align-items:center;justify-content:space-between;gap:12px;height:56px;padding:0 16px;background:var(--s5e-bg-2);border-bottom:1px solid var(--s5e-line);flex-shrink:0;}
+.cb-top-l,.cb-top-r{display:flex;align-items:center;gap:10px;}
+.cb-back{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;background:transparent;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:13px;transition:.12s;}
+.cb-back:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+.cb-name{background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text);font-size:14px;font-weight:600;padding:7px 11px;width:200px;outline:none;}
+.cb-name:focus{border-color:var(--s5e-accent);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+.cb-slug{font-size:12px;color:var(--s5e-text-faint);}
+.cb-icon{width:34px;height:34px;border-radius:var(--s5e-radius-sm);background:transparent;border:1px solid transparent;color:var(--s5e-text-dim);display:flex;align-items:center;justify-content:center;font-size:13px;transition:.12s;}
+.cb-icon:hover{background:var(--s5e-bg-3);color:var(--s5e-text);}
+.cb-icon.danger:hover{color:var(--s5e-danger);background:rgba(214,54,56,.1);}
+.cb-icon.sm{width:26px;height:26px;font-size:11px;}
+.cb-lens{display:flex;background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);padding:3px;gap:2px;}
+.cb-lens-btn{display:flex;align-items:center;gap:7px;height:28px;padding:0 13px;background:transparent;border:none;border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:12.5px;transition:.12s;}
+.cb-lens-btn.active{background:var(--s5e-bg-3);color:var(--s5e-text);box-shadow:inset 0 0 0 1px var(--s5e-line);}
+.cb-save{display:flex;align-items:center;gap:8px;height:36px;padding:0 16px;background:var(--s5e-accent);color:#fff;border:none;border-radius:var(--s5e-radius-md);font-size:13px;font-weight:600;}
+.cb-save:hover{background:#4a7bef;}
+
+.cb-body{flex:1;display:grid;grid-template-columns:300px 1fr 320px;min-height:0;}
+
+/* left: props */
+.cb-props{background:var(--s5e-bg);border-right:1px solid var(--s5e-line);overflow-y:auto;display:flex;flex-direction:column;}
+.cb-props-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;position:sticky;top:0;background:var(--s5e-bg);font-size:13px;font-weight:700;z-index:2;}
+.cb-addfield{display:flex;align-items:center;gap:6px;padding:5px 10px;background:transparent;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-accent);font-size:12px;transition:.12s;}
+.cb-addfield:hover{background:var(--s5e-accent-soft);}
+.cb-variants{padding:0 16px 14px;border-bottom:1px solid var(--s5e-line);margin-bottom:14px;}
+.cb-var-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--s5e-text-faint);margin-bottom:9px;}
+.cb-var-rows{display:flex;flex-direction:column;gap:7px;}
+.cb-var{display:flex;gap:6px;align-items:center;}
+.cb-var-name,.cb-var-slug{flex:1;min-width:0;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text);font-size:12px;padding:6px 8px;outline:none;}
+.cb-var-slug{color:var(--s5e-text-dim);}
+.cb-var-name:focus,.cb-var-slug:focus{border-color:var(--s5e-accent);}
+.cb-fields{padding:0 16px 24px;display:flex;flex-direction:column;gap:14px;}
+.cb-field{background:var(--s5e-bg-2);border:1px solid var(--s5e-line-soft);border-radius:var(--s5e-radius-md);padding:13px;}
+.cb-field-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.cb-field-top .lbl{font-size:11px;font-weight:600;color:var(--s5e-text-dim);text-transform:uppercase;letter-spacing:.5px;}
+.cb-f{margin-bottom:10px;}
+.cb-f:last-child{margin-bottom:0;}
+.cb-f label{display:block;font-size:10.5px;font-weight:600;color:var(--s5e-text-faint);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;}
+.cb-f input,.cb-f select,.cb-f textarea{width:100%;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text);font-size:12.5px;padding:7px 9px;outline:none;font-family:inherit;}
+.cb-f input:focus,.cb-f select:focus,.cb-f textarea:focus{border-color:var(--s5e-accent);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
+.cb-f textarea{resize:vertical;min-height:52px;line-height:1.45;}
+.cb-token{display:flex;align-items:center;gap:6px;}
+.cb-token .braces{font-family:var(--s5e-mono);color:var(--s5e-text-faint);font-size:12px;}
+.cb-token input{font-family:var(--s5e-mono);}
+.cb-token .copy{width:30px;height:32px;flex-shrink:0;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);background:var(--s5e-bg-3);color:var(--s5e-text-dim);font-size:11px;}
+.cb-token .copy:hover{color:var(--s5e-text);border-color:var(--s5e-accent);}
+.cb-f-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.cb-req{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--s5e-text-dim);}
+.cb-req input{width:auto;}
+.cb-f-hint{font-size:10.5px;color:var(--s5e-text-faint);margin-top:5px;line-height:1.4;}
+
+/* center: preview + html */
+.cb-center{display:grid;grid-template-rows:1fr 1fr;min-width:0;min-height:0;}
+.cb-preview{display:flex;flex-direction:column;border-bottom:1px solid var(--s5e-line);min-height:0;}
+.cb-panel-head{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--s5e-bg-2);border-bottom:1px solid var(--s5e-line);font-size:12.5px;font-weight:600;}
+.cb-panel-note{font-size:11px;font-weight:400;color:var(--s5e-text-faint);}
+.cb-preview-stage{flex:1;overflow:auto;background:#eef1f5;display:flex;align-items:flex-start;justify-content:center;padding:26px;}
+/* the rendered pricing card (light, real-ish) */
+.cb-pricing-card{background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(20,30,50,.12);padding:34px;width:100%;max-width:420px;color:#1e1e1e;font-family:var(--s5-font-sans);}
+.pc-title{font-size:26px;font-weight:800;margin-bottom:10px;}
+.pc-desc{color:#6c7278;font-size:16px;margin-bottom:20px;}
+.pc-price{display:flex;align-items:flex-end;gap:8px;}
+.pc-amt{font-size:52px;font-weight:800;line-height:1;color:#2271b1;}
+.pc-per{font-size:16px;color:#6c7278;padding-bottom:8px;}
+.pc-billing{color:#6c7278;font-size:14px;margin:6px 0 22px;}
+.pc-btn{display:block;text-align:center;padding:16px;border:2px solid #dcdcde;border-radius:40px;font-weight:700;color:#1e1e1e;margin-bottom:22px;cursor:pointer;}
+.pc-feats{list-style:none;display:flex;flex-direction:column;gap:13px;}
+.pc-feats li{display:flex;align-items:center;gap:11px;font-size:15px;color:#3c434a;}
+.pc-feats i{color:#2a9d5c;font-size:15px;}
+
+.cb-html,.cb-css,.cb-logic{display:flex;flex-direction:column;min-height:0;}
+.cb-code{flex:1;display:flex;overflow:auto;background:#0c0d11;font-family:var(--s5e-mono);font-size:12px;line-height:1.6;min-height:0;}
+.cb-gutter{padding:12px 0;text-align:right;color:#454b59;user-select:none;background:#0c0d11;position:sticky;left:0;}
+.cb-gutter span{display:block;padding:0 12px 0 16px;}
+.cb-pre{padding:12px 16px 12px 6px;white-space:pre;color:#cfd3dc;flex:1;}
+.cb-code-foot{display:flex;align-items:center;gap:10px;padding:7px 16px;background:var(--s5e-bg-2);border-top:1px solid var(--s5e-line);font-size:11.5px;color:var(--s5e-text-dim);}
+.cb-code-foot .ok{color:var(--s5e-brand);display:flex;align-items:center;gap:6px;}
+.cb-code-foot .ok .dot{width:6px;height:6px;border-radius:50%;background:var(--s5e-brand);}
+.cb-tag{margin-left:auto;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:4px;}
+.cb-tag.readonly{background:rgba(219,166,23,.15);color:#e0b64a;}
+
+/* right: css + logic */
+.cb-right{background:var(--s5e-bg);border-left:1px solid var(--s5e-line);display:grid;grid-template-rows:1fr 1fr;min-height:0;}
+.cb-css{border-bottom:1px solid var(--s5e-line);}
+
+/* syntax tokens (reuse tok-* from CSS tab) */
+.cb-pre .t-tag{color:#7ea6ff;} .cb-pre .t-attr{color:#c9a9ff;} .cb-pre .t-str{color:#7fd6a3;}
+.cb-pre .t-logic{color:#e5c07b;} .cb-pre .t-token{color:#f0a45c;} .cb-pre .t-cmt{color:#5a6070;font-style:italic;}
+.cb-pre .t-sel{color:#e5c07b;} .cb-pre .t-prop{color:#7ea6ff;} .cb-pre .t-val{color:#7fd6a3;} .cb-pre .t-var{color:#c9a9ff;}
+</style>
+</head>
+<body>
+
+<!-- ===================== WP ADMIN BAR (mock) ===================== -->
+<div class="wp-adminbar">
+  <span class="abi" title="WordPress"><i class="fa-brands fa-wordpress"></i></span>
+  <span class="abi"><i class="fa-solid fa-house"></i> My WordPress Site</span>
+  <span class="abi"><i class="fa-solid fa-rotate"></i> 2</span>
+  <span class="abi"><i class="fa-regular fa-comment"></i> 0</span>
+  <span class="abi"><i class="fa-solid fa-plus"></i> New</span>
+  <span class="ab-right">
+    <span class="abi">Howdy, Shawn <span class="ab-avatar">S</span></span>
+  </span>
+</div>
+
+<!-- ===================== WP ADMIN MENU (mock) ===================== -->
+<nav class="wp-menu">
+  <div class="wp-mi"><i class="fa-solid fa-gauge-high"></i> Dashboard</div>
+  <div class="wp-mi"><i class="fa-solid fa-thumbtack"></i> Posts</div>
+  <div class="wp-mi"><i class="fa-regular fa-image"></i> Media</div>
+  <div class="wp-mi"><i class="fa-regular fa-file-lines"></i> Pages</div>
+  <div class="wp-menu-sep"></div>
+  <div class="wp-mi"><i class="fa-solid fa-paintbrush"></i> Appearance</div>
+  <div class="wp-mi"><i class="fa-solid fa-plug"></i> Plugins</div>
+  <div class="wp-mi current"><i class="fa-solid fa-cube"></i> S5 Framework</div>
+  <div class="wp-mi"><i class="fa-solid fa-users"></i> Users</div>
+  <div class="wp-mi"><i class="fa-solid fa-screwdriver-wrench"></i> Tools</div>
+  <div class="wp-mi"><i class="fa-solid fa-gear"></i> Settings</div>
+</nav>
+
+<!-- ===================== PAGE (S5 tool) ===================== -->
+<div class="page">
+
+  <header class="page-head">
+    <div class="page-logo">S5</div>
+    <div class="page-title">
+      <h1>S5 Framework — Theme Settings</h1>
+      <p>Agent-native theme · single source of truth for tokens, components &amp; vocabulary</p>
+    </div>
+    <div class="status-pill"><span class="dot"></span> Compiled · in sync</div>
+    <button class="save-btn"><i class="fa-solid fa-check"></i> Save Changes</button>
+  </header>
+
+  <div class="page-body">
+
+    <!-- LEFT SUB-NAV -->
+    <aside class="subnav">
+      <div class="subnav-label">Settings</div>
+      <button class="snav active" data-screen="general">
+        <i class="fa-solid fa-sliders"></i>
+        <span>General<span class="snav-sub">Identity · homepage</span></span>
+      </button>
+      <button class="snav" data-screen="templates">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>Templates<span class="snav-sub">Parts · WP hierarchy</span></span>
+      </button>
+      <button class="snav" data-screen="styleguide">
+        <i class="fa-solid fa-swatchbook"></i>
+        <span>StyleGuide<span class="snav-sub">Tokens · live specimen</span></span>
+      </button>
+      <button class="snav" data-screen="components">
+        <i class="fa-solid fa-cubes"></i>
+        <span>Components<span class="snav-sub">Registered library</span></span>
+      </button>
+      <button class="snav" data-screen="css">
+        <i class="fa-solid fa-code"></i>
+        <span>CSS / Tailwind<span class="snav-sub">Tokens · classes · custom</span></span>
+      </button>
+      <button class="snav" data-screen="integrations">
+        <i class="fa-solid fa-plug"></i>
+        <span>Integrations<span class="snav-sub">Snippets · analytics · pixels</span></span>
+      </button>
+      <button class="snav" data-screen="roles">
+        <i class="fa-solid fa-user-shield"></i>
+        <span>Roles<span class="snav-sub">Who sees &amp; edits what</span></span>
+      </button>
+    </aside>
+
+    <!-- SCREENS -->
+    <main class="screen-wrap">
+
+      <!-- ============ GENERAL ============ -->
+      <section class="screen active" data-screen="general">
+        <div class="screen-head">
+          <h2>General</h2>
+          <p>Theme identity, redirects, and how the framework builds. Front page &amp; posts page are set in WordPress&rsquo; native <strong>Settings → Reading</strong>. Template parts &amp; the WP hierarchy live on the <strong>Templates</strong> tab.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-fingerprint"></i><h3>Identity</h3></div>
+          <div class="card-body">
+            <div class="field-row">
+              <div class="field"><label class="field-label">Site Name</label><input class="input" value="Series 5 Technology"></div>
+              <div class="field"><label class="field-label">Tagline</label><input class="input" value="Agent-native web systems"></div>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label class="field-label">Logo</label>
+                <div class="media-field">
+                  <div class="media-thumb"><img src="../s5-theme/site/assets/logo.svg" alt="" onerror="this.style.display='none';this.parentNode.classList.add('noimg')"><span class="media-thumb-ph"><i class="fa-solid fa-image"></i></span></div>
+                  <div class="media-meta"><div class="media-name mono">logo.svg</div><button class="media-lib"><i class="fa-regular fa-images"></i> Media Library</button></div>
+                </div>
+              </div>
+              <div class="field">
+                <label class="field-label">Favicon</label>
+                <div class="media-field">
+                  <div class="media-thumb noimg"><img alt=""><span class="media-thumb-ph"><i class="fa-solid fa-star"></i></span></div>
+                  <div class="media-meta"><div class="media-name mono">favicon.svg</div><button class="media-lib"><i class="fa-regular fa-images"></i> Media Library</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-signs-post"></i><h3>Redirects</h3><span class="card-note">301 · old URL → new</span></div>
+          <div class="card-body" id="redirects"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-gears"></i><h3>Build &amp; Deploy</h3><span class="card-note">compile status</span></div>
+          <div class="card-body">
+            <div class="deploy-status">
+              <div class="ds-item"><span class="ds-k">Status</span><span class="ds-v ok"><span class="d"></span>Compiled · in sync</span></div>
+              <div class="ds-item"><span class="ds-k">Last build</span><span class="ds-v">2 min ago · 0 errors</span></div>
+              <div class="ds-item"><span class="ds-k">Environment</span><span class="ds-v"><select class="select ds-env"><option>Production</option><option>Staging</option></select></span></div>
+              <button class="deploy-btn"><i class="fa-solid fa-rocket"></i> Deploy now</button>
+            </div>
+            <div class="switch-row" style="border-top:1px solid var(--s5e-line);padding-top:14px;margin-top:6px">
+              <div class="switch-label">Validate against closed vocabulary on save <span class="sub">Blocks unknown classes before compile</span></div>
+              <button class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>
+            </div>
+            <div class="switch-row">
+              <div class="switch-label">Strip disabled elements from output <span class="sub">[data-disabled] never reaches the served HTML</span></div>
+              <button class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>
+            </div>
+            <div class="switch-row">
+              <div class="switch-label">Minify &amp; fingerprint assets on deploy</div>
+              <button class="switch" role="switch" aria-checked="false"><span class="knob"></span></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ TEMPLATES ============ -->
+      <section class="screen" data-screen="templates">
+        <div class="screen-head">
+          <h2>Templates</h2>
+          <p>The shared template parts and the WordPress template hierarchy. Each template is canonical HTML in the framework — the edit pencil opens it in the canvas editor, the same way you edit any page.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-puzzle-piece"></i><h3>Template Parts</h3>
+            <button class="tpl-addbtn" id="addPart"><i class="fa-solid fa-plus"></i> Add part</button>
+          </div>
+          <div class="card-body" id="tplParts"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-sitemap"></i><h3>Template Hierarchy</h3>
+            <span class="card-note">WordPress resolves top → bottom</span>
+            <button class="tpl-addbtn" id="addTpl"><i class="fa-solid fa-plus"></i> Add template</button>
+          </div>
+          <div class="card-body" id="tplHierarchy"></div>
+        </div>
+      </section>
+
+      <!-- ============ STYLEGUIDE ============ -->
+      <section class="screen" data-screen="styleguide">
+        <div class="screen-head">
+          <h2>StyleGuide</h2>
+          <p>The design tokens live here — and everything on the right is rendered <em>from</em> those tokens. Change a token, every primitive updates. This is the client-facing reference: the real headings, buttons, and cards the site is built from.</p>
+        </div>
+
+        <div class="sg-grid">
+
+          <!-- LEFT: token editors -->
+          <div>
+            <div class="card">
+              <div class="card-head"><i class="fa-solid fa-font"></i><h3>Fonts</h3><span class="card-note">family &amp; source</span></div>
+              <div class="card-body">
+                <div class="field">
+                  <label class="field-label">Font Source</label>
+                  <div class="seg wide"><div class="seg-opt active">System</div><div class="seg-opt">Google Fonts</div><div class="seg-opt">Self-hosted</div></div>
+                  <p class="field-hint">Self-hosted keeps fonts on your infrastructure (no third-party requests).</p>
+                </div>
+                <div class="field">
+                  <label class="field-label">Headings <span class="opt">--s5-font-heading</span></label>
+                  <input class="input" value="-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, sans-serif" style="font-family:var(--s5e-mono);font-size:11.5px">
+                </div>
+                <div class="field">
+                  <label class="field-label">Body <span class="opt">--s5-font-sans</span></label>
+                  <input class="input" value="-apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, sans-serif" style="font-family:var(--s5e-mono);font-size:11.5px">
+                </div>
+                <div class="field">
+                  <label class="field-label">Weights loaded</label>
+                  <div class="sg-badges">
+                    <span class="badge badge--muted">400 Regular</span>
+                    <span class="badge badge--muted">600 Semibold</span>
+                    <span class="badge badge--muted">700 Bold</span>
+                    <span class="badge badge--muted">800 Extrabold</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card" data-tokencard="colors">
+              <div class="card-head"><i class="fa-solid fa-palette"></i><h3>Colors</h3>
+                <div class="edit-tools">
+                  <button class="edit-btn add" title="Add color" hidden><i class="fa-solid fa-plus"></i></button>
+                  <button class="edit-btn save" title="Save" hidden><i class="fa-solid fa-check"></i></button>
+                  <button class="edit-btn pencil" title="Edit colors"><i class="fa-solid fa-pen"></i></button>
+                </div>
+              </div>
+              <div class="card-body" id="colorTokens"></div>
+            </div>
+            <div class="card" data-tokencard="type">
+              <div class="card-head"><i class="fa-solid fa-text-height"></i><h3>Type Scale</h3>
+                <div class="edit-tools">
+                  <button class="edit-btn add" title="Add step" hidden><i class="fa-solid fa-plus"></i></button>
+                  <button class="edit-btn save" title="Save" hidden><i class="fa-solid fa-check"></i></button>
+                  <button class="edit-btn pencil" title="Edit type scale"><i class="fa-solid fa-pen"></i></button>
+                </div>
+              </div>
+              <div class="card-body" id="typeScale"></div>
+            </div>
+            <div class="card" data-tokencard="space">
+              <div class="card-head"><i class="fa-solid fa-arrows-left-right-to-line"></i><h3>Space Scale</h3>
+                <div class="edit-tools">
+                  <button class="edit-btn add" title="Add step" hidden><i class="fa-solid fa-plus"></i></button>
+                  <button class="edit-btn save" title="Save" hidden><i class="fa-solid fa-check"></i></button>
+                  <button class="edit-btn pencil" title="Edit space scale"><i class="fa-solid fa-pen"></i></button>
+                </div>
+              </div>
+              <div class="card-body" id="spaceScale"></div>
+            </div>
+            <div class="card" data-tokencard="radius">
+              <div class="card-head"><i class="fa-solid fa-border-top-left"></i><h3>Radius</h3>
+                <div class="edit-tools">
+                  <button class="edit-btn add" title="Add step" hidden><i class="fa-solid fa-plus"></i></button>
+                  <button class="edit-btn save" title="Save" hidden><i class="fa-solid fa-check"></i></button>
+                  <button class="edit-btn pencil" title="Edit radius scale"><i class="fa-solid fa-pen"></i></button>
+                </div>
+              </div>
+              <div class="card-body" id="radiusScale"></div>
+            </div>
+          </div>
+
+          <!-- RIGHT: the LIVE specimen (Client-First style) -->
+          <div class="specimen">
+            <div class="specimen-bar"><span class="dot"></span> Live specimen · rendered from the tokens on the left</div>
+            <div class="specimen-body">
+
+              <div class="specimen-section">
+                <div class="sg-tag">Type ramp</div>
+                <div class="type-ramp">
+                  <p class="eyebrow">Eyebrow · label</p>
+                  <h1>Heading 1 — the page title</h1>
+                  <h2>Heading 2 — a section</h2>
+                  <h3>Heading 3 — a subsection</h3>
+                  <h4>Heading 4 — a group</h4>
+                  <p class="lede">Lede paragraph — the opening line that sets up the page in a slightly larger, softer voice.</p>
+                  <p>Body copy. The workhorse paragraph size, tuned for reading. Humans &amp; agents author the same canonical HTML, so what you approve is exactly what ships.</p>
+                  <small>Small print / captions and meta.</small>
+                </div>
+              </div>
+
+              <div class="specimen-section">
+                <div class="sg-tag">Buttons</div>
+                <div class="sg-btns">
+                  <a class="btn btn--primary">Primary</a>
+                  <a class="btn btn--strong">Strong</a>
+                  <a class="btn btn--accent">Accent</a>
+                  <a class="btn btn--ghost">Ghost</a>
+                </div>
+                <div class="sg-btns" style="margin-top:12px">
+                  <a class="btn btn--primary btn--sm">Small</a>
+                  <a class="btn btn--primary">Default</a>
+                  <a class="btn btn--primary btn--lg">Large</a>
+                </div>
+              </div>
+
+              <div class="specimen-section">
+                <div class="sg-tag">Cards</div>
+                <div class="sg-cards">
+                  <div class="sg-card"><h4>Strategy</h4><p>Shortest path from goal to running system.</p></div>
+                  <div class="sg-card"><h4>Automation</h4><p>Agent workflows for the repetitive build.</p></div>
+                  <div class="sg-card"><h4>Delivery</h4><p>Production sites on infra you own.</p></div>
+                </div>
+              </div>
+
+              <div class="specimen-section">
+                <div class="sg-tag">Color roles</div>
+                <div class="sg-swatches">
+                  <div class="sg-swatch" style="background:var(--s5-color-brand)">brand</div>
+                  <div class="sg-swatch" style="background:var(--s5-color-brand-strong)">strong</div>
+                  <div class="sg-swatch" style="background:var(--s5-color-accent);color:#1e1e1e;text-shadow:none">accent</div>
+                  <div class="sg-swatch" style="background:var(--s5-color-ink)">ink</div>
+                  <div class="sg-swatch" style="background:var(--s5-color-muted)">muted</div>
+                </div>
+              </div>
+
+              <div class="specimen-section">
+                <div class="sg-tag">Badges &amp; status</div>
+                <div class="sg-badges">
+                  <span class="badge badge--success">Success</span>
+                  <span class="badge badge--warning">Warning</span>
+                  <span class="badge badge--danger">Danger</span>
+                  <span class="badge badge--muted">Muted</span>
+                </div>
+              </div>
+
+              <div class="specimen-section">
+                <div class="sg-tag">Form inputs</div>
+                <div class="sg-inputs">
+                  <input class="sg-input" placeholder="Text input">
+                  <input class="sg-input" value="Filled value">
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ COMPONENTS ============ -->
+      <section class="screen" data-screen="components">
+        <div class="screen-head">
+          <h2>Components</h2>
+          <p>The registered library — these are the only elements the canvas editor can drop onto a page. Enabling something here makes it available to non-dev authors; disabling removes it from their palette. Each ships with its own registered variants.</p>
+        </div>
+
+        <div class="registered-note">
+          <i class="fa-solid fa-shield-halved"></i>
+          <div><strong>This is the whole vocabulary a client can build with.</strong> No page-builder primitives, no arbitrary blocks — only what's registered here (plus the single <span class="mono">Embed</span> escape hatch for third-party HTML). New component? A developer registers it, and it appears in the canvas.</div>
+        </div>
+
+        <div class="comp-grid" id="compGrid"></div>
+      </section>
+
+      <!-- ============ CSS / TAILWIND ============ -->
+      <section class="screen" data-screen="css">
+        <div class="screen-head css-head">
+          <div>
+            <h2>CSS / Tailwind</h2>
+            <p>The design system source. <strong>Tokens</strong> are values, <strong>Classes</strong> are the closed vocabulary the validator enforces, <strong>Custom CSS</strong> is the escape hatch. The output engine toggle decides whether the framework emits plain CSS or Tailwind.</p>
+          </div>
+          <div class="engine-toggle" id="engineToggle" title="Output engine">
+            <button class="engine-btn active" data-engine="css">CSS</button>
+            <button class="engine-btn" data-engine="tailwind">Tailwind</button>
+          </div>
+        </div>
+
+        <div class="layer-tabs" id="layerTabs">
+          <button class="layer-tab active" data-layer="tokens"><i class="fa-solid fa-palette"></i> Tokens <i class="fa-solid fa-lock lock"></i></button>
+          <button class="layer-tab" data-layer="classes"><i class="fa-solid fa-shapes"></i> Classes</button>
+          <button class="layer-tab" data-layer="custom"><i class="fa-solid fa-pen-nib"></i> Custom CSS</button>
+        </div>
+
+        <div class="code-panel">
+          <div class="code-panel-head">
+            <span class="path" id="layerPath">site/styles/tokens.css</span>
+            <span class="tag readonly" id="layerTag">read-only · values</span>
+          </div>
+          <div class="code-body">
+            <div class="code-gutter" id="cssGutter"></div>
+            <pre class="code-pre" id="cssPre"></pre>
+          </div>
+        </div>
+
+        <div class="vocab-note" id="cssNote">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div><strong>Closed vocabulary.</strong> The <strong>Classes</strong> layer is the complete set of class names any page may use. The validator rejects anything outside it on save — this is what keeps agent-authored and human-authored HTML in lockstep, and what makes the canvas editor safe to hand to a client.</div>
+        </div>
+      </section>
+
+      <!-- ============ INTEGRATIONS ============ -->
+      <section class="screen" data-screen="integrations">
+        <div class="screen-head css-head">
+          <div>
+            <h2>Integrations</h2>
+            <p>Third-party snippets — analytics, pixels, chat widgets, verification tags. Paste the code, choose where it injects, toggle it on, and scope which pages it runs on. This is where anything that used to go in <span class="mono">&lt;head&gt;</span> lives.</p>
+          </div>
+          <button class="deploy-btn" id="intAdd"><i class="fa-solid fa-plus"></i> Add integration</button>
+        </div>
+        <div id="intList"></div>
+      </section>
+
+      <!-- ============ ROLES ============ -->
+      <section class="screen" data-screen="roles">
+        <div class="screen-head">
+          <h2>Roles &amp; Access</h2>
+          <p>Three built-in roles decide who sees what — in this settings area and inside the canvas editor. Like Webflow or Sanity: the further from Developer, the fewer surfaces are exposed. This is the guardrail that keeps a client from touching structure, CSS, or deploy.</p>
+        </div>
+
+        <div class="roles-grid">
+          <article class="role-card" data-role="developer">
+            <div class="role-top">
+              <span class="role-ico"><i class="fa-solid fa-code"></i></span>
+              <div>
+                <h3>Developer</h3>
+                <p class="role-sub">Full control · maps to WP Administrator</p>
+              </div>
+            </div>
+            <p class="role-desc">Sees and does everything. The only role that touches the closed vocabulary, template structure, CSS/Tailwind, integrations, roles, and deploy.</p>
+          </article>
+
+          <article class="role-card" data-role="marketer">
+            <div class="role-top">
+              <span class="role-ico"><i class="fa-solid fa-bullhorn"></i></span>
+              <div>
+                <h3>Marketer</h3>
+                <p class="role-sub">Content + Style + Advanced · maps to WP Editor</p>
+              </div>
+            </div>
+            <p class="role-desc">Edits content, component variants &amp; sizing, plus per-element Advanced (SEO, tag, visibility). Can open Theme Settings, but not Roles, CSS/Tailwind, or Deploy.</p>
+          </article>
+
+          <article class="role-card" data-role="client">
+            <div class="role-top">
+              <span class="role-ico"><i class="fa-solid fa-user"></i></span>
+              <div>
+                <h3>Client</h3>
+                <p class="role-sub">Content + Style only · maps to WP Author</p>
+              </div>
+            </div>
+            <p class="role-desc">In the canvas, sees only the <strong>Content</strong> and <strong>Style</strong> tabs — no Advanced, no structure surgery. Never sees this settings page at all.</p>
+          </article>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-table-cells"></i><h3>Permission matrix</h3></div>
+          <div class="card-body">
+            <p class="card-hint">What each role can reach — click any cell to toggle it. The canvas rows control which editor tabs render when that role opens a page.</p>
+            <div class="perm-scroll">
+              <table class="perm-table" id="permTable">
+                <thead>
+                  <tr>
+                    <th class="perm-cap">Capability</th>
+                    <th class="perm-role"><i class="fa-solid fa-code"></i> Developer</th>
+                    <th class="perm-role"><i class="fa-solid fa-bullhorn"></i> Marketer</th>
+                    <th class="perm-role"><i class="fa-solid fa-user"></i> Client</th>
+                  </tr>
+                </thead>
+                <tbody><!-- rendered by JS --></tbody>
+              </table>
+            </div>
+            <p class="perm-legend"><span class="perm-yes"><i class="fa-solid fa-check"></i></span> allowed &nbsp;·&nbsp; <span class="perm-no"><i class="fa-solid fa-minus"></i></span> hidden / blocked</p>
+          </div>
+        </div>
+
+        <!-- USER ASSIGNMENT — roles are meaningless until mapped to real users -->
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-users"></i><h3>Users &amp; role assignment</h3>
+            <button class="tpl-addbtn" id="userAdd"><i class="fa-solid fa-user-plus"></i> Invite user</button>
+          </div>
+          <div class="card-body">
+            <p class="card-hint">Roles do nothing until they&rsquo;re assigned. Map each WordPress user to an S5 role — this is the actual gate that decides what they see in the editor and here in settings.</p>
+            <div class="user-list" id="userList"><!-- rendered by JS --></div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- ===================== TEMPLATE EDITOR (full-screen canvas modal) =================
+     Editing a template part / template opens the CANVAS EDITOR full-screen, as a
+     modal over Theme Settings — the same editor used for pages, loaded with this
+     template's HTML. Embedded here as an iframe of canvas-mockup.html so the real
+     editor is reused (in the build it loads ?template=<file>). A thin bar on top
+     lets you return to Templates. -->
+<div class="tpl-modal" id="tplModal" aria-hidden="true">
+  <header class="tpl-modal-bar">
+    <button class="tpl-modal-back" id="tplModalBack"><i class="fa-solid fa-arrow-left"></i> Templates</button>
+    <div class="tpl-modal-title">
+      <i class="fa-solid fa-layer-group"></i>
+      <span id="tplModalName">Single Post</span>
+      <span class="tpl-modal-file mono" id="tplModalFile">templates/single.html</span>
+    </div>
+    <span class="tpl-modal-badge">Editing template · canvas</span>
+    <button class="cb-icon" id="tplModalClose" title="Close"><i class="fa-solid fa-xmark"></i></button>
+  </header>
+  <div class="tpl-modal-stage">
+    <iframe id="tplCanvasFrame" title="Canvas editor" src="about:blank"></iframe>
+  </div>
+</div>
+
+<!-- ===================== COMPONENT BUILDER (full-screen modal) =====================
+     Crocoblock-style single-component editor, S5-adapted:
+       • Top bar    — ← All components · name · delete · Dev/Preview · Save · ✕
+       • Left rail  — PROPS schema (variant chips + field cards: label, token, type,
+                      default, required, description). Editable.
+       • Center top — LIVE PREVIEW (rendered from the current template + props)
+       • Center bot — HTML TEMPLATE ({{token}} / {% logic %}), editable + vocab-validated
+       • Right top  — COMPONENT CSS: READ-ONLY, shows the components.css classes this
+                      component uses (edit in the CSS/Tailwind tab — closed vocabulary)
+       • Right bot  — COMPONENT LOGIC (runs when the component loads), editable
+====================================================================================== -->
+<div class="cb-modal" id="cbModal" aria-hidden="true">
+  <header class="cb-top">
+    <div class="cb-top-l">
+      <button class="cb-back" id="cbBack"><i class="fa-solid fa-arrow-left"></i> All components</button>
+      <input class="cb-name" id="cbName" value="Pricing Table">
+      <span class="cb-slug mono" id="cbSlug">&lt;s5-pricing&gt;</span>
+      <button class="cb-icon danger" title="Delete component"><i class="fa-solid fa-trash-can"></i></button>
+    </div>
+    <div class="cb-top-r">
+      <div class="cb-lens">
+        <button class="cb-lens-btn active" data-cblens="dev"><i class="fa-solid fa-code"></i> Dev</button>
+        <button class="cb-lens-btn" data-cblens="preview"><i class="fa-solid fa-eye"></i> Preview</button>
+      </div>
+      <button class="cb-icon" title="Undo"><i class="fa-solid fa-rotate-left"></i></button>
+      <button class="cb-icon" title="Redo"><i class="fa-solid fa-rotate-right"></i></button>
+      <button class="cb-save"><i class="fa-solid fa-check"></i> Save changes</button>
+      <button class="cb-icon" id="cbClose" title="Close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+  </header>
+
+  <div class="cb-body">
+
+    <!-- LEFT: props / field schema -->
+    <aside class="cb-props">
+      <div class="cb-props-head">
+        <span>Properties</span>
+        <button class="cb-addfield"><i class="fa-solid fa-plus"></i> Field</button>
+      </div>
+
+      <div class="cb-variants">
+        <div class="cb-var-label">Variants</div>
+        <div class="cb-var-rows">
+          <div class="cb-var"><input class="cb-var-name" value="Default"><input class="cb-var-slug mono" value="default"><button class="cb-icon sm danger"><i class="fa-solid fa-trash-can"></i></button></div>
+          <div class="cb-var"><input class="cb-var-name" value="Featured"><input class="cb-var-slug mono" value="featured"><button class="cb-icon sm danger"><i class="fa-solid fa-trash-can"></i></button></div>
+        </div>
+      </div>
+
+      <div class="cb-fields" id="cbFields"><!-- field cards populated by JS --></div>
+    </aside>
+
+    <!-- CENTER: live preview (top) + HTML template (bottom) -->
+    <main class="cb-center">
+      <section class="cb-preview">
+        <div class="cb-panel-head"><span>Live preview</span><span class="cb-panel-note">rendered with current template</span></div>
+        <div class="cb-preview-stage">
+          <div class="cb-pricing-card">
+            <h3 class="pc-title">Starter</h3>
+            <p class="pc-desc">For personal sites and weekend projects.</p>
+            <div class="pc-price"><span class="pc-amt">$7</span><span class="pc-per">/ month</span></div>
+            <p class="pc-billing">Billed annually ($84/yr)</p>
+            <a class="pc-btn">Start free</a>
+            <ul class="pc-feats">
+              <li><i class="fa-solid fa-circle-check"></i> 1 published site</li>
+              <li><i class="fa-solid fa-circle-check"></i> 50GB SSD hosting</li>
+              <li><i class="fa-solid fa-circle-check"></i> Free SSL certificate</li>
+              <li><i class="fa-solid fa-circle-check"></i> Drag-and-drop editor</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="cb-html">
+        <div class="cb-panel-head"><span>HTML template</span><span class="cb-panel-note">Use component properties with {{ double braces }} · validated against the closed vocabulary</span></div>
+        <div class="cb-code"><div class="cb-gutter" id="cbHtmlGutter"></div><pre class="cb-pre" id="cbHtmlPre"></pre></div>
+        <div class="cb-code-foot"><span class="ok"><span class="dot"></span>Vocabulary OK</span><span class="cb-panel-note" style="margin-left:auto">All classes resolve to components.css</span></div>
+      </section>
+    </main>
+
+    <!-- RIGHT: component CSS (top, read-only) + logic (bottom) -->
+    <aside class="cb-right">
+      <section class="cb-css">
+        <div class="cb-panel-head"><span>Component CSS</span><span class="cb-tag readonly">read-only · from components.css</span></div>
+        <div class="cb-code"><div class="cb-gutter" id="cbCssGutter"></div><pre class="cb-pre" id="cbCssPre"></pre></div>
+        <div class="cb-code-foot"><i class="fa-solid fa-lock" style="font-size:10px;color:var(--s5e-warning)"></i><span class="cb-panel-note">Scoped styles are owned by the design system — edit in the CSS / Tailwind tab.</span></div>
+      </section>
+      <section class="cb-logic">
+        <div class="cb-panel-head"><span>Component logic</span><span class="cb-panel-note">runs when the component loads</span></div>
+        <div class="cb-code"><div class="cb-gutter" id="cbLogicGutter"></div><pre class="cb-pre" id="cbLogicPre"></pre></div>
+      </section>
+    </aside>
+
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   SCREEN TOGGLE (left sub-nav)
+   ============================================================ */
+document.querySelectorAll('.snav').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const s=btn.dataset.screen;
+    document.querySelectorAll('.snav').forEach(b=>b.classList.toggle('active',b===btn));
+    document.querySelectorAll('.screen').forEach(sc=>sc.classList.toggle('active',sc.dataset.screen===s));
+  });
+});
+
+/* generic toggle switches */
+document.querySelectorAll('.switch').forEach(sw=>{
+  sw.addEventListener('click',()=>{ const on=sw.classList.toggle('on'); sw.setAttribute('aria-checked',on);
+    const card=sw.closest('.comp-card'); if(card) card.classList.toggle('off',!on);
+  });
+});
+
+/* ============================================================
+   STYLEGUIDE — token editors (real tokens.css / scales.css)
+   Each card has a pencil → edit mode: inputs become editable and the
+   header swaps the pencil for + (add) and ✓ (save).
+   ============================================================ */
+const COLORS=[
+  ['Brand','--s5-color-brand','#2271b1'],
+  ['Brand strong','--s5-color-brand-strong','#135e96'],
+  ['Accent','--s5-color-accent','#f0c33c'],
+  ['Ink','--s5-color-ink','#1e1e1e'],
+  ['Ink soft','--s5-color-ink-soft','#3c434a'],
+  ['Muted','--s5-color-muted','#6c7278'],
+  ['Surface','--s5-color-surface','#ffffff'],
+  ['Surface alt','--s5-color-surface-alt','#f6f7f7'],
+  ['Line','--s5-color-line','#dcdcde'],
+  ['Success','--s5-color-success','#2a9d5c'],
+  ['Warning','--s5-color-warning','#f0c33c'],
+  ['Danger','--s5-color-danger','#d63638'],
+];
+const TYPE=[['xxs','0.694rem'],['xs','0.833rem'],['sm','0.9rem'],['md','1rem'],['lg','1.2rem'],['xl','1.44rem'],['xxl','1.728rem'],['xxxl','2.074rem']];
+const SPACE=[['xxs','0.25rem'],['xs','0.5rem'],['sm','0.75rem'],['md','1rem'],['lg','1.5rem'],['xl','2rem'],['xxl','3rem'],['xxxl','4rem']];
+const RADIUS=[['xxs','2px'],['xs','4px'],['sm','6px'],['md','8px'],['lg','12px'],['xl','16px'],['xxl','24px'],['xxxl','32px']];
+const maxSpace=4;
+
+/* ---- renderers (read/edit aware) ---- */
+function renderColors(edit){
+  document.getElementById('colorTokens').innerHTML = COLORS.map(([n,v,h],i)=>
+    `<div class="token-color" data-i="${i}">
+       <span class="token-sw ${edit?'editable':''}" style="background:${h}" ${edit?`onclick="this.nextElementSibling.querySelector('.token-hex-input')?.focus()"`:''}></span>
+       <span class="token-meta">
+         ${edit?`<input class="token-name-input" value="${n}" data-f="name">`
+               :`<span class="token-name">${n}</span>`}
+         <br><span class="token-var">${v}</span>
+       </span>
+       ${edit?`<input class="token-hex-input" value="${h}" data-f="hex">
+               <button class="token-del" title="Remove"><i class="fa-solid fa-xmark"></i></button>`
+             :`<span class="token-hex">${h}</span>`}
+     </div>`).join('');
+  if(edit) bindColorEdit();
+}
+function bindColorEdit(){
+  document.querySelectorAll('#colorTokens .token-hex-input').forEach(inp=>{
+    inp.addEventListener('input',()=>{ const row=inp.closest('.token-color'); row.querySelector('.token-sw').style.background=inp.value; });
+  });
+  document.querySelectorAll('#colorTokens .token-del').forEach(b=>{
+    b.addEventListener('click',()=>{ b.closest('.token-color').remove(); });
+  });
+}
+function renderScale(id,arr,prefix,edit,extra){
+  document.getElementById(id).innerHTML = arr.map(([k,v],i)=>
+    `<div class="scale-row" data-i="${i}">
+       <span class="scale-key">${prefix}${k}</span>
+       ${extra?extra(v):''}
+       ${edit?`<input class="scale-val-input" value="${v}" data-f="val">
+               <button class="token-del" title="Remove"><i class="fa-solid fa-xmark"></i></button>`
+             :`<span class="scale-val">${v}</span>`}
+     </div>`).join('');
+  if(edit) document.querySelectorAll('#'+id+' .token-del').forEach(b=>b.addEventListener('click',()=>b.closest('.scale-row').remove()));
+}
+const spaceBar=v=>{const pct=Math.max(6,(parseFloat(v)/maxSpace)*100);return `<span class="scale-bar" style="width:${pct}px"></span>`;};
+const radiusBar=v=>`<span class="scale-bar" style="width:26px;height:26px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:${v};opacity:1"></span>`;
+
+function renderCard(which,edit){
+  if(which==='colors') renderColors(edit);
+  if(which==='type')   renderScale('typeScale',TYPE,'--s5-text-',edit,null);
+  if(which==='space')  renderScale('spaceScale',SPACE,'--s5-space-',edit,spaceBar);
+  if(which==='radius') renderScale('radiusScale',RADIUS,'--s5-radius-',edit,radiusBar);
+}
+// initial read-mode render
+['colors','type','space','radius'].forEach(w=>renderCard(w,false));
+
+/* ---- pencil / add / save wiring per card ---- */
+document.querySelectorAll('.card[data-tokencard]').forEach(card=>{
+  const which=card.dataset.tokencard;
+  const pencil=card.querySelector('.edit-btn.pencil');
+  const add=card.querySelector('.edit-btn.add');
+  const save=card.querySelector('.edit-btn.save');
+  function setMode(editing){
+    card.classList.toggle('editing',editing);
+    pencil.hidden=editing; add.hidden=!editing; save.hidden=!editing;
+    renderCard(which,editing);
+  }
+  pencil.addEventListener('click',()=>setMode(true));
+  save.addEventListener('click',()=>setMode(false));   // (spec: would persist to tokens.css / scales.css)
+  add.addEventListener('click',()=>{
+    if(which==='colors') COLORS.push(['New color','--s5-color-new','#888888']);
+    else { const arr={type:TYPE,space:SPACE,radius:RADIUS}[which]; arr.push(['new', which==='radius'?'0px':'1rem']); }
+    renderCard(which,true);
+  });
+});
+
+/* ============================================================
+   COMPONENTS — the registered library
+   ============================================================ */
+const COMPONENTS=[
+  {name:'Hero',slug:'s5-hero',ico:'fa-star',on:true,desc:'Eyebrow, headline, lede, actions and media. The page opener.',variants:['default','split','centered'],used:8,group:'Section'},
+  {name:'CTA',slug:'s5-cta',ico:'fa-bullhorn',on:true,desc:'Closing call-to-action band with heading, copy and a primary button.',variants:['default','boxed','inverse'],used:11,group:'Section'},
+  {name:'Feature Grid',slug:'s5-feature-grid',ico:'fa-table-columns',on:true,desc:'Responsive grid of feature cards. 2–4 columns.',variants:['3-up','2-up','4-up'],used:6,group:'Section'},
+  {name:'Pricing',slug:'s5-pricing',ico:'fa-tags',on:true,desc:'Tiered pricing table with highlight column.',variants:['default','highlight'],used:2,group:'Section'},
+  {name:'Testimonial',slug:'s5-testimonial',ico:'fa-quote-left',on:true,desc:'Single quote or carousel of client quotes.',variants:['single','carousel'],used:3,group:'Section'},
+  {name:'FAQ',slug:'s5-faq',ico:'fa-circle-question',on:true,desc:'Accordion of question / answer pairs.',variants:['default','two-column'],used:4,group:'Section'},
+  {name:'Card',slug:'s5-card',ico:'fa-square',on:true,desc:'Content card — heading, body, optional media.',variants:['default','emphasis','muted'],used:19,group:'Content'},
+  {name:'Rich Text',slug:'s5-richtext',ico:'fa-heading',on:true,desc:'Prose block: headings, paragraphs, lists, links.',variants:['default'],used:22,group:'Content'},
+  {name:'Media',slug:'s5-media',ico:'fa-image',on:true,desc:'Image / picture with responsive sources & alt.',variants:['default','wide','inline'],used:14,group:'Content'},
+  {name:'Button',slug:'s5-button',ico:'fa-hand-pointer',on:true,desc:'Link styled as a button. Text + destination.',variants:['primary','strong','accent','ghost'],used:31,group:'Content'},
+  {name:'Query Loop',slug:'s5-query',ico:'fa-infinity',on:true,desc:'Dynamic list of posts / CPT items.',variants:['grid','list'],used:2,group:'Dynamic'},
+  {name:'Nav Menu',slug:'s5-nav',ico:'fa-bars',on:true,desc:'WordPress-managed navigation menu.',variants:['default'],used:2,group:'Dynamic'},
+  {name:'Embed',slug:'s5-embed',ico:'fa-code',on:true,desc:'The ONLY raw primitive — third-party HTML / scripts that can’t be a component.',variants:['raw'],used:1,group:'Primitive'},
+];
+document.getElementById('compGrid').innerHTML = COMPONENTS.map((c,i)=>
+  `<div class="comp-card ${c.on?'':'off'}" data-comp="${i}">
+     <div class="comp-top">
+       <div class="comp-ico"><i class="fa-solid ${c.ico}"></i></div>
+       <div style="flex:1;min-width:0">
+         <div class="comp-name">${c.name}</div>
+         <div class="comp-slug">&lt;${c.slug}&gt; · ${c.group}</div>
+       </div>
+       <button class="comp-open" data-open="${i}" title="Open builder"><i class="fa-solid fa-pen"></i></button>
+       <button class="switch ${c.on?'on':''}" role="switch" aria-checked="${c.on}"><span class="knob"></span></button>
+     </div>
+     <div class="comp-desc">${c.desc}</div>
+     <div class="comp-variants">${c.variants.map(v=>`<span class="vchip">${v}</span>`).join('')}</div>
+     <div class="comp-meta">
+       <span class="m"><i class="fa-solid fa-file-lines"></i> used on ${c.used} page${c.used===1?'':'s'}</span>
+       <span class="m"><i class="fa-solid fa-sliders"></i> ${c.variants.length} variant${c.variants.length===1?'':'s'}</span>
+     </div>
+   </div>`).join('');
+// re-bind switches created above
+document.querySelectorAll('.comp-card .switch').forEach(sw=>{
+  sw.addEventListener('click',(e)=>{ e.stopPropagation(); const on=sw.classList.toggle('on'); sw.setAttribute('aria-checked',on);
+    sw.closest('.comp-card').classList.toggle('off',!on); });
+});
+// open the builder modal — pencil button OR clicking the card body (not the switch)
+document.querySelectorAll('.comp-open').forEach(b=>b.addEventListener('click',(e)=>{ e.stopPropagation(); openComponentBuilder(+b.dataset.open); }));
+document.querySelectorAll('.comp-card').forEach(card=>card.addEventListener('click',()=>openComponentBuilder(+card.dataset.comp)));
+
+/* ============================================================
+   TEMPLATES — parts + WP template hierarchy
+   Edit pencil deep-links to the canvas editor (one editor for pages
+   AND templates). Rows show file · status · what each applies to.
+   ============================================================ */
+const TPL_PARTS=[
+  {name:'Site Header',file:'site/parts/site-header.html',ico:'fa-window-maximize',applies:'Top of every page',on:true},
+  {name:'Site Footer',file:'site/parts/site-footer.html',ico:'fa-window-minimize',applies:'Bottom of every page',on:true},
+];
+const TPL_HIER=[
+  {name:'Front Page',file:'templates/front-page.html',ico:'fa-house',applies:'The site homepage',status:'active',core:true},
+  {name:'Single Post',file:'templates/single.html',ico:'fa-file-lines',applies:'All blog posts',status:'active',core:true},
+  {name:'Page',file:'templates/page.html',ico:'fa-file',applies:'All standard pages',status:'active',core:true},
+  {name:'Archive',file:'templates/archive.html',ico:'fa-box-archive',applies:'Date, author & CPT archives',status:'active',core:true},
+  {name:'Category',file:'templates/category.html',ico:'fa-folder-tree',applies:'Category term archives',status:'default',core:true},
+  {name:'Search Results',file:'templates/search.html',ico:'fa-magnifying-glass',applies:'The search results page',status:'default',core:true},
+  {name:'404 Not Found',file:'templates/404.html',ico:'fa-triangle-exclamation',applies:'Missing / unresolved URLs',status:'active',core:true},
+  {name:'Blog / Index',file:'templates/index.html',ico:'fa-list',applies:'Posts index & catch-all fallback',status:'active',core:true},
+  // custom / CPT templates registered by this site
+  {name:'Single Product',file:'templates/single-product.html',ico:'fa-box',applies:'CPT: product · single view',status:'active',core:false},
+  {name:'Product Archive',file:'templates/archive-product.html',ico:'fa-boxes-stacked',applies:'CPT: product · archive',status:'active',core:false},
+];
+function renderTemplates(list,hostId,mode){
+  // mode 'parts' → enable/disable toggle; mode 'hier' → active/default status pill.
+  // Custom (non-core) rows also get a delete button.
+  document.getElementById(hostId).innerHTML = list.map((t,i)=>{
+    const right = mode==='parts'
+      ? `<button class="switch ${t.on?'on':''} tpl-switch" data-i="${i}" role="switch" aria-checked="${t.on}"><span class="knob"></span></button>`
+      : `<span class="tpl-status ${t.status}"><span class="d"></span>${t.status==='active'?'Active':'Using default'}</span>`;
+    const delBtn = (mode==='parts'||!t.core)
+      ? `<button class="tpl-del" data-i="${i}" title="Remove template"><i class="fa-solid fa-trash-can"></i></button>` : '';
+    const badge = (mode==='hier' && !t.core) ? `<span class="tpl-custom-badge">custom</span>` : '';
+    return `<div class="tpl-row ${mode==='parts'&&!t.on?'row-off':''}">
+       <div class="tpl-ico"><i class="fa-solid ${t.ico}"></i></div>
+       <div class="tpl-meta">
+         <div class="tpl-name">${t.name}${badge}<span class="tpl-file">${t.file}</span></div>
+         <div class="tpl-applies">${t.applies}</div>
+       </div>
+       ${right}
+       <button class="tpl-edit" title="Edit in canvas editor"><i class="fa-solid fa-pen"></i></button>
+       ${delBtn}
+     </div>`;}).join('');
+  if(mode==='parts'){
+    document.querySelectorAll('#'+hostId+' .tpl-switch').forEach(sw=>sw.addEventListener('click',()=>{
+      const on=sw.classList.toggle('on'); sw.setAttribute('aria-checked',on);
+      list[+sw.dataset.i].on=on; sw.closest('.tpl-row').classList.toggle('row-off',!on);
+    }));
+  }
+  // delete custom rows
+  document.querySelectorAll('#'+hostId+' .tpl-del').forEach(b=>b.addEventListener('click',()=>{
+    list.splice(+b.dataset.i,1); renderTemplates(list,hostId,mode); rebindTplEdits();
+  }));
+}
+function rebindTplEdits(){ bindTplEdits('tplParts',TPL_PARTS); bindTplEdits('tplHierarchy',TPL_HIER); }
+renderTemplates(TPL_PARTS,'tplParts','parts');
+renderTemplates(TPL_HIER,'tplHierarchy','hier');
+
+/* ---- add-template-part / add-template inline forms ---- */
+function slugToFile(name,dir){ return dir+'/'+name.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')+'.html'; }
+function showAddForm(hostId,mode){
+  const host=document.getElementById(hostId);
+  if(host.querySelector('.tpl-addform')) return;   // one at a time
+  const form=document.createElement('div');
+  form.className='tpl-addform';
+  if(mode==='parts'){
+    form.innerHTML=`
+      <div class="field"><label class="field-label">Part name</label><input class="input taf-name" placeholder="e.g. CTA Band"></div>
+      <div class="field"><label class="field-label">Applies to</label><input class="input taf-applies" placeholder="Where it renders"></div>
+      <button class="taf-save">Add</button><button class="taf-cancel">Cancel</button>`;
+  } else {
+    form.innerHTML=`
+      <div class="field"><label class="field-label">Template</label>
+        <select class="select taf-type">
+          <option value="single">CPT — Single</option>
+          <option value="archive">CPT — Archive</option>
+          <option value="taxonomy">Taxonomy</option>
+          <option value="author">Author</option>
+          <option value="custom">Custom / other</option>
+        </select></div>
+      <div class="field"><label class="field-label">Name / post-type slug</label><input class="input taf-name" placeholder="e.g. portfolio"></div>
+      <button class="taf-save">Add</button><button class="taf-cancel">Cancel</button>`;
+  }
+  host.appendChild(form);
+  form.querySelector('.taf-cancel').addEventListener('click',()=>form.remove());
+  form.querySelector('.taf-save').addEventListener('click',()=>{
+    const name=form.querySelector('.taf-name').value.trim(); if(!name) return;
+    if(mode==='parts'){
+      TPL_PARTS.push({name, file:slugToFile(name,'site/parts'), ico:'fa-puzzle-piece', applies:form.querySelector('.taf-applies').value||'Custom part', on:true});
+      renderTemplates(TPL_PARTS,'tplParts','parts');
+    } else {
+      const type=form.querySelector('.taf-type').value;
+      const map={single:['single-',`CPT: ${name} · single view`,'fa-box'],archive:['archive-',`CPT: ${name} · archive`,'fa-boxes-stacked'],taxonomy:['taxonomy-',`Taxonomy: ${name}`,'fa-folder-tree'],author:['author-',`Author: ${name}`,'fa-user'],custom:['',`Custom: ${name}`,'fa-file-code']};
+      const [pfx,applies,ico]=map[type];
+      const file='templates/'+(pfx?pfx:'')+name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.html';
+      TPL_HIER.push({name:(type==='single'?'Single ':type==='archive'?'Archive ':'')+name, file, ico, applies, status:'active', core:false});
+      renderTemplates(TPL_HIER,'tplHierarchy','hier');
+    }
+    rebindTplEdits();
+  });
+}
+document.getElementById('addPart').addEventListener('click',()=>showAddForm('tplParts','parts'));
+document.getElementById('addTpl').addEventListener('click',()=>showAddForm('tplHierarchy','hier'));
+
+/* redirects table (General → Redirects) */
+const REDIRECTS=[
+  {from:'/old-pricing/',to:'/pricing/',code:'301'},
+  {from:'/blog/2024/launch',to:'/blog/launch',code:'301'},
+];
+function renderRedirects(){
+  const host=document.getElementById('redirects');
+  host.innerHTML = REDIRECTS.map(r=>
+    `<div class="rdr-row">
+       <input value="${r.from}">
+       <span class="arrow"><i class="fa-solid fa-arrow-right"></i></span>
+       <input value="${r.to}">
+       <span class="rdr-code">${r.code}</span>
+       <button class="token-del rdr-del" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+     </div>`).join('') +
+    `<button class="cond-add" id="rdrAdd" style="margin-top:12px"><i class="fa-solid fa-plus"></i> Add redirect</button>`;
+  host.querySelectorAll('.rdr-del').forEach(b=>b.addEventListener('click',()=>b.closest('.rdr-row').remove()));
+  document.getElementById('rdrAdd').addEventListener('click',()=>{ REDIRECTS.push({from:'',to:'',code:'301'}); renderRedirects(); });
+}
+renderRedirects();
+
+/* pencil → open the CANVAS EDITOR full-screen (modal), loaded with this template.
+   The mockup embeds canvas-mockup.html in an iframe; the real build would pass
+   ?template=<file> so the canvas loads that template's HTML. */
+const tplModal=document.getElementById('tplModal');
+const tplFrame=document.getElementById('tplCanvasFrame');
+function openTemplateEditor(t){
+  document.getElementById('tplModalName').textContent=t.name;
+  document.getElementById('tplModalFile').textContent=t.file;
+  // load the canvas in TEMPLATE mode (?template=<file>) so its gear opens
+  // Display & Conditions instead of Page Settings. Reload per template so the
+  // drawer reflects the right file.
+  tplFrame.src='canvas-mockup.html?template='+encodeURIComponent(t.file);
+  tplModal.classList.add('open'); tplModal.setAttribute('aria-hidden','false');
+}
+function closeTemplateEditor(){ tplModal.classList.remove('open'); tplModal.setAttribute('aria-hidden','true'); }
+function bindTplEdits(hostId,list){
+  document.querySelectorAll('#'+hostId+' .tpl-edit').forEach((b,i)=>b.addEventListener('click',()=>openTemplateEditor(list[i])));
+}
+bindTplEdits('tplParts',TPL_PARTS);
+bindTplEdits('tplHierarchy',TPL_HIER);
+document.getElementById('tplModalBack').addEventListener('click',closeTemplateEditor);
+document.getElementById('tplModalClose').addEventListener('click',closeTemplateEditor);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && tplModal.classList.contains('open')) closeTemplateEditor(); });
+
+/* ============================================================
+   COMPONENT BUILDER MODAL — populate + open/close
+   ============================================================ */
+// Sample prop schema (shown for every component in this mock; a real build
+// would carry its own per-component field list).
+const FIELD_SCHEMA=[
+  {label:'Variation',token:'variation',type:'Select',def:'default',req:false,desc:'Choose the card style variation.'},
+  {label:'Badge text',token:'badge_text',type:'Text',def:'MOST POPULAR',req:false,desc:'Top badge text shown on the featured variation.'},
+  {label:'Plan name',token:'plan_name',type:'Text',def:'Starter',req:true,desc:'The plan title at the top of the card.'},
+  {label:'Price',token:'price',type:'Text',def:'7',req:true,desc:'Numeric price, without currency symbol.'},
+  {label:'Button URL',token:'button_url',type:'URL',def:'/signup/',req:false,desc:'Destination for the plan CTA button.'},
+];
+function renderFields(){
+  document.getElementById('cbFields').innerHTML = FIELD_SCHEMA.map(f=>
+    `<div class="cb-field">
+       <div class="cb-field-top"><span class="lbl">Field</span><button class="cb-icon sm danger"><i class="fa-solid fa-trash-can"></i></button></div>
+       <div class="cb-f"><label>Label</label><input value="${f.label}"></div>
+       <div class="cb-f"><label>Token</label>
+         <div class="cb-token"><span class="braces">{{</span><input value="${f.token}"><span class="braces">}}</span><button class="copy"><i class="fa-regular fa-copy"></i></button></div>
+         <p class="cb-f-hint">Use this token in the template to insert the property value.</p>
+       </div>
+       <div class="cb-f-row">
+         <div class="cb-f"><label>Type</label><select><option ${f.type==='Text'?'selected':''}>Text</option><option ${f.type==='Select'?'selected':''}>Select</option><option ${f.type==='URL'?'selected':''}>URL</option><option>Number</option><option>Media</option><option>Toggle</option></select></div>
+         <div class="cb-f"><label>Default value</label><input value="${f.def}"></div>
+       </div>
+       <div class="cb-f"><label class="cb-req"><input type="checkbox" ${f.req?'checked':''}> Required</label></div>
+       <div class="cb-f"><label>Description</label><textarea>${f.desc}</textarea></div>
+     </div>`).join('');
+}
+
+const CB_HTML=[
+  ['<span class="t-tag">&lt;div</span> <span class="t-attr">class</span>=<span class="t-str">"pricing-card</span><span class="t-logic">{% if variation == \'featured\' %}</span><span class="t-str"> pricing-card--featured</span><span class="t-logic">{% else %}</span><span class="t-str"> pricing-card--default</span><span class="t-logic">{% endif %}</span><span class="t-str">"</span><span class="t-tag">&gt;</span>'],
+  [''],
+  ['  <span class="t-logic">{% if variation == \'featured\' and badge_text %}</span>'],
+  ['    <span class="t-tag">&lt;div</span> <span class="t-attr">class</span>=<span class="t-str">"pricing-card__badge"</span><span class="t-tag">&gt;</span><span class="t-token">{{ badge_text }}</span><span class="t-tag">&lt;/div&gt;</span>'],
+  ['  <span class="t-logic">{% endif %}</span>'],
+  [''],
+  ['  <span class="t-tag">&lt;h3</span> <span class="t-attr">class</span>=<span class="t-str">"pricing-card__title"</span><span class="t-tag">&gt;</span><span class="t-token">{{ plan_name }}</span><span class="t-tag">&lt;/h3&gt;</span>'],
+  ['  <span class="t-tag">&lt;div</span> <span class="t-attr">class</span>=<span class="t-str">"pricing-card__price"</span><span class="t-tag">&gt;</span><span class="t-token">{{ price }}</span><span class="t-tag">&lt;/div&gt;</span>'],
+  [''],
+  ['  <span class="t-tag">&lt;a</span> <span class="t-attr">href</span>=<span class="t-str">"</span><span class="t-token">{{ button_url }}</span><span class="t-str">"</span> <span class="t-attr">class</span>=<span class="t-str">"btn pricing-card__button"</span><span class="t-tag">&gt;</span>Start free<span class="t-tag">&lt;/a&gt;</span>'],
+  ['<span class="t-tag">&lt;/div&gt;</span>'],
+];
+const CB_CSS=[
+  ['<span class="t-cmt">/* Owned by components.css — read-only here. */</span>'],
+  ['<span class="t-sel">.pricing-card</span> {'],
+  ['  <span class="t-prop">padding</span>: <span class="t-var">var(--s5-space-xl)</span>;'],
+  ['  <span class="t-prop">border-radius</span>: <span class="t-var">var(--s5-radius-lg)</span>;'],
+  ['  <span class="t-prop">background</span>: <span class="t-var">var(--s5-color-surface)</span>;'],
+  ['}'],
+  ['<span class="t-sel">.pricing-card__title</span> {'],
+  ['  <span class="t-prop">font-size</span>: <span class="t-var">var(--s5-text-xl)</span>;'],
+  ['  <span class="t-prop">font-weight</span>: <span class="t-val">800</span>;'],
+  ['}'],
+  ['<span class="t-sel">.pricing-card--featured</span> {'],
+  ['  <span class="t-prop">border</span>: <span class="t-val">2px solid</span> <span class="t-var">var(--s5-color-brand)</span>;'],
+  ['}'],
+];
+const CB_LOGIC=[
+  ['<span class="t-cmt">// Runs when the component loads.</span>'],
+  ['<span class="t-cmt">// e.g. format price, wire a highlight toggle.</span>'],
+  ['<span class="t-logic">const</span> price = <span class="t-prop">props</span>.price;'],
+  ['<span class="t-logic">if</span> (<span class="t-prop">props</span>.variation === <span class="t-str">\'featured\'</span>) {'],
+  ['  root.classList.add(<span class="t-str">\'is-highlighted\'</span>);'],
+  ['}'],
+];
+function fillCode(preId,gutId,lines){
+  document.getElementById(preId).innerHTML = lines.map(l=>l[0]).join('\n');
+  document.getElementById(gutId).innerHTML = lines.map((_,i)=>`<span>${i+1}</span>`).join('');
+}
+
+function openComponentBuilder(i){
+  const c=COMPONENTS[i];
+  document.getElementById('cbName').value=c.name;
+  document.getElementById('cbSlug').innerHTML='&lt;'+c.slug+'&gt;';
+  renderFields();
+  fillCode('cbHtmlPre','cbHtmlGutter',CB_HTML);
+  fillCode('cbCssPre','cbCssGutter',CB_CSS);
+  fillCode('cbLogicPre','cbLogicGutter',CB_LOGIC);
+  const m=document.getElementById('cbModal'); m.classList.add('open'); m.setAttribute('aria-hidden','false');
+}
+function closeComponentBuilder(){ const m=document.getElementById('cbModal'); m.classList.remove('open'); m.setAttribute('aria-hidden','true'); }
+document.getElementById('cbBack').addEventListener('click',closeComponentBuilder);
+document.getElementById('cbClose').addEventListener('click',closeComponentBuilder);
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeComponentBuilder(); });
+document.querySelectorAll('.cb-lens-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.cb-lens-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+}));
+
+/* ============================================================
+   CSS / TAILWIND — source layers
+   ============================================================ */
+// Three inner layers: Tokens · Classes · Custom CSS.
+// Each carries a CSS view and a Tailwind view (the engine toggle switches).
+let ENGINE='css';
+const LAYERS={
+  tokens:{
+    css:{path:'site/styles/tokens.css',tag:'read-only · values',ro:true,lines:[
+      ['cmt','/* Design tokens — custom properties ONLY. Edit values on StyleGuide. */'],
+      ['sel',':root {'],
+      ['prop','  --s5-color-brand:',' #2271b1;'],
+      ['prop','  --s5-color-accent:',' #f0c33c;'],
+      ['prop','  --s5-text-xxxl:',' 2.074rem;'],
+      ['prop','  --s5-space-md:',' 1rem;'],
+      ['prop','  --s5-radius-lg:',' 12px;'],
+      ['sel','}'],
+    ]},
+    tw:{path:'tailwind.config.js',tag:'generated from tokens',ro:true,lines:[
+      ['cmt','// theme.extend — generated from the S5 tokens. Do not hand-edit.'],
+      ['sel','colors: {'],
+      ['prop','  brand:',' "#2271b1",'],
+      ['prop','  accent:',' "#f0c33c",'],
+      ['sel','},'],
+      ['sel','fontSize: {',' xxxl: "2.074rem" },'],
+      ['sel','spacing: {','   md: "1rem" },'],
+      ['sel','borderRadius:{',' lg: "12px" },'],
+    ]},
+  },
+  classes:{
+    css:{path:'site/styles/components.css + utilities.css',tag:'closed vocabulary',ro:false,lines:[
+      ['cmt','/* The closed class vocabulary — the validator enforces THESE names. */'],
+      ['sel','.hero {'],
+      ['prop','  display:',' grid;'],
+      ['prop','  padding:',' var(--s5-space-xxxl) var(--s5-space-xl);'],
+      ['sel','}'],
+      ['sel','.btn--primary {'],
+      ['prop','  background:',' var(--s5-color-brand);'],
+      ['sel','}'],
+      ['sel','.feature-grid {',' /* 3-up grid */ }'],
+      ['sel','.u-text-center {',' text-align:center; }'],
+      ['sel','.u-mt-lg {',' margin-top:var(--s5-space-lg); }'],
+    ]},
+    tw:{path:'@layer components (Tailwind)',tag:'closed vocabulary',ro:false,lines:[
+      ['cmt','/* Same closed vocabulary, expressed with @apply. */'],
+      ['sel','.hero {'],
+      ['prop','  @apply',' grid p-16 md:p-24;'],
+      ['sel','}'],
+      ['sel','.btn--primary {'],
+      ['prop','  @apply',' bg-brand text-white rounded-sm;'],
+      ['sel','}'],
+      ['sel','.feature-grid {'],
+      ['prop','  @apply',' grid grid-cols-3 gap-5;'],
+      ['sel','}'],
+    ]},
+  },
+  custom:{
+    css:{path:'site/styles/custom.css',tag:'escape hatch · site-scoped',ro:false,lines:[
+      ['cmt','/* Custom CSS — the escape hatch. Site-authored, NOT vocabulary. */'],
+      ['cmt','/* Kept out of the validator; use sparingly. */'],
+      ['sel','.site-header--holiday {'],
+      ['prop','  background:',' linear-gradient(90deg,#2271b1,#135e96);'],
+      ['sel','}'],
+    ]},
+    tw:{path:'site/styles/custom.css',tag:'escape hatch · site-scoped',ro:false,lines:[
+      ['cmt','/* Custom CSS — the escape hatch. Site-authored, NOT vocabulary. */'],
+      ['cmt','/* Tailwind still available via @apply here if you want it. */'],
+      ['sel','.site-header--holiday {'],
+      ['prop','  @apply',' bg-gradient-to-r from-brand to-brand-strong;'],
+      ['sel','}'],
+    ]},
+  },
+};
+let CUR_LAYER='tokens';
+function renderLayer(key){
+  CUR_LAYER=key;
+  const L=LAYERS[key][ENGINE==='tailwind'?'tw':'css'];
+  document.getElementById('layerPath').textContent=L.path;
+  const tag=document.getElementById('layerTag');
+  tag.className='tag '+(L.ro?'readonly':'editable');
+  tag.textContent=L.tag;
+  const pre=document.getElementById('cssPre'), gut=document.getElementById('cssGutter');
+  pre.innerHTML=L.lines.map(l=>{
+    if(l[0]==='cmt') return `<span class="tok-cmt">${l[1]}</span>`;
+    if(l[0]==='sel') return `<span class="tok-sel">${l[1]}</span>${l[2]?'<span class="tok-val">'+l[2]+'</span>':''}`;
+    if(l[0]==='prop') return `<span class="tok-var">${l[1]}</span><span class="tok-val">${l[2]}</span>`;
+    return l[1]||'';
+  }).join('\n');
+  gut.innerHTML=L.lines.map((_,i)=>`<span>${i+1}</span>`).join('');
+  // Tokens layer lock icon only makes sense in CSS view
+  document.querySelector('.layer-tab[data-layer="tokens"] .lock').style.display = ENGINE==='tailwind'?'none':'';
+}
+renderLayer('tokens');
+document.querySelectorAll('.layer-tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.layer-tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active'); renderLayer(t.dataset.layer);
+  });
+});
+// engine toggle (CSS ⇄ Tailwind)
+document.querySelectorAll('.engine-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.engine-btn').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); ENGINE=b.dataset.engine; renderLayer(CUR_LAYER);
+}));
+
+/* ============================================================
+   INTEGRATIONS — snippets with injection point + conditions
+   ============================================================ */
+const INJECT_POINTS=['Head','Before &lt;/body&gt;','After &lt;body&gt;','Footer'];
+const INTEGRATIONS=[
+  {name:'Google Analytics 4',ico:'fa-chart-line',on:true,point:'Head',
+   code:'&lt;!-- GA4 --&gt;\n&lt;script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXX"&gt;&lt;/script&gt;'},
+  {name:'Meta Pixel',ico:'fa-magnifying-glass-chart',on:false,point:'Head',
+   code:'&lt;!-- Meta Pixel Code --&gt;\n&lt;script&gt;!function(f,b,e,v,n,t,s){…}&lt;/script&gt;'},
+];
+function intConditions(){
+  return `<div class="int-cond">
+      <label class="int-ctrl > label" style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--s5e-text-faint);margin-bottom:9px">Show when <span class="opt" style="text-transform:none;letter-spacing:0;font-weight:400">which pages / posts</span></label>
+      <div class="cond-group">
+        <div class="cond-group-label"><span class="cond-inc">Include</span> when</div>
+        <div class="cond-row">
+          <select class="select cond-sel"><option>Post type</option><option>Taxonomy</option><option>Page</option></select>
+          <select class="select cond-op"><option>is</option><option>is not</option></select>
+          <select class="select"><option>All pages</option><option>Post</option><option>Page</option><option>Homepage</option></select>
+          <button class="cond-del" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <button class="cond-add"><i class="fa-solid fa-plus"></i> Add rule</button>
+      </div>
+    </div>`;
+}
+function renderIntegrations(){
+  const host=document.getElementById('intList');
+  host.innerHTML = INTEGRATIONS.map((it,i)=>
+    `<div class="int-card ${it.on?'':'off'}" data-i="${i}">
+       <div class="int-head">
+         <div class="int-ico"><i class="fa-solid ${it.ico}"></i></div>
+         <input class="int-name-input" value="${it.name}">
+         <button class="switch ${it.on?'on':''} int-switch" role="switch" aria-checked="${it.on}"><span class="knob"></span></button>
+         <button class="int-del" title="Delete"><i class="fa-solid fa-trash-can"></i></button>
+       </div>
+       <div class="int-body">
+         <textarea class="int-code" spellcheck="false">${it.code.replace(/&lt;/g,'<').replace(/&gt;/g,'>')}</textarea>
+         <div class="int-controls">
+           <div class="int-ctrl">
+             <label>Injection point</label>
+             <select class="select">${INJECT_POINTS.map(p=>`<option ${p.replace('&lt;/body&gt;','</body>')===it.point?'selected':''}>${p}</option>`).join('')}</select>
+           </div>
+         </div>
+         ${intConditions()}
+       </div>
+     </div>`).join('');
+  host.querySelectorAll('.int-switch').forEach(sw=>sw.addEventListener('click',()=>{
+    const card=sw.closest('.int-card'); const on=sw.classList.toggle('on');
+    sw.setAttribute('aria-checked',on); card.classList.toggle('off',!on); INTEGRATIONS[+card.dataset.i].on=on;
+  }));
+  host.querySelectorAll('.int-del').forEach(b=>b.addEventListener('click',()=>{
+    const card=b.closest('.int-card'); INTEGRATIONS.splice(+card.dataset.i,1); renderIntegrations();
+  }));
+  host.querySelectorAll('.cond-del').forEach(b=>b.addEventListener('click',()=>b.closest('.cond-row').remove()));
+  host.querySelectorAll('.cond-add').forEach(b=>b.addEventListener('click',()=>{
+    const g=b.closest('.cond-group'), proto=g.querySelector('.cond-row');
+    if(proto){ const c=proto.cloneNode(true); c.querySelector('.cond-del').addEventListener('click',()=>c.remove()); g.insertBefore(c,b);}
+  }));
+}
+renderIntegrations();
+document.getElementById('intAdd').addEventListener('click',()=>{
+  INTEGRATIONS.push({name:'New integration',ico:'fa-code',on:false,point:'Head',code:'&lt;!-- paste snippet --&gt;'});
+  renderIntegrations();
+});
+
+/* ===================== ROLES — permission matrix ===================== */
+/* d=Developer, m=Marketer, c=Client. Order: [dev,mkt,client] */
+const PERMS=[
+  {group:'Canvas editor (page authoring)'},
+  {cap:'Open the canvas editor',          r:[1,1,1]},
+  {cap:'Content tab (props: text, media, links)', r:[1,1,1]},
+  {cap:'Style tab (variants · t-shirt sizing · spacing)', r:[1,1,1]},
+  {cap:'Advanced tab (tag · SEO · responsive visibility)', r:[1,1,0]},
+  {cap:'Structure tree (disable / re-enable elements)', r:[1,1,0]},
+  {cap:'Embed primitive (raw HTML block)', r:[1,0,0]},
+  {cap:'Page Settings gear (page meta · schema)', r:[1,1,0]},
+
+  {group:'Theme Settings (this area)'},
+  {cap:'See Theme Settings at all',        r:[1,1,0]},
+  {cap:'General (identity · redirects · deploy)', r:[1,1,0]},
+  {cap:'StyleGuide — view tokens',         r:[1,1,0]},
+  {cap:'StyleGuide — edit tokens',         r:[1,0,0]},
+  {cap:'Templates — parts &amp; WP hierarchy', r:[1,0,0]},
+  {cap:'Components — registered library',  r:[1,0,0]},
+  {cap:'Component Builder (HTML · logic · props)', r:[1,0,0]},
+  {cap:'CSS / Tailwind (closed vocabulary)', r:[1,0,0]},
+  {cap:'Integrations (snippets · analytics)', r:[1,0,0]},
+  {cap:'Roles &amp; Access (this page)',   r:[1,0,0]},
+
+  {group:'Build &amp; deploy'},
+  {cap:'Trigger a compile / deploy',       r:[1,0,0]},
+];
+const ROLE_KEYS=['developer','marketer','client'];
+function permMark(on){
+  return on
+    ? '<i class="fa-solid fa-check"></i>'
+    : '<i class="fa-solid fa-minus"></i>';
+}
+function renderPerms(){
+  const tb=document.querySelector('#permTable tbody');
+  tb.innerHTML=PERMS.map((row,ri)=>{
+    if(row.group) return `<tr class="perm-group"><td colspan="4">${row.group}</td></tr>`;
+    const cells=row.r.map((v,ci)=>
+      `<td class="perm-mark"><button type="button" class="perm-mark-btn ${v?'on':'off'}" data-r="${ri}" data-c="${ci}" aria-pressed="${!!v}" title="${ROLE_KEYS[ci]} — click to toggle">${permMark(v)}</button></td>`
+    ).join('');
+    return `<tr><td class="perm-cap">${row.cap}</td>${cells}</tr>`;
+  }).join('');
+}
+renderPerms();
+// toggle a capability on/off for a role (event-delegated so it survives re-render)
+document.querySelector('#permTable').addEventListener('click',e=>{
+  const btn=e.target.closest('.perm-mark-btn'); if(!btn) return;
+  const ri=+btn.dataset.r, ci=+btn.dataset.c;
+  const now=PERMS[ri].r[ci]?0:1; PERMS[ri].r[ci]=now;
+  btn.classList.toggle('on',!!now); btn.classList.toggle('off',!now);
+  btn.setAttribute('aria-pressed',!!now); btn.innerHTML=permMark(now);
+});
+
+/* ===================== ROLES — user assignment ===================== */
+/* Roles are inert until mapped to real WP users. Each user → one S5 role. */
+const USERS=[
+  {name:'Shawn Morgan', email:'shawn@series5technology.com', wp:'Administrator', role:'developer', color:'#5b8cff'},
+  {name:'Alex Rivera',  email:'alex@series5technology.com',  wp:'Editor',        role:'marketer',  color:'#e0a617'},
+  {name:'Jordan Lee',   email:'jordan@acmeclient.com',       wp:'Author',        role:'client',    color:'#2a9d5c'},
+  {name:'Priya Nair',   email:'priya@acmeclient.com',        wp:'Author',        role:'client',    color:'#a855c7', pending:true},
+];
+function initials(n){return n.split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();}
+function renderUsers(){
+  const host=document.getElementById('userList');
+  host.innerHTML=USERS.map((u,i)=>`
+    <div class="user-row" data-i="${i}">
+      <span class="user-avatar" style="background:${u.color}">${initials(u.name)}</span>
+      <div class="user-id">
+        <div class="user-name">${u.name}${u.pending?' <span class="user-pending">Invited</span>':''}</div>
+        <div class="user-email">${u.email}</div>
+      </div>
+      <div class="user-wp">WP&nbsp;role<br><span class="user-wp-role">${u.wp}</span></div>
+      <select class="select user-role-sel role-${u.role}" data-i="${i}">
+        <option value="developer"${u.role==='developer'?' selected':''}>Developer</option>
+        <option value="marketer"${u.role==='marketer'?' selected':''}>Marketer</option>
+        <option value="client"${u.role==='client'?' selected':''}>Client</option>
+      </select>
+    </div>`).join('');
+  host.querySelectorAll('.user-role-sel').forEach(sel=>sel.addEventListener('change',()=>{
+    const i=+sel.dataset.i; USERS[i].role=sel.value;
+    sel.classList.remove('role-developer','role-marketer','role-client');
+    sel.classList.add('role-'+sel.value);
+  }));
+}
+renderUsers();
+document.getElementById('userAdd').addEventListener('click',()=>{
+  const colors=['#5b8cff','#e0a617','#2a9d5c','#a855c7','#d63638','#0aa2c0'];
+  USERS.push({name:'New User', email:'user@example.com', wp:'Subscriber', role:'client', color:colors[USERS.length%colors.length], pending:true});
+  renderUsers();
+});
+</script>
+</body>
+</html>

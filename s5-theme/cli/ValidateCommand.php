@@ -63,12 +63,11 @@ final class ValidateCommand {
 
 		$vocab = self::load_vocabulary_or_die();
 
-		$files = glob( $dir . '/*.html' );
+		$files = self::corpus_html_files( $dir );
 		if ( empty( $files ) ) {
-			\WP_CLI::warning( sprintf( 'No .html files found in %s', $dir ) );
+			\WP_CLI::warning( sprintf( 'No corpus .html files found in %s', $dir ) );
 			return;
 		}
-		sort( $files );
 
 		$all_findings = array();
 		$error_count  = 0;
@@ -250,5 +249,55 @@ final class ValidateCommand {
 	 */
 	private static function default_dir(): string {
 		return self::pages_root();
+	}
+
+	/**
+	 * The corpus `.html` files in a directory: every `*.html`, sorted, MINUS the
+	 * design-reference documents that legitimately live alongside the corpus but are
+	 * not authored framework pages.
+	 *
+	 * `pages/` is both the import corpus AND, by owner preference, the working home of
+	 * the editor/settings design mockups (canvas-mockup.html, theme-settings-mockup.html)
+	 * and any `*-mockup.html`. Those are full builder-styled reference documents — they
+	 * carry classes deliberately outside the closed vocabulary — so importing/validating
+	 * them as corpus is a category error that would (and did) brick the gate. This is the
+	 * single, shared skip list so a reference file dropped in `pages/` can never poison
+	 * the corpus again.
+	 *
+	 * @param string $dir Directory to scan.
+	 * @return array<int, string> Absolute-or-given-relative file paths, sorted.
+	 */
+	public static function corpus_html_files( string $dir ): array {
+		$files = glob( rtrim( $dir, '/\\' ) . '/*.html' );
+		if ( empty( $files ) ) {
+			return array();
+		}
+		sort( $files );
+
+		$files = array_values(
+			array_filter(
+				$files,
+				static function ( string $file ): bool {
+					return ! self::is_reference_document( basename( $file ) );
+				}
+			)
+		);
+
+		return $files;
+	}
+
+	/**
+	 * Whether a filename is a design-reference document (not authored corpus).
+	 *
+	 * Excludes any `*-mockup.html` (the canvas/settings design references) — the one
+	 * convention the mockups follow. Extend this if other non-corpus reference docs
+	 * ever share the `pages/` directory.
+	 *
+	 * @param string $name Filename (basename).
+	 * @return bool
+	 */
+	public static function is_reference_document( string $name ): bool {
+		$name = strtolower( $name );
+		return (bool) preg_match( '/-mockup\.html$/', $name );
 	}
 }

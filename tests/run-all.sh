@@ -60,6 +60,7 @@ SUITES=(
 	"tests/acceptance-components.sh|Item 2 — component folders + CSS bundle"
 	"tests/acceptance-editor.sh|Step 12 — Editor MVP (WordCamp cut)"
 	"tests/acceptance-dist.sh|Distribution — the uploadable zip works with zero mounts"
+	"tests/acceptance-phase-a.sh|Phase A — WordPress integration (takeover · badge · menu · Appearance)"
 )
 
 fail_count=0

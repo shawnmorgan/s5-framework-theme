@@ -44,7 +44,6 @@ final class PageAdmin {
 	 * @return void
 	 */
 	public static function register(): void {
-		add_action( 'admin_menu', array( self::class, 'register_menu' ) );
 		add_filter( 'page_row_actions', array( self::class, 'add_convert_row_action' ), 10, 2 );
 		add_action( 'admin_post_' . self::ACTION_CREATE, array( self::class, 'handle_create' ) );
 		add_action( 'admin_post_' . self::ACTION_CONVERT, array( self::class, 'handle_convert' ) );
@@ -52,53 +51,14 @@ final class PageAdmin {
 	}
 
 	/**
-	 * Add a "New S5 Page" submenu under Pages.
-	 *
-	 * @return void
-	 */
-	public static function register_menu(): void {
-		add_submenu_page(
-			'edit.php?post_type=page',
-			__( 'New S5 Page', 's5' ),
-			__( 'New S5 Page', 's5' ),
-			self::CAPABILITY,
-			's5-new-page',
-			array( self::class, 'render_new_page_screen' )
-		);
-	}
-
-	/**
-	 * Render the "New S5 Page" screen: a single title field that POSTs to the
-	 * create handler.
-	 *
-	 * @return void
-	 */
-	public static function render_new_page_screen(): void {
-		if ( ! current_user_can( self::CAPABILITY ) ) {
-			wp_die( esc_html__( 'You do not have permission to create pages.', 's5' ) );
-		}
-		?>
-		<div class="wrap">
-			<h1><?php esc_html_e( 'New S5 Page', 's5' ); ?></h1>
-			<p><?php esc_html_e( 'Creates a published page with a starter layout and opens it in the S5 editor. Edit it in glass or code — every change goes through the one save door.', 's5' ); ?></p>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_CREATE ); ?>" />
-				<?php wp_nonce_field( self::ACTION_CREATE ); ?>
-				<table class="form-table" role="presentation">
-					<tr>
-						<th scope="row"><label for="s5_page_title"><?php esc_html_e( 'Page title', 's5' ); ?></label></th>
-						<td><input name="s5_page_title" id="s5_page_title" type="text" class="regular-text" value="" placeholder="<?php esc_attr_e( 'e.g. Pricing', 's5' ); ?>" /></td>
-					</tr>
-				</table>
-				<?php submit_button( __( 'Create & edit', 's5' ) ); ?>
-			</form>
-		</div>
-		<?php
-	}
-
-	/**
-	 * Add a "Convert to S5" row action to pages that are NOT yet framework pages.
+	 * Add a "Take over with S5" row action to pages that are NOT yet framework pages.
 	 * (Framework pages already get "Edit with S5" from {@see Editor}.)
+	 *
+	 * Phase A menu contract: there is no "New S5 Page" screen — new pages are created
+	 * with WordPress's own Pages → Add New; a page becomes an S5 page by being taken
+	 * over here (the adopt flow), which wraps its current content as canonical and
+	 * opens it in the S5 editor. The create handler ({@see self::ACTION_CREATE}) is
+	 * retained for programmatic use (seeding), just not surfaced as a menu item.
 	 *
 	 * @param array<string, string> $actions Existing row actions.
 	 * @param \WP_Post              $post    The row's post.
@@ -129,7 +89,7 @@ final class PageAdmin {
 		$actions['s5_convert'] = sprintf(
 			'<a href="%s">%s</a>',
 			esc_url( $url ),
-			esc_html__( 'Convert to S5', 's5' )
+			esc_html__( 'Take over with S5', 's5' )
 		);
 
 		return $actions;
@@ -151,7 +111,7 @@ final class PageAdmin {
 		$result = Seeder::create_page( $title );
 		if ( ! $result['id'] ) {
 			self::redirect_with_notice(
-				admin_url( 'edit.php?post_type=page&page=s5-new-page' ),
+				admin_url( 'edit.php?post_type=page' ),
 				'error',
 				sprintf(
 					/* translators: %s: error message. */

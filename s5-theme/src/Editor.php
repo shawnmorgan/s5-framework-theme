@@ -53,6 +53,14 @@ final class Editor {
 	public const PREVIEW_QUERY_VAR = 's5-preview';
 
 	/**
+	 * Query var that opts a framework page back into the classic/WP post editor,
+	 * bypassing the S5-editor redirect ("Edit content (WP)").
+	 *
+	 * @var string
+	 */
+	public const WP_EDIT_QUERY_VAR = 's5-wp-edit';
+
+	/**
 	 * Register editor hooks.
 	 *
 	 * @return void
@@ -62,9 +70,26 @@ final class Editor {
 		// from the pages-list row action and the admin bar).
 		add_action( 'admin_menu', array( self::class, 'register_screen' ) );
 
+		// Fullscreen takeover (Phase A1): before wp-admin prints ANY chrome, detect
+		// a request for the editor screen and render a self-contained document, then
+		// exit. This is why the editor has no #adminmenu / #wpadminbar — they are
+		// never emitted, not merely hidden with CSS. Priority 0 on admin_init so it
+		// wins before other admin_init work runs for a page we are going to short-
+		// circuit anyway.
+		add_action( 'admin_init', array( self::class, 'maybe_render_fullscreen' ), 0 );
+
 		// Entry points into the editor.
 		add_filter( 'page_row_actions', array( self::class, 'add_row_action' ), 10, 2 );
 		add_action( 'admin_bar_menu', array( self::class, 'add_admin_bar_link' ), 100 );
+
+		// Pages-list integration (Phase A2, "Bricks pattern").
+		// An "S5" post-state badge on framework pages.
+		add_filter( 'display_post_states', array( self::class, 'add_post_state' ), 10, 2 );
+		// The row/title "Edit" link points at the S5 editor, never Gutenberg.
+		add_filter( 'get_edit_post_link', array( self::class, 'filter_edit_post_link' ), 10, 2 );
+		// A framework page never loads the block editor (locked + redirected).
+		add_filter( 'use_block_editor_for_post', array( self::class, 'lock_block_editor' ), 10, 2 );
+		add_action( 'load-post.php', array( self::class, 'redirect_block_editor' ) );
 
 		// Assets — enqueued on the editor screen only.
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
@@ -108,7 +133,12 @@ final class Editor {
 	}
 
 	/**
-	 * Add an "Edit with S5" row action to framework pages in the pages list.
+	 * Reshape a framework page's row actions to the Bricks pattern (Phase A2):
+	 * the primary **Edit** already points at the S5 editor (via the
+	 * {@see self::filter_edit_post_link} filter on `get_edit_post_link`), so here we
+	 * only add a secondary **Edit content (WP)** action that reaches the classic
+	 * post editor directly — the sole way to touch a framework page in the block/
+	 * classic editor, for the rare case an operator needs WP-native fields.
 	 *
 	 * @param array<string, string> $actions Existing row actions.
 	 * @param \WP_Post              $post    The row's post.
@@ -125,13 +155,135 @@ final class Editor {
 			return $actions;
 		}
 
-		$actions['s5_edit'] = sprintf(
-			'<a href="%s">%s</a>',
-			esc_url( self::editor_url( (int) $post->ID ) ),
-			esc_html__( 'Edit with S5', 's5' )
-		);
+		// The default "edit" action now resolves to the S5 editor (edit-link filter).
+		// Relabel it so the row reads clearly, and keep it first.
+		if ( isset( $actions['edit'] ) ) {
+			$actions['edit'] = sprintf(
+				'<a href="%s" aria-label="%s">%s</a>',
+				esc_url( self::editor_url( (int) $post->ID ) ),
+				/* translators: %s: page title. */
+				esc_attr( sprintf( __( 'Edit “%s” with S5', 's5' ), get_the_title( $post ) ) ),
+				esc_html__( 'Edit with S5', 's5' )
+			);
+		}
 
-		return $actions;
+		// Secondary: the classic/WP editor, reached with an explicit escape flag so
+		// the block-editor lock lets it through to the classic editor (see
+		// self::redirect_block_editor). Ordered right after edit.
+		$wp_edit   = add_query_arg(
+			array(
+				'post'                  => (int) $post->ID,
+				'action'                => 'edit',
+				self::WP_EDIT_QUERY_VAR => '1',
+			),
+			admin_url( 'post.php' )
+		);
+		$reordered = array();
+		foreach ( $actions as $key => $markup ) {
+			$reordered[ $key ] = $markup;
+			if ( 'edit' === $key ) {
+				$reordered['s5_wp_edit'] = sprintf(
+					'<a href="%s">%s</a>',
+					esc_url( $wp_edit ),
+					esc_html__( 'Edit content (WP)', 's5' )
+				);
+			}
+		}
+
+		return $reordered;
+	}
+
+	/**
+	 * Show an "S5" post-state badge next to framework pages in the pages list.
+	 *
+	 * @param array<int|string, string> $states Existing post states.
+	 * @param \WP_Post|null             $post   The post.
+	 * @return array<int|string, string>
+	 */
+	public static function add_post_state( $states, $post ) {
+		if ( $post instanceof \WP_Post && Storage::is_framework_page( (int) $post->ID ) ) {
+			$states['s5'] = __( 'S5', 's5' );
+		}
+		return $states;
+	}
+
+	/**
+	 * Route the standard edit link for a framework page to the S5 editor.
+	 *
+	 * This makes the pages-list title link, the "Edit" row action, and any code that
+	 * calls `get_edit_post_link()` land in the S5 editor instead of Gutenberg — the
+	 * "title/Edit → S5 editor, never Gutenberg" half of the Bricks pattern.
+	 *
+	 * The classic editor is still reachable on purpose via the explicit
+	 * {@see self::WP_EDIT_QUERY_VAR} escape flag ("Edit content (WP)"), which this
+	 * filter leaves alone so `get_edit_post_link` there returns the native URL.
+	 *
+	 * @param string $link    The edit link URL.
+	 * @param int    $post_id The post ID.
+	 * @return string
+	 */
+	public static function filter_edit_post_link( $link, $post_id ) {
+		$post_id = (int) $post_id;
+		if ( ! $post_id || ! current_user_can( self::CAPABILITY ) ) {
+			return $link;
+		}
+		// Do not hijack the deliberate WP-edit escape hatch.
+		if ( isset( $_GET[ self::WP_EDIT_QUERY_VAR ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only route branch.
+			return $link;
+		}
+		if ( ! Storage::is_framework_page( $post_id ) ) {
+			return $link;
+		}
+		return self::editor_url( $post_id );
+	}
+
+	/**
+	 * Disable the block editor for framework pages.
+	 *
+	 * A framework page's source of truth is canonical HTML edited in the S5 editor;
+	 * loading it in Gutenberg would present an empty/again-parsed block canvas that
+	 * could clobber the canonical on save. This returns false so WP never boots the
+	 * block editor for such a post — unless the explicit WP-edit escape flag is set,
+	 * in which case the classic editor is served.
+	 *
+	 * @param bool     $use_block Whether to use the block editor.
+	 * @param \WP_Post $post      The post being edited.
+	 * @return bool
+	 */
+	public static function lock_block_editor( $use_block, $post ) {
+		if ( $post instanceof \WP_Post && Storage::is_framework_page( (int) $post->ID ) ) {
+			return false;
+		}
+		return $use_block;
+	}
+
+	/**
+	 * On a direct hit to post.php?action=edit for a framework page, redirect to the
+	 * S5 editor unless the operator explicitly asked for the WP editor.
+	 *
+	 * Belt-and-braces alongside the edit-link filter: even a hand-typed or bookmarked
+	 * `post.php?post=N&action=edit` for a framework page lands in the S5 editor. The
+	 * `WP_EDIT_QUERY_VAR` flag opts back into the classic editor for that one load.
+	 *
+	 * @return void
+	 */
+	public static function redirect_block_editor(): void {
+		$action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( (string) $_GET['action'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only route match.
+		if ( 'edit' !== $action ) {
+			return;
+		}
+		if ( isset( $_GET[ self::WP_EDIT_QUERY_VAR ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- explicit WP-edit opt-in.
+			return;
+		}
+		$post_id = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only route match.
+		if ( ! $post_id || ! Storage::is_framework_page( $post_id ) ) {
+			return;
+		}
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			return;
+		}
+		wp_safe_redirect( self::editor_url( $post_id ) );
+		exit;
 	}
 
 	/**
@@ -369,6 +521,108 @@ final class Editor {
 		if ( is_readable( $template ) ) {
 			include $template;
 		}
+	}
+
+	/**
+	 * Fullscreen takeover: render the editor as a self-contained admin document.
+	 *
+	 * WordPress normally wraps every `admin.php?page=…` screen in `admin-header.php`
+	 * (which prints `#adminmenu` and, with the admin bar, `#wpadminbar`). The S5
+	 * editor is a full-viewport authoring surface — those chrome elements do not
+	 * belong. Rather than paint over them with CSS (fragile; they still exist and
+	 * can flash / trap focus / steal scroll), we short-circuit BEFORE the header
+	 * renders: detect the editor request on `admin_init`, print our own minimal
+	 * `<!DOCTYPE html>` document with ONLY the editor's enqueued assets, and exit.
+	 * The admin menu and bar are therefore never emitted at all.
+	 *
+	 * The only way out is the editor's own back control (rendered by the template),
+	 * which points at the classic edit-post screen — a normal, chrome-full admin page.
+	 *
+	 * Runs only for a capable user on a valid framework-page editor request; every
+	 * other admin request falls through untouched to normal wp-admin.
+	 *
+	 * @return void
+	 */
+	public static function maybe_render_fullscreen(): void {
+		// Is this the editor screen (admin.php?page=s5-editor)?
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( (string) $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only route match; capability re-checked below.
+		if ( self::PAGE_SLUG !== $page ) {
+			return;
+		}
+
+		// Not an AJAX / admin-post sub-request.
+		if ( ( defined( 'DOING_AJAX' ) && DOING_AJAX ) || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
+			return;
+		}
+
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			return; // Fall through to WP's own permission handling on the registered screen.
+		}
+
+		$post_id = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen bootstrap; saves are nonce-guarded.
+		$post    = $post_id ? get_post( $post_id ) : null;
+
+		// No valid framework page → let the registered (chrome-full) screen render
+		// its "pick a page" message rather than a bare fullscreen shell.
+		if ( ! ( $post instanceof \WP_Post ) || ! Storage::is_framework_page( $post_id ) ) {
+			return;
+		}
+
+		self::render_fullscreen_document( $post_id );
+		exit;
+	}
+
+	/**
+	 * Print the self-contained editor document (chrome-free) and return.
+	 *
+	 * Runs the same asset-enqueue pipeline the normal admin screen would (so the
+	 * editor CSS/JS + localized S5Editor data are present), then prints a minimal
+	 * HTML document that includes only those enqueued head/footer assets. No
+	 * admin menu, no admin bar, no admin-header.php.
+	 *
+	 * @param int $post_id Framework page ID.
+	 * @return void
+	 */
+	private static function render_fullscreen_document( int $post_id ): void {
+		// Enqueue the editor assets through the same code path the admin screen uses,
+		// so there is one asset list to maintain. The hook-suffix guard inside
+		// enqueue_assets() keys on the editor page hook; call it with that value.
+		set_current_screen( self::PAGE_SLUG );
+		self::enqueue_assets( 'admin_page_' . self::PAGE_SLUG );
+
+		// Template data, identical to render_screen().
+		$s5_editor = array(
+			'post_id'     => $post_id,
+			'title'       => get_the_title( $post_id ),
+			'preview_url' => self::preview_url( $post_id ),
+			'back_url'    => (string) get_edit_post_link( $post_id, 'raw' ),
+		);
+
+		$template = S5_PLUGIN_DIR . 'templates/editor.php';
+
+		nocache_headers();
+		header( 'Content-Type: text/html; charset=' . get_option( 'blog_charset' ) );
+
+		echo '<!DOCTYPE html>' . "\n";
+		printf( '<html %s>' . "\n", get_language_attributes() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WP core helper, pre-escaped.
+		echo '<head>' . "\n";
+		echo '<meta charset="' . esc_attr( get_option( 'blog_charset' ) ) . '">' . "\n";
+		echo '<meta name="viewport" content="width=device-width, initial-scale=1.0">' . "\n";
+		echo '<meta name="robots" content="noindex,nofollow">' . "\n";
+		printf( '<title>%s</title>' . "\n", esc_html( sprintf( /* translators: %s: page title. */ __( 'Edit with S5 — %s', 's5' ), $s5_editor['title'] ) ) );
+
+		// Print only the enqueued styles/scripts for the editor (no admin chrome).
+		wp_print_styles();
+		wp_print_head_scripts();
+		echo '</head>' . "\n";
+		echo '<body class="s5-editor-fullscreen">' . "\n";
+
+		if ( is_readable( $template ) ) {
+			include $template;
+		}
+
+		wp_print_footer_scripts();
+		echo "\n</body>\n</html>";
 	}
 
 	/**

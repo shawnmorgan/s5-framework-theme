@@ -26,6 +26,7 @@ dist/
 # Composer
 /vendor/
 s5-plugin/vendor/
+s5-theme/vendor/
 
 # wp-env local state
 .wp-env/

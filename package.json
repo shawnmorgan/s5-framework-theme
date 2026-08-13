@@ -12,6 +12,7 @@
     "build:zip": "node tools/build-zip.mjs",
     "test": "bash tests/run-all.sh",
     "test:dist": "bash tests/acceptance-dist.sh",
+    "test:phase-a": "bash tests/acceptance-phase-a.sh",
     "test:reuse": "SKIP_DESTROY=1 bash tests/run-all.sh",
     "test:phpunit": "wp-env run tests-cli --env-cwd=wp-content/themes/s5-theme vendor/bin/phpunit",
     "lint": "wp-env run cli --env-cwd=wp-content/themes/s5-theme composer lint",

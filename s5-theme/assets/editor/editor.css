@@ -87,6 +87,18 @@
 	-webkit-font-smoothing: antialiased;
 }
 
+/* Fullscreen takeover document (Phase A1): the editor renders in its OWN minimal
+   HTML document (no wp-admin chrome, no admin bar), so the shell starts at the top
+   of the viewport — there is no admin-bar height to offset. Scoped to the standalone
+   body class so the wp-admin-context path (if ever used) keeps its 32px offset. */
+body.s5-editor-fullscreen {
+	margin: 0;
+	background: var(--s5e-canvas);
+}
+body.s5-editor-fullscreen .s5-editor {
+	top: 0;
+}
+
 /* WP-admin neutralization — scoped strictly to inside the editor.
    The full-screen takeover inherits wp-admin .button styling; reset it so our own
    button rules read cleanly. Never affects controls outside .s5-editor. */

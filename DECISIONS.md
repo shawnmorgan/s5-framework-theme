@@ -501,3 +501,77 @@ NOT built now, per the task.
 **Verified:** phpcs clean; logged-out-enqueue guard intact; full 14-suite gate green
 from clean; editor operates (structure loads, lens/tab switching, dark CodeMirror mounts)
 — screenshots in `docs/demo-walkthrough/reskin-dark/`.
+
+## D28 — Phase A: WordPress integration (fullscreen takeover · pages-list · menu · Appearance)
+
+The theme now behaves like a first-class WP citizen in the admin, per the HANDOFF
+contract + the layered Phase A ruling. Four moves, all server-side (hide **and** block),
+none CSS-only:
+
+- **Fullscreen takeover — a real bootstrap, not CSS-hiding.** `Editor::maybe_render_fullscreen()`
+  hooks `admin_init` (pri 0). For a capable user opening a valid framework page's editor
+  it prints a self-contained `<!DOCTYPE html>` document (only the editor's enqueued
+  head/footer assets) and `exit`s BEFORE `admin-header.php` runs. So `#adminmenu` /
+  `#wpadminbar` are **never emitted** — not painted over. The only exit is the editor's
+  own back control. The standalone `<body class="s5-editor-fullscreen">` drops the 32px
+  admin-bar offset the wp-admin-context path assumed; that offset is preserved for the
+  legacy path via a body-scoped override, so nothing else changes.
+  *Rejected:* CSS `display:none` on the chrome — fragile (flash, focus traps, scroll
+  steal) and the elements still exist.
+
+- **Pages-list integration (Bricks pattern).** `display_post_states` adds an **"S5"** badge
+  to framework pages; `get_edit_post_link` routes their Edit/title to the S5 editor
+  (never Gutenberg); `use_block_editor_for_post` returns false for them; `load-post.php`
+  redirects a hand-typed `post.php?action=edit` to the S5 editor — unless the explicit
+  **`s5-wp-edit`** escape flag is set, which is exactly what the new **"Edit content (WP)"**
+  secondary row action carries. Non-framework pages keep the adopt path, relabeled
+  **"Take over with S5."** New pages are created with WordPress's own Pages → Add New.
+
+- **S5 menu = Setup & Status + Theme Settings, only.** Removed the `Style` / `Components`
+  canvas-routing submenus and the `New S5 Page` creator from the S5 menu (and dropped the
+  now-dead `editor_entry_url` / `first_framework_page_id` helpers). Added a single
+  **Theme Settings** entry that resolves to the new `S5\Settings` app — a real WP-admin
+  screen with the seven-screen sub-nav (StyleGuide · Templates · Components · Integrations ·
+  General · CSS/Tailwind · Roles) and a `?screen=` router. Phase A ships this app's SHELL;
+  Phase C fills each screen. Style/Components/etc. route **into this app**, never the canvas.
+
+- **Appearance cleanup.** `S5\Appearance` removes Patterns (`edit.php?post_type=wp_block`),
+  Customize (`customize.php`), and the block Site Editor (`site-editor.php`) — via
+  `remove_submenu_page` on a late `admin_menu` AND an `admin_init` redirect guard so a
+  bookmarked URL can't reach them. **Themes** and the **Theme File Editor** are kept.
+
+**Acceptance:** new `tests/acceptance-phase-a.sh` (14th gate suite, `npm run test:phase-a`)
+asserts every point above by server-side introspection (badge present/absent, block editor
+off/on, edit-link routing, row actions, exact S5 submenu set, settings 7-screen sub-nav,
+Appearance removal targets + guard, takeover seam + standalone doc). phpcs clean across all
+touched files.
+
+## D29 — Mockups in `pages/` were poisoning the corpus import; excluded by convention
+
+**Problem (found while establishing the Phase A baseline):** the owner keeps the design
+mockups (`canvas-mockup.html`, `theme-settings-mockup.html`) in `pages/` as working copies.
+But `pages/` **is** the import corpus dir (mapped to `wp-content/s5-pages`), and the
+importer/validator globbed `*.html` blindly — so the full builder-styled mockups were
+validated as framework pages, failed the closed-vocabulary gate on `tb` / `fa-solid` /
+etc., and cascaded a nonzero import into **11 of 13** gate suites. Every "failure" in the
+clean baseline traced to this single collision. (Steps 0/1 and Distribution, which don't
+import from `pages/`, passed.)
+
+**Fix:** one shared skip list. `ValidateCommand::corpus_html_files()` globs + sorts + drops
+any `*-mockup.html` (the mockups' one naming convention), and both `ImportCommand` and
+`ValidateCommand` now source their file list through it. A design-reference document dropped
+in `pages/` can never brick the corpus again. This also honors the owner's "keep the mockups
+in `pages/` too" preference — the working copies stay; they're simply not corpus. The tracked
+contract copies live in `docs/ui-reference/` per the HANDOFF housekeeping line.
+
+**Verified:** `wp s5 import` processes exactly the 9 corpus pages, skips the mockups, exits
+Success; the previously-cascading suites go green.
+
+**Phase A verified (2026-08-13):** full gate green — all 15 suites (13 original + Distribution +
+the new `Phase A` suite). Clean-slate boot proven by the destroy→start run (Steps 0–2 green from
+scratch); the confirming all-green run reused that env (`SKIP_DESTROY=1`) after the one-line
+`acceptance-step3.sh` mockup-skip fix. phpcs clean across every touched file. Fullscreen takeover
+proven at the DOM level by the screenshot harness's chrome-check:
+`{"adminmenu":false,"wpadminbar":false,"wpwrap":false,"s5editor":true}` — the admin menu/bar are
+absent, not hidden. Screenshots in `docs/phase-a-walkthrough/` (pages-list badge + row actions,
+S5 menu, Theme Settings shell, Appearance cleaned, fullscreen editor).

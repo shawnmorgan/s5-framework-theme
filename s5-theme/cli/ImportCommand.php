@@ -66,12 +66,14 @@ final class ImportCommand {
 			\WP_CLI::error( sprintf( 'Import directory not found: %s', $dir ) );
 		}
 
-		$files = glob( $dir . '/*.html' );
+		// Corpus files only — shared skip list excludes design-reference documents
+		// (e.g. *-mockup.html) that live alongside the corpus but are not authored
+		// framework pages. See ValidateCommand::corpus_html_files().
+		$files = ValidateCommand::corpus_html_files( $dir );
 		if ( empty( $files ) ) {
-			\WP_CLI::warning( sprintf( 'No .html files found in %s', $dir ) );
+			\WP_CLI::warning( sprintf( 'No corpus .html files found in %s', $dir ) );
 			return;
 		}
-		sort( $files );
 
 		// Authoring Contract gate: load the class vocabulary once up front.
 		$vocab = ValidateCommand::load_vocabulary_or_die();
