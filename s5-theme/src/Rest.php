@@ -89,6 +89,86 @@ final class Rest {
 				),
 			)
 		);
+
+		// Component source editor (Item 6): read + save a component's files. A
+		// component is a distinct resource (not page-scoped), so it gets its own
+		// route; the same manage_options + wp_rest nonce discipline applies (D23).
+		register_rest_route(
+			self::NAMESPACE,
+			'/components/(?P<name>[A-Za-z0-9][A-Za-z0-9_-]*)',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( self::class, 'handle_component_get' ),
+					'permission_callback' => array( self::class, 'can_save' ),
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( self::class, 'handle_component_save' ),
+					'permission_callback' => array( self::class, 'can_save' ),
+				),
+			)
+		);
+	}
+
+	/**
+	 * GET a component's source files (component.html, manifest.json, style.css).
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_component_get( \WP_REST_Request $request ) {
+		$name = (string) $request['name'];
+		if ( ! ComponentRegistry::is_registered( $name ) ) {
+			return new \WP_Error( 's5_unknown_component', __( 'Unknown component.', 's5' ), array( 'status' => 404 ) );
+		}
+		try {
+			$c = ComponentRegistry::load( $name );
+		} catch ( \RuntimeException $e ) {
+			return new \WP_Error( 's5_component_load', $e->getMessage(), array( 'status' => 500 ) );
+		}
+		return new \WP_REST_Response(
+			array(
+				'ok'       => true,
+				'name'     => $name,
+				'html'     => $c['html'],
+				'manifest' => (string) wp_json_encode( $c['manifest'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ),
+				'css'      => $c['css'],
+			),
+			200
+		);
+	}
+
+	/**
+	 * POST-save a component's source files, then rebuild the CSS bundle (D22).
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_component_save( \WP_REST_Request $request ) {
+		$name = (string) $request['name'];
+		$html = (string) $request->get_param( 'html' );
+		$man  = (string) $request->get_param( 'manifest' );
+		$css  = (string) $request->get_param( 'css' );
+
+		if ( ! ComponentRegistry::is_registered( $name ) ) {
+			return new \WP_Error( 's5_unknown_component', __( 'Unknown component.', 's5' ), array( 'status' => 404 ) );
+		}
+
+		try {
+			ComponentRegistry::save_component( $name, $html, $man, $css );
+			StyleBundle::build();
+		} catch ( \RuntimeException $e ) {
+			return new \WP_REST_Response(
+				array(
+					'ok'          => false,
+					'diagnostics' => array( array( 'message' => $e->getMessage() ) ),
+				),
+				422
+			);
+		}
+
+		return new \WP_REST_Response( array( 'ok' => true, 'name' => $name ), 200 );
 	}
 
 	/**

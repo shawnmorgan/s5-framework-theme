@@ -230,6 +230,71 @@ final class ComponentRegistry {
 	}
 
 	/**
+	 * Save a component's source files (Item 6, code-first editor).
+	 *
+	 * Writes component.html, manifest.json, and style.css into the fenced
+	 * site/components/<name>/ subtree. Validates BEFORE writing: the name must be
+	 * path-safe, manifest.json must be valid JSON declaring a version, and the
+	 * component dir must already exist (create is out of this cut). Existing
+	 * instances already on pages are NOT changed — copy-on-insert independence
+	 * (D22); the caller rebuilds the CSS bundle so style edits go live.
+	 *
+	 * @param string $name     Component name (must be registered/present).
+	 * @param string $html     component.html content.
+	 * @param string $manifest manifest.json content (raw JSON).
+	 * @param string $css      style.css content.
+	 * @return true
+	 *
+	 * @throws \RuntimeException On an invalid name, missing dir, bad manifest, or write failure.
+	 */
+	public static function save_component( string $name, string $html, string $manifest, string $css ): bool {
+		if ( ! self::is_safe_name( $name ) ) {
+			throw new \RuntimeException( esc_html( sprintf( 'invalid component name "%s"', $name ) ) );
+		}
+		$base = self::components_dir() . '/' . $name;
+		if ( ! is_dir( $base ) ) {
+			throw new \RuntimeException( esc_html( sprintf( 'component "%s" does not exist', $name ) ) );
+		}
+		if ( '' === trim( $html ) ) {
+			throw new \RuntimeException( 'component.html cannot be empty' );
+		}
+		$decoded = json_decode( $manifest, true );
+		if ( ! is_array( $decoded ) ) {
+			throw new \RuntimeException( 'manifest.json is not valid JSON' );
+		}
+		if ( ! isset( $decoded['version'] ) || '' === (string) $decoded['version'] ) {
+			throw new \RuntimeException( 'manifest.json must declare a non-empty "version"' );
+		}
+
+		self::write_file( $base . '/' . self::HTML_FILE, $html );
+		self::write_file( $base . '/' . self::MANIFEST_FILE, rtrim( $manifest, "\n" ) . "\n" );
+		// Preserve whichever css filename the component uses (style.css canonical).
+		$css_path = self::css_path( $base );
+		if ( '' === $css_path ) {
+			$css_path = $base . '/' . self::CSS_FILE;
+		}
+		self::write_file( $css_path, $css );
+
+		return true;
+	}
+
+	/**
+	 * Write a local file or throw.
+	 *
+	 * @param string $path    Absolute path (inside the component dir).
+	 * @param string $content Content to write.
+	 * @return void
+	 *
+	 * @throws \RuntimeException On write failure.
+	 */
+	private static function write_file( string $path, string $content ): void {
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- local component source file, admin-gated write.
+		if ( false === file_put_contents( $path, $content ) ) {
+			throw new \RuntimeException( esc_html( sprintf( 'could not write %s', $path ) ) );
+		}
+	}
+
+	/**
 	 * Read a local file or throw.
 	 *
 	 * @param string $path Absolute file path.

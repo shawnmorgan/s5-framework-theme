@@ -94,7 +94,7 @@ $s5_back_url    = isset( $s5_editor['back_url'] ) ? (string) $s5_editor['back_ur
 			<div class="s5-editor__panel-tabs" role="tablist">
 				<button type="button" class="s5-editor__tab is-active" data-s5-tab="content" role="tab" aria-selected="true"><?php esc_html_e( 'Content', 's5' ); ?></button>
 				<button type="button" class="s5-editor__tab" data-s5-tab="style" role="tab" aria-selected="false"><?php esc_html_e( 'Style', 's5' ); ?></button>
-				<button type="button" class="s5-editor__tab is-disabled" data-s5-tab="components" role="tab" aria-disabled="true" disabled><?php esc_html_e( 'Components', 's5' ); ?></button>
+				<button type="button" class="s5-editor__tab" data-s5-tab="components" role="tab" aria-selected="false"><?php esc_html_e( 'Components', 's5' ); ?></button>
 				<button type="button" class="s5-editor__tab is-disabled" data-s5-tab="tailwind" role="tab" aria-disabled="true" disabled><?php esc_html_e( 'Tailwind', 's5' ); ?></button>
 			</div>
 
@@ -139,6 +139,30 @@ $s5_back_url    = isset( $s5_editor['back_url'] ) ? (string) $s5_editor['back_ur
 			<div class="s5-editor__tabpane s5-editor__styletab" data-s5-tabpane="style" hidden>
 				<div class="s5-editor__panel-body" data-s5-styletab>
 					<p class="s5-editor__hint"><?php esc_html_e( 'Read-only. Rendered live from the theme design tokens.', 's5' ); ?></p>
+				</div>
+			</div>
+
+			<div class="s5-editor__tabpane s5-editor__componentstab" data-s5-tabpane="components" hidden>
+				<div class="s5-editor__comp-grid" data-s5-comp-grid>
+					<p class="s5-editor__hint"><?php esc_html_e( 'Loading components…', 's5' ); ?></p>
+				</div>
+				<div class="s5-editor__comp-editor" data-s5-comp-editor hidden>
+					<div class="s5-editor__comp-editor-head">
+						<button type="button" class="s5-editor__comp-back" data-s5-comp-back>&larr; <?php esc_html_e( 'All components', 's5' ); ?></button>
+						<span class="s5-editor__comp-name" data-s5-comp-name></span>
+					</div>
+					<div class="s5-editor__comp-files" role="tablist">
+						<button type="button" class="s5-editor__comp-file is-active" data-s5-comp-file="html">component.html</button>
+						<button type="button" class="s5-editor__comp-file" data-s5-comp-file="css">style.css</button>
+						<button type="button" class="s5-editor__comp-file" data-s5-comp-file="manifest">manifest.json</button>
+					</div>
+					<textarea class="s5-editor__comp-code" data-s5-comp-code spellcheck="false"></textarea>
+					<div class="s5-editor__comp-diagnostics" data-s5-comp-diagnostics></div>
+					<div class="s5-editor__comp-preview-wrap">
+						<div class="s5-editor__field-label"><?php esc_html_e( 'Live preview', 's5' ); ?></div>
+						<iframe class="s5-editor__comp-preview" data-s5-comp-preview title="<?php esc_attr_e( 'Component preview', 's5' ); ?>"></iframe>
+					</div>
+					<button type="button" class="button button-primary s5-editor__comp-save" data-s5-comp-save><?php esc_html_e( 'Save component', 's5' ); ?></button>
 				</div>
 			</div>
 		</aside>

@@ -230,6 +230,34 @@ selection and drag-onto-an-element (overlay resolves the drop to the nearest
 re-keyed instance is immediately editable. Component-internals "hide-only" is deferred
 to when hide/structure-ops UI lands (out of the WordCamp cut per the mission's OUT list).
 
+**D22 — Saving a component rebuilds the CSS bundle; existing inserted instances are
+NOT retro-changed (copy-on-insert independence). No stale-page flag needed. (Item 6,
+"your call" recorded.)**
+Rejected: recompiling every page that ever used the component; a stale-flag +
+one-click-recompile flow.
+Why: copy-on-insert (Step 11) means an inserted component is an INDEPENDENT canonical
+copy on the page — editing `hero/component.html` or its manifest changes only FUTURE
+inserts, never the copies already on pages (that is the whole point of copy-on-insert:
+the page is plain canonical, not a live component reference). So there are no "stale
+HTML pages" to recompile. The ONE thing that is global is the component's `style.css`,
+which feeds the shared compiled CSS bundle (D17) — so a component save calls
+`StyleBundle::build()`, and every page's scoped styles update immediately with no
+per-page recompile. This is simpler AND more correct than a stale-flag: HTML edits are
+intentionally non-retroactive, CSS edits are instantly global via the bundle. The tab
+surfaces this honestly ("saved; styles rebuilt; existing instances unchanged").
+
+**D23 — Component editing gets its OWN REST route `/components/(?P<name>)` (GET read,
+POST save), not a mode on the page save door. (Item 6.)**
+Rejected: a `mode:"component"` on `/pages/{id}/save`.
+Why: a component is a different RESOURCE than a page — it is not page-scoped and has no
+post id. The one-door law is about the PAGE canonical persist pipeline; component
+source files are a separate authoring surface. The new route still enforces
+discipline: manage_options + wp_rest nonce; writes only inside the fenced
+`site/components/<name>/` subtree (path-safe name; no traversal); component.html +
+manifest.json validated (manifest must be JSON with a version; html must parse) before
+write; style.css written then the bundle rebuilt. Reads/writes go through
+ComponentRegistry (extended with save_component()).
+
 ## Open / flagged for owner review
 
 - **F1 — data-node is authored, not injected (resolved).** To protect the

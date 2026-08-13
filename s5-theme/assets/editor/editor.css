@@ -199,6 +199,89 @@
 	border-top: 1px solid #f0f0f1;
 }
 
+/* Components tab (Item 6). */
+.s5-editor__comp-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	padding: 12px;
+}
+.s5-editor__comp-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	padding: 10px 4px;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	background: #f6f7f7;
+	cursor: pointer;
+	font-size: 11px;
+}
+.s5-editor__comp-card:hover {
+	border-color: #2271b1;
+	background: #fff;
+}
+.s5-editor__comp-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+}
+.s5-editor__comp-editor-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.s5-editor__comp-back {
+	border: 0;
+	background: none;
+	color: #2271b1;
+	cursor: pointer;
+	padding: 0;
+	font-size: 12px;
+}
+.s5-editor__comp-name {
+	font-weight: 600;
+}
+.s5-editor__comp-files {
+	display: flex;
+	gap: 4px;
+}
+.s5-editor__comp-file {
+	border: 1px solid #dcdcde;
+	background: #f6f7f7;
+	border-radius: 4px 4px 0 0;
+	padding: 4px 8px;
+	font-size: 11px;
+	cursor: pointer;
+}
+.s5-editor__comp-file.is-active {
+	background: #fff;
+	border-bottom-color: #fff;
+	font-weight: 600;
+}
+.s5-editor__comp-code {
+	width: 100%;
+	min-height: 160px;
+	font-family: Menlo, Consolas, monospace;
+	font-size: 12px;
+}
+.s5-editor__comp-preview-wrap {
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	overflow: hidden;
+}
+.s5-editor__comp-preview {
+	width: 100%;
+	height: 160px;
+	border: 0;
+	background: #fff;
+}
+.s5-editor__diag.is-ok {
+	color: #007017;
+}
+
 /* Right-panel structure list (Item 5). */
 .s5-editor__structure {
 	border-bottom: 1px solid #f0f0f1;

@@ -229,6 +229,16 @@ final class Editor {
 			true
 		);
 
+		// Components tab (Item 6): code-first component editor (html/css/manifest +
+		// live preview) saving to the component route. Uses wp-codemirror.
+		wp_enqueue_script(
+			's5-editor-componentstab',
+			$base . 'componentstab.js',
+			array( 's5-editor', 'wp-codemirror' ),
+			'0.0.0',
+			true
+		);
+
 		// Code lens: CodeMirror from WP core (no build step, no new deps). Enqueue
 		// the HTML-mode code editor; wp_enqueue_code_editor loads wp-codemirror.
 		$cm_settings = false;
