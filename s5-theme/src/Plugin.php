@@ -50,6 +50,7 @@ final class Plugin {
 		Revisions::register();
 		Islands::register();
 		Editor::register();
+		PageAdmin::register();
 		Rest::register();
 		self::register_cli_commands();
 	}

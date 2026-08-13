@@ -68,6 +68,25 @@ require $s5_autoload;
 Plugin::boot();
 
 /**
+ * Seed the demo corpus once, when the theme is activated.
+ *
+ * A theme uploaded from the WordPress admin has no WP-CLI, so the demo pages must
+ * be created from PHP. `after_switch_theme` fires once on activation; the seeder
+ * is idempotent (guarded by an option flag AND upsert-by-slug), so this never
+ * overwrites a user's edits on a later re-activation. Failures are collected, not
+ * thrown, so a partial corpus can never brick activation.
+ *
+ * @return void
+ */
+function s5_theme_seed_on_activation(): void {
+	if ( ! current_user_can( 'switch_themes' ) ) {
+		return;
+	}
+	Seeder::seed_demo_corpus();
+}
+add_action( 'after_switch_theme', __NAMESPACE__ . '\\s5_theme_seed_on_activation' );
+
+/**
  * Enqueue front-end assets.
  *
  * The compiled CSS bundle (site/dist/s5.css — the design system + every registered

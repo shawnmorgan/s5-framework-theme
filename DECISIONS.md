@@ -379,3 +379,39 @@ runs on real hardware input, where these paths work as shown.
   step 9's parenthetical `wp post list --post_type=revision` is fine, but there is no
   `wp post revision restore` subcommand in this WP-CLI — restore is done from the
   admin UI (the demo path) or via `wp_restore_post_revision()`. Not a code change.
+
+## D25 — Uploadable theme zip: no-CLI seed + UI page factory (Aug 13)
+
+Goal (user, verbatim): "I want a fucking zip file I can upload onto a site like every
+other theme … click around the UI, make a page, add html or whatever, and see what it
+does." The framework booted only via `composer install` + `wp s5 import` (CLI), so a
+plain uploaded theme white-screened and had no way to make an S5 page from the UI.
+
+Decisions:
+- **W4 resolved.** Stripped the authored `test-banner` "TEST CONTENT" line from all 9
+  corpus pages (no shell assertion depended on it). The `.test-banner` CSS rule is left
+  in components.css (harmless, avoids a byte-fidelity ripple).
+- **Corpus ships inside the theme** at `s5-theme/site/pages/` (site content, already
+  fenced under `site/`). The CLI importer keeps using its wp-env mapping via
+  `pages_root()`; the new seeder reads the in-theme copy. Repo-root `pages/` stays the
+  dev source (kept in sync).
+- **`src/Seeder.php`** — CLI-free counterpart to the importer. Reuses the SAME
+  primitives (`Validator`, `HtmlDocument`, `Compiler::persist_page`, `StyleBundle`) and
+  returns arrays instead of `WP_CLI::` output. `seed_demo_corpus()` (idempotent, option-
+  flagged) runs on `after_switch_theme`; `create_page()` / `convert_page()` persist a
+  minimal contract-valid starter canonical through the one door so a fresh page is
+  immediately a framework page and opens in the editor.
+  - BUG fixed during build: `Validator::validate()` wants the flat class MAP, but
+    `Stylesheet::load_vocabulary()` returns a `{classes,files,missing}` wrapper (the CLI
+    returns `$v['classes']`). Passing the wrapper made every class read as unknown and
+    blocked all 9 pages; the seeder now returns `$vocab['classes']`.
+- **`src/PageAdmin.php`** — the UI: a "New S5 Page" submenu under Pages (title →
+  `admin-post` → create → redirect into the editor) and a "Convert to S5" row action on
+  non-framework pages. Capability + nonce guarded. Registered in `Plugin::boot()`.
+- **Release zip** (`dist/s5-theme.zip`, gitignored build artifact): lean end-user build
+  — runtime + editor + `site/` + a production `vendor/` (`composer install --no-dev -o`),
+  minus tests/phpcs/phpunit/composer manifests. Extracts to `s5-theme/` like any theme.
+
+Verified live (before packaging): fresh activation seeds 9 pages, "New S5 Page" creates
+a page and lands in the editor, adding HTML in Code view saves + validates + renders on
+the served page. Screenshots: docs/demo-walkthrough/zip-step1/zip-step2.
