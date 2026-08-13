@@ -125,6 +125,10 @@
 			}
 			return;
 		}
+		if ( 's5-select-node' === msg.s5 ) {
+			selectByNode( msg.node || '' );
+			return;
+		}
 		if ( 's5-patch' === msg.s5 && msg.node ) {
 			var el = document.querySelector( '[data-node="' + cssEscape( msg.node ) + '"]' );
 			if ( ! el ) {
@@ -217,6 +221,62 @@
 		n.setAttribute( 'data-s5-dynamic', '' );
 	} );
 
+	/* --- structure map: report the page's structural nodes (Item 5) ---------- */
+
+	// A short human label for a node: prefer its component name, else its tag +
+	// a snippet of text. Keeps the right-panel list readable without a full tree.
+	function nodeLabel( el ) {
+		var comp = el.getAttribute( 'data-s5-component' );
+		if ( comp ) {
+			return comp;
+		}
+		var t = ( el.textContent || '' ).trim().replace( /\s+/g, ' ' );
+		if ( t.length > 32 ) {
+			t = t.slice( 0, 32 ) + '…';
+		}
+		return t || el.tagName.toLowerCase();
+	}
+
+	// Walk every node the page exposes as structure: components (data-s5-component)
+	// and editables (data-edit). Report a FLAT list (a demo bar, not a full tree)
+	// with a depth hint so the parent can indent visually.
+	function reportStructure() {
+		var nodes = document.querySelectorAll( '[data-s5-component],[data-edit]' );
+		var list = Array.prototype.map.call( nodes, function ( el ) {
+			var kind = el.hasAttribute( 'data-s5-component' ) ? 'component'
+				: ( el.hasAttribute( 'data-s5-dynamic' ) ? 'dynamic' : 'editable' );
+			// Depth = count of structural ancestors, for a light indent.
+			var depth = 0, p = el.parentNode;
+			while ( p && p !== document.body ) {
+				if ( p.nodeType === 1 && ( p.hasAttribute( 'data-s5-component' ) || p.hasAttribute( 'data-edit' ) ) ) {
+					depth++;
+				}
+				p = p.parentNode;
+			}
+			return {
+				node: el.getAttribute( 'data-node' ) || '',
+				type: el.getAttribute( 'data-edit' ) || '',
+				kind: kind,
+				label: nodeLabel( el ),
+				depth: depth,
+			};
+		} );
+		parent.postMessage( { s5: 's5-structure', nodes: list }, ORIGIN );
+	}
+
+	// Programmatic selection from the structure list: scroll to + select a node.
+	function selectByNode( id ) {
+		var el = id ? document.querySelector( '[data-node="' + cssEscape( id ) + '"]' ) : null;
+		if ( ! el ) {
+			return;
+		}
+		if ( el.scrollIntoView ) {
+			el.scrollIntoView( { block: 'center' } );
+		}
+		el.click(); // reuse the normal selection path (posts the select message)
+	}
+
 	// Announce readiness so the parent can enable the Edit lens.
 	parent.postMessage( { s5: 'ready' }, ORIGIN );
+	reportStructure();
 }() );

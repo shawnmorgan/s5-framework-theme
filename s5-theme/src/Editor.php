@@ -219,6 +219,16 @@ final class Editor {
 			true
 		);
 
+		// Right-panel structure list (Item 5): sidecar-derived list of components +
+		// editables; selection synced both ways with the glass.
+		wp_enqueue_script(
+			's5-editor-structure',
+			$base . 'structure.js',
+			array( 's5-editor', 's5-editor-panel' ),
+			'0.0.0',
+			true
+		);
+
 		// Code lens: CodeMirror from WP core (no build step, no new deps). Enqueue
 		// the HTML-mode code editor; wp_enqueue_code_editor loads wp-codemirror.
 		$cm_settings = false;

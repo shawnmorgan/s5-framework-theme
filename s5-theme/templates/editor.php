@@ -99,9 +99,15 @@ $s5_back_url    = isset( $s5_editor['back_url'] ) ? (string) $s5_editor['back_ur
 			</div>
 
 			<div class="s5-editor__tabpane" data-s5-tabpane="content">
+			<div class="s5-editor__structure" data-s5-lens-edit>
+				<div class="s5-editor__structure-head"><?php esc_html_e( 'Page structure', 's5' ); ?></div>
+				<ul class="s5-editor__structure-list" data-s5-structure>
+					<li class="s5-editor__hint"><?php esc_html_e( 'Loading structure…', 's5' ); ?></li>
+				</ul>
+			</div>
 			<div class="s5-editor__panel-body" data-s5-panel-body data-s5-lens-edit>
 				<p class="s5-editor__hint" data-s5-hint>
-					<?php esc_html_e( 'Select an editable element in the preview to see its fields.', 's5' ); ?>
+					<?php esc_html_e( 'Select an editable element in the preview — or in the structure list — to see its fields.', 's5' ); ?>
 				</p>
 			</div>
 
