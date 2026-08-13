@@ -199,6 +199,77 @@
 	border-top: 1px solid #f0f0f1;
 }
 
+/* CSS mode toggle + stylesheet view (Item 7). */
+.s5-editor__cssmode {
+	padding: 12px 12px 0;
+}
+.s5-editor__cssmode-switch {
+	display: inline-flex;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	overflow: hidden;
+	margin-top: 4px;
+}
+.s5-editor__cssmode-btn {
+	border: 0;
+	background: #fff;
+	padding: 6px 12px;
+	font-size: 12px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.s5-editor__cssmode-btn.is-active {
+	background: #2271b1;
+	color: #fff;
+}
+.s5-editor__cssmode-btn.is-soon {
+	color: #646970;
+	cursor: not-allowed;
+	background: #f6f7f7;
+}
+.s5-editor__cssmode-badge {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: .03em;
+	opacity: .85;
+}
+.s5-editor__cssmode-btn.is-active .s5-editor__cssmode-badge {
+	background: rgba(255, 255, 255, .25);
+	border-radius: 3px;
+	padding: 0 4px;
+}
+.s5-editor__cssmode-btn.is-soon .s5-editor__cssmode-badge {
+	background: #dcdcde;
+	border-radius: 3px;
+	padding: 0 4px;
+}
+.s5-editor__stylesheet {
+	padding: 8px 12px 12px;
+	border-top: 1px solid #f0f0f1;
+}
+.s5-editor__stylesheet-toggle {
+	border: 0;
+	background: none;
+	color: #2271b1;
+	cursor: pointer;
+	padding: 0;
+	font-size: 12px;
+}
+.s5-editor__stylesheet-view {
+	margin: 8px 0 0;
+	max-height: 220px;
+	overflow: auto;
+	background: #1d2327;
+	color: #e2e4e7;
+	padding: 10px;
+	border-radius: 6px;
+	font-family: Menlo, Consolas, monospace;
+	font-size: 11px;
+	white-space: pre;
+}
+
 /* Components tab (Item 6). */
 .s5-editor__comp-grid {
 	display: grid;

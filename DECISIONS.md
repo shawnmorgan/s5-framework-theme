@@ -258,6 +258,20 @@ manifest.json validated (manifest must be JSON with a version; html must parse) 
 write; style.css written then the bundle rebuilt. Reads/writes go through
 ComponentRegistry (extended with save_component()).
 
+**D24 — Style tab: CSS MODE toggle is a first-class roadmap control (Semantic active
+/ Tailwind coming-soon, disabled + tooltip); a compiled-stylesheet viewer sits beside
+the read-only tokens. (Item 7.)**
+Rejected: an apologetic "not built yet" note; hiding the Tailwind option entirely.
+Why: the mission says "placeholder tabs done properly, not apologetically." The CSS
+MODE switch is rendered as a real segmented control: Semantic carries an "active"
+badge and is the one live mode; Tailwind carries a "coming soon" badge, is disabled,
+and its tooltip states the actual plan (compile the SAME authored HTML against a
+Tailwind build without changing pages). No function is faked — clicking Tailwind does
+nothing by design. The tab also gains a "View compiled stylesheet" disclosure that
+fetches and shows `site/dist/s5.css` (the real bundle, via S5Editor.bundleUrl) read-
+only, so an author can see exactly what ships. Tokens/scales stay read-only, rendered
+live from the files (D5, unchanged). The top-level Tailwind tab stays disabled/inert.
+
 ## Open / flagged for owner review
 
 - **F1 — data-node is authored, not injected (resolved).** To protect the

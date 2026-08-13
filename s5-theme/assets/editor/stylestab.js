@@ -163,5 +163,45 @@
 		renderPlain( 'Other', tokens.other || [], styleHost );
 	}
 
+	/* --- CSS MODE toggle (Semantic active / Tailwind coming soon) --------- */
+
+	function wireCssMode() {
+		root.querySelectorAll( '[data-s5-cssmode-btn]' ).forEach( function ( btn ) {
+			btn.addEventListener( 'click', function () {
+				// Tailwind is a designed-but-unbuilt mode: the button is disabled and
+				// only signals the roadmap. Semantic stays the one active mode.
+				if ( btn.disabled || 'tailwind' === btn.getAttribute( 'data-s5-cssmode-btn' ) ) {
+					return;
+				}
+			} );
+		} );
+	}
+
+	/* --- compiled stylesheet view (read-only) ----------------------------- */
+
+	function wireStylesheet() {
+		var toggle = root.querySelector( '[data-s5-stylesheet-toggle]' );
+		var view = root.querySelector( '[data-s5-stylesheet]' );
+		if ( ! toggle || ! view ) {
+			return;
+		}
+		var loaded = false;
+		toggle.addEventListener( 'click', function () {
+			var open = view.hidden;
+			view.hidden = ! open;
+			toggle.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+			if ( open && ! loaded && cfg.bundleUrl ) {
+				loaded = true;
+				view.textContent = 'Loading…';
+				fetch( cfg.bundleUrl, { credentials: 'same-origin' } )
+					.then( function ( r ) { return r.text(); } )
+					.then( function ( css ) { view.textContent = css; } )
+					.catch( function () { view.textContent = '/* Could not load the compiled stylesheet. */'; } );
+			}
+		} );
+	}
+
 	render();
+	wireCssMode();
+	wireStylesheet();
 }() );

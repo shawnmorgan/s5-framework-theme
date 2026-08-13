@@ -137,8 +137,21 @@ $s5_back_url    = isset( $s5_editor['back_url'] ) ? (string) $s5_editor['back_ur
 			</div><!-- /tabpane content -->
 
 			<div class="s5-editor__tabpane s5-editor__styletab" data-s5-tabpane="style" hidden>
+				<div class="s5-editor__cssmode" data-s5-cssmode>
+					<div class="s5-editor__field-label"><?php esc_html_e( 'CSS mode', 's5' ); ?></div>
+					<div class="s5-editor__cssmode-switch" role="group" aria-label="<?php esc_attr_e( 'CSS mode', 's5' ); ?>">
+						<button type="button" class="s5-editor__cssmode-btn is-active" data-s5-cssmode-btn="semantic" aria-pressed="true"><?php esc_html_e( 'Semantic', 's5' ); ?> <span class="s5-editor__cssmode-badge"><?php esc_html_e( 'active', 's5' ); ?></span></button>
+						<button type="button" class="s5-editor__cssmode-btn is-soon" data-s5-cssmode-btn="tailwind" aria-disabled="true" disabled title="<?php esc_attr_e( 'Tailwind mode is on the roadmap — the framework will compile the same authored HTML against a Tailwind build without changing your pages.', 's5' ); ?>"><?php esc_html_e( 'Tailwind', 's5' ); ?> <span class="s5-editor__cssmode-badge"><?php esc_html_e( 'coming soon', 's5' ); ?></span></button>
+					</div>
+				</div>
+
 				<div class="s5-editor__panel-body" data-s5-styletab>
 					<p class="s5-editor__hint"><?php esc_html_e( 'Read-only. Rendered live from the theme design tokens.', 's5' ); ?></p>
+				</div>
+
+				<div class="s5-editor__stylesheet">
+					<button type="button" class="s5-editor__stylesheet-toggle" data-s5-stylesheet-toggle aria-expanded="false"><?php esc_html_e( 'View compiled stylesheet', 's5' ); ?></button>
+					<pre class="s5-editor__stylesheet-view" data-s5-stylesheet hidden></pre>
 				</div>
 			</div>
 

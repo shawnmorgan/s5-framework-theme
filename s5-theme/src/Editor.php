@@ -282,6 +282,7 @@ final class Editor {
 				'cmSettings' => $cm_settings,
 				'tokens'     => Styles::read_tokens(),
 				'components' => self::components_for_palette(),
+				'bundleUrl'  => StyleBundle::url(),
 			)
 		);
 	}
