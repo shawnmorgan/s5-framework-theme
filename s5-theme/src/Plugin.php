@@ -49,6 +49,7 @@ final class Plugin {
 		Render::register();
 		Revisions::register();
 		Islands::register();
+		Admin::register();
 		Editor::register();
 		PageAdmin::register();
 		Rest::register();

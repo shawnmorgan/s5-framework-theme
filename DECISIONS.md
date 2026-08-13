@@ -415,3 +415,46 @@ Decisions:
 Verified live (before packaging): fresh activation seeds 9 pages, "New S5 Page" creates
 a page and lands in the editor, adding HTML in Code view saves + validates + renders on
 the served page. Screenshots: docs/demo-walkthrough/zip-step1/zip-step2.
+
+## D26 — Distribution path made real: the installable zip works as a theme
+
+**Problem (owner-reported, reproduced honestly):** every prior "acceptance" ran with the
+whole repo MOUNTED into wp-env (`wp-content/s5-repo`). Installed as an actual zip on a
+real site with no mounts, the theme was broken: unstyled front end, no S5 admin menu,
+Add Page → Gutenberg, non-framework pages browser-default. The mount was the only reason
+it ever worked. Full root-cause map in **FAILURES.md** (F1–F6), reproduced by installing
+the zip at a non-mounted theme dir (`s5-dist`) inside the container.
+
+**Root cause of "unstyled everything" (F1):** the compiled design-system bundle
+`site/dist/s5.css` is gitignored and was NEVER built into the zip. `StyleBundle::url()`
+returned '' and the enqueue seam bailed silently.
+
+**Owner ruling (2026-08-13):** distribution stays **ONE theme** (D14 upheld). The spec's
+"child theme / activate a child in wp-content" wording = the fenced `site/` subtree
+inside `s5-theme`, NOT a second theme.
+
+**Fixes:**
+- **`tools/build-zip.mjs` (`npm run build:zip`)** — self-contained release: staged copy,
+  `composer install --no-dev -o` (or reuse existing vendor), **compiles
+  `site/dist/s5.css`** (deterministic order mirroring `StyleBundle::build`), strips
+  dev cruft, zips to `s5-theme/`, and verifies critical files present / cruft absent.
+- **`StyleBundle::ensure()`** — runtime self-heal: build the bundle on demand if missing,
+  never throw. Wired into the front-end enqueue seam and activation. So even a bundle-less
+  install styles itself on first hit.
+- **`assets/fallback.css` + rewritten `index.php`** — product-owned base typography bound
+  to the `--s5-*` tokens, enqueued on EVERY front-end view; non-framework content renders
+  through a styled `.s5-fallback` template, never browser-default (F4).
+- **`src/Admin.php`** — top-level **S5** menu (Setup/Status · Add S5 Page · Style ·
+  Components), admin notices that name what's missing + the one fix (Compile styles /
+  Open Setup), an on-demand **Rebuild styles** action, and the **adoption** path
+  (per-page + bulk "Adopt into S5" via `Seeder::convert_page`, reversible via revisions)
+  (F2, F5, F6).
+- **`wp s5 init`** now compiles the bundle after scaffolding (F1 on fresh sites).
+- **`tests/acceptance-dist.sh` (`npm run test:dist`, added as the final gate suite)** —
+  the standing permanent guarantee: builds the zip, installs it with ZERO mounts, and
+  asserts BOTH scenarios — existing content survives + styled fallback + front-page
+  intact + adoption works (A); framework page serves styled with a token-driven rule
+  actually applying + top-level menu present (B). Passes end to end.
+
+**Verified:** distribution suite green; phpcs 38/38 clean; served framework AND
+non-framework pages both carry the design-system stylesheet from the zip with no mounts.

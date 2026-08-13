@@ -1,0 +1,87 @@
+/*
+ * S5 Framework — fallback / base typography (product-owned theme chrome).
+ *
+ * This stylesheet is NOT part of the authored design system and NOT subject to the
+ * Authoring Contract vocabulary. It is shipped inside the theme (assets/) and
+ * enqueued on every front-end view so that:
+ *
+ *   1. Non-framework content (ordinary pages/posts served through index.php) renders
+ *      with real base typography — never the browser default (Times New Roman).
+ *   2. The site has a coherent baseline even before the design-system bundle is
+ *      compiled or when a page has not been adopted into S5.
+ *
+ * It binds the design-system custom properties (--s5-*) with sensible built-in
+ * fallbacks, so it looks right whether the shipped tokens are the starter set or a
+ * fully branded site. It intentionally scopes to the fallback wrapper and generic
+ * flow content, so it can never override the authored, byte-clean canonical HTML of
+ * framework pages (which live under [data-s5="page"], not [data-s5="fallback"]).
+ */
+
+body {
+	font-family: var(--s5-font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+	font-size: var(--s5-text-md, 1rem);
+	line-height: var(--s5-leading-normal, 1.5);
+	color: var(--s5-color-ink, #1e1e1e);
+	background: var(--s5-color-surface, #ffffff);
+	-webkit-font-smoothing: antialiased;
+}
+
+.s5-fallback {
+	display: block;
+	padding: var(--s5-space-xxl, 2rem) var(--s5-space-lg, 1.5rem);
+}
+
+.s5-fallback__inner {
+	max-width: 72ch;
+	margin-inline: auto;
+}
+
+.s5-fallback__title {
+	font-size: var(--s5-text-xxxl, 2.074rem);
+	line-height: var(--s5-leading-tight, 1.2);
+	margin: 0 0 var(--s5-space-md, 1rem);
+	color: var(--s5-color-ink, #1e1e1e);
+}
+
+.s5-fallback__content {
+	display: grid;
+	gap: var(--s5-space-md, 1rem);
+}
+
+.s5-fallback__content p,
+.s5-fallback__content ul,
+.s5-fallback__content ol {
+	margin: 0;
+}
+
+.s5-fallback__content h2 {
+	font-size: var(--s5-text-xxl, 1.728rem);
+	line-height: var(--s5-leading-tight, 1.2);
+	margin: var(--s5-space-lg, 1.5rem) 0 0;
+}
+
+.s5-fallback__content h3 {
+	font-size: var(--s5-text-xl, 1.44rem);
+	line-height: var(--s5-leading-tight, 1.2);
+	margin: var(--s5-space-md, 1rem) 0 0;
+}
+
+.s5-fallback__content a {
+	color: var(--s5-color-brand, #2271b1);
+}
+
+.s5-fallback__content a:hover {
+	color: var(--s5-color-brand-strong, #135e96);
+}
+
+.s5-fallback__content img {
+	max-width: 100%;
+	height: auto;
+}
+
+.s5-fallback__content blockquote {
+	margin: 0;
+	padding-inline-start: var(--s5-space-md, 1rem);
+	border-inline-start: 4px solid var(--s5-color-line, #dcdcde);
+	color: var(--s5-color-ink-soft, #3c434a);
+}

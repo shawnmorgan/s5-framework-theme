@@ -9,6 +9,45 @@ Everything below runs on the wp-env stack in this repo. The framework ships as a
 
 ---
 
+## Install on a real site (the uploadable zip)
+
+The framework installs like any other WordPress theme — no CLI, no composer, no
+build tools on the target.
+
+```bash
+npm run build:zip          # produces dist/s5-theme.zip (self-contained)
+```
+
+Then, in wp-admin:
+
+1. **Appearance → Themes → Add Theme → Upload Theme** → choose `dist/s5-theme.zip`
+   → **Install** → **Activate**.
+2. On activation the design system is compiled and the demo pages are seeded, so
+   the site is styled and has content immediately. If you ever see the notice
+   *"the design system is not compiled yet"*, click **Compile styles now** — it is
+   a one-click rebuild.
+3. Open the top-level **S5** menu:
+   - **Setup & Status** — environment health (code, design system, compiled CSS,
+     framework-page count) and, on a site with existing content, an
+     *"N existing pages found — rendering via the styled fallback until adopted"*
+     list with per-page and bulk **Adopt into S5**.
+   - **Add S5 Page** — creates a framework page and opens it straight in the S5
+     editor.
+   - **Style** / **Components** — jump into the editor's Style / Components panels.
+4. **Existing content is safe.** Menus, front-page settings, and existing pages/
+   posts survive activation untouched. Non-framework pages render through a styled
+   fallback (the design system's base typography), never browser-default. Adopting
+   a page is explicit and reversible via the page's revisions.
+5. **Edit with S5** appears as a row action on framework pages (and in the admin
+   bar when viewing one); framework pages open the S5 editor, not Gutenberg.
+
+> The permanent guarantee that this all works from the zip with **no repo mount**
+> is the `distribution` acceptance suite (`npm run test:dist`), which installs the
+> built zip into a clean, mount-free WordPress and asserts styled serving for both
+> a fresh site and a site that already had content.
+
+---
+
 ## 0. Setup (before you present)
 
 ```bash

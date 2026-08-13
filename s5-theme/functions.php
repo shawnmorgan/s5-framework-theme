@@ -82,6 +82,9 @@ function s5_theme_seed_on_activation(): void {
 	if ( ! current_user_can( 'switch_themes' ) ) {
 		return;
 	}
+	// Compile the design system first so the very first front-end hit is styled,
+	// even before the enqueue-time self-heal runs.
+	StyleBundle::ensure();
 	Seeder::seed_demo_corpus();
 }
 add_action( 'after_switch_theme', __NAMESPACE__ . '\\s5_theme_seed_on_activation' );
@@ -90,22 +93,41 @@ add_action( 'after_switch_theme', __NAMESPACE__ . '\\s5_theme_seed_on_activation
  * Enqueue front-end assets.
  *
  * The compiled CSS bundle (site/dist/s5.css — the design system + every registered
- * component's scoped CSS, concatenated at compile per D17) is enqueued on framework
- * pages so a single cacheable <link> styles the served page. The bundle is a served
- * asset via wp_head, OUTSIDE the authored body fragment, so byte-clean round-trip is
- * untouched. Enqueue only on framework pages, and only if the bundle exists.
+ * component's scoped CSS, concatenated at compile per D17) carries all design-system
+ * styling. It is enqueued via wp_head, OUTSIDE any authored body fragment, so the
+ * byte-clean round-trip of framework pages is untouched.
+ *
+ * It is enqueued on EVERY front-end view — framework pages (so the served canonical
+ * HTML is styled) AND ordinary pages/posts (so the styled fallback template renders
+ * with the design system's base typography instead of browser defaults). If the
+ * bundle is missing (a fresh zip install, or a stale build), it is built on demand
+ * via StyleBundle::ensure() rather than serving unstyled. A build that cannot happen
+ * (no site subtree) surfaces as an admin notice; it never white-screens the front.
  *
  * @return void
  */
 function s5_theme_enqueue_assets(): void {
-	$post_id = get_queried_object_id();
-	if ( ! $post_id || ! Storage::is_framework_page( (int) $post_id ) ) {
-		return;
+	// Product-owned base typography. Always present (shipped in the theme, not site/),
+	// so even a not-yet-compiled or minimal install never renders browser-default.
+	$fallback = S5_PLUGIN_DIR . 'assets/fallback.css';
+	if ( is_readable( $fallback ) ) {
+		wp_enqueue_style(
+			's5-fallback',
+			get_stylesheet_directory_uri() . '/assets/fallback.css',
+			array(),
+			(string) filemtime( $fallback )
+		);
 	}
+
+	// Self-heal: build the design-system bundle on demand if it is missing
+	// (never serve unstyled). Enqueued AFTER the fallback so authored design-system
+	// rules win the cascade on framework pages.
+	StyleBundle::ensure();
+
 	$url = StyleBundle::url();
 	if ( '' === $url ) {
 		return;
 	}
-	wp_enqueue_style( 's5-bundle', $url, array(), (string) StyleBundle::version() );
+	wp_enqueue_style( 's5-bundle', $url, array( 's5-fallback' ), (string) StyleBundle::version() );
 }
 add_action( 'wp_enqueue_scripts', __NAMESPACE__ . '\\s5_theme_enqueue_assets' );

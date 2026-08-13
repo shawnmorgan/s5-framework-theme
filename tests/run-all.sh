@@ -59,6 +59,7 @@ SUITES=(
 	"tests/acceptance-step11.sh|Step 11 — components (registry + copy-on-insert)"
 	"tests/acceptance-components.sh|Item 2 — component folders + CSS bundle"
 	"tests/acceptance-editor.sh|Step 12 — Editor MVP (WordCamp cut)"
+	"tests/acceptance-dist.sh|Distribution — the uploadable zip works with zero mounts"
 )
 
 fail_count=0

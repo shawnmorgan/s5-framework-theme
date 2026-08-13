@@ -96,6 +96,55 @@ final class StyleBundle {
 	}
 
 	/**
+	 * Absolute path where the bundle lives in the active theme's site/ subtree.
+	 *
+	 * @return string
+	 */
+	public static function path(): string {
+		return rtrim( (string) get_stylesheet_directory(), '/' ) . '/site/' . self::REL_PATH;
+	}
+
+	/**
+	 * Whether the compiled bundle exists on disk.
+	 *
+	 * @return bool
+	 */
+	public static function exists(): bool {
+		return is_file( self::path() );
+	}
+
+	/**
+	 * Ensure the compiled bundle exists, building it on demand if it is missing.
+	 *
+	 * A theme installed from a zip may ship without the built bundle (or a product
+	 * update may leave it stale). Rather than serve unstyled pages, self-heal: build
+	 * the bundle from the shipped site/ subtree the first time it is needed. Building
+	 * is cheap (string concatenation of local CSS) and idempotent.
+	 *
+	 * Never throws: a build failure returns false so the caller can surface a notice
+	 * instead of white-screening the front end.
+	 *
+	 * @return bool True if the bundle exists (already, or after a successful build).
+	 */
+	public static function ensure(): bool {
+		if ( self::exists() ) {
+			return true;
+		}
+		// Cannot build without the shipped design system. Let the caller notice.
+		$site = rtrim( (string) get_stylesheet_directory(), '/' ) . '/site';
+		if ( ! is_readable( $site . '/s5.config.json' ) ) {
+			return false;
+		}
+		try {
+			self::build();
+		} catch ( \Throwable $e ) {
+			unset( $e );
+			return false;
+		}
+		return self::exists();
+	}
+
+	/**
 	 * Public URL of the compiled bundle for enqueueing, or '' if not built yet.
 	 *
 	 * Resolves against the active theme's site/ subtree (D14). Returns '' when the
@@ -104,8 +153,7 @@ final class StyleBundle {
 	 * @return string
 	 */
 	public static function url(): string {
-		$abs = rtrim( (string) get_stylesheet_directory(), '/' ) . '/site/' . self::REL_PATH;
-		if ( ! is_file( $abs ) ) {
+		if ( ! self::exists() ) {
 			return '';
 		}
 		return rtrim( (string) get_stylesheet_directory_uri(), '/' ) . '/site/' . self::REL_PATH;

@@ -95,6 +95,16 @@ final class InitCommand {
 			\WP_CLI::log( '  = ' . $s . ' (exists; left untouched)' );
 		}
 
+		// Compile the design-system bundle so a freshly-init'd site serves STYLED
+		// immediately (site/dist/s5.css). Without this the front end would render
+		// unstyled until the first import/recompile.
+		try {
+			$outfile = \S5\StyleBundle::build();
+			\WP_CLI::log( '  + ' . str_replace( $site_dir . '/', '', $outfile ) . ' (compiled)' );
+		} catch ( \Throwable $e ) {
+			\WP_CLI::warning( 'Could not compile the CSS bundle: ' . $e->getMessage() );
+		}
+
 		\WP_CLI::success(
 			sprintf(
 				'Site scaffold ready at %s (%d created, %d preserved).',
