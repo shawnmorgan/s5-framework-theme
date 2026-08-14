@@ -670,3 +670,29 @@ variable); assign first.
 the real `--s5-text-xxxl`; token edit → success redirect + recompiled bundle carries the new
 value; Templates 2 parts → pencil → template-mode editor (tpl drawer active, part canonical
 in CodeMirror, part preview renders). Full clean gate + DECISIONS.
+
+## D32 — Phase C Components screen + Component Builder (R5 enforced server-side)
+
+The Components settings screen (§3.5): a grid of the real registered components + a
+Component Builder modal (Props from the manifest · HTML editable · Component CSS
+read-only · Logic/manifest editable), driven by `components.js` over the existing
+`/components` REST route.
+
+**R5 / §0.5 enforcement made real (the important part).** The pre-existing
+`handle_component_save` accepted and wrote a `css` payload and did NOT validate the HTML —
+so "CSS is read-only" and "HTML is vocabulary-validated" were UI conventions, not enforced.
+Now the server enforces both (hide AND block, per standing law): the endpoint IGNORES any
+css payload and re-uses the on-disk `style.css`, and it validates the component HTML against
+the SAME closed vocabulary as a page's canonical (ERROR ⇒ 422 reject, files unchanged).
+Proven: a tampered css payload leaves style.css byte-identical; HTML carrying a bogus class
+is rejected and both files are untouched. The UI's read-only CSS box is now backed by a
+server that would refuse a CSS write even if the box were bypassed.
+
+**Demo-critical trio complete:** StyleGuide (D31) · Templates (D31) · Components (D32) all
+built to the mockup, driven by real data, writing through validated one-door paths, each
+verified in-browser and behind a full clean gate.
+
+**Deferred (owner priority — cut these before the top three lose polish):** Integrations,
+General, CSS/Tailwind, Roles screens, and the Page Settings drawer's post-meta/SEO/JSON-LD
+write-through. The settings sub-nav routes to all seven; the remaining four render the
+"being wired" stub until built.
