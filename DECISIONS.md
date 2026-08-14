@@ -859,3 +859,28 @@ on the real install.
 Description was rewritten for someone who just installed the theme (what it does, that pages are
 canonical HTML edited in the S5 canvas editor, tokens/components/vocabulary in Theme Settings) with
 no repo/PRD/Build-Order references. The Step-0 code comment was likewise de-repo'd.
+
+---
+
+**D38 — Full clean gate: 3 suite failures were 2 stale assertions + 1 pre-existing test bug, not runtime regressions.**
+The mandatory clean `destroy→start→all-suites` run (required because 5a is compiler/storage-touching)
+surfaced three red suites on the first pass. Investigated each against the real install before touching
+anything; none was a runtime regression:
+
+- **Phase A — settings sub-nav.** The check counted `data-s5-screen=`, but Item 3 rebuilt the sub-nav to
+  the mockup's OWN markup (`.snav` / `<section class="screen"` carrying `data-screen="<key>"`). The app
+  renders all 7 screens; the assertion was stale. Fixed to count `data-screen=` (==14: 7 links + 7
+  sections) and to assert the mockup shell (`.s5set-page` + `.subnav`).
+- **Phase B — Style class-swap.** The check asserted `text-scale` must be ABSENT and that a swap to
+  `text-scale-lg` is rejected as an unavailable axis — both written before the ladders existed. Item 5c
+  intentionally ships those ladders, so the axis is now AVAILABLE and the swap must APPLY. Flipped the
+  assertions (text-scale + space-top present; text-scale-lg applies) and repointed the "unavailable axis"
+  rejection probe at a genuinely fabricated axis key.
+- **Phase B — Disable (R4).** The eval never set a current user, so `Roles::can('editor.structure')`
+  (the R1 structure gate added in Phase C-4b, BEFORE this session) correctly refused with
+  `s5_role_structure`. The test was silently mis-authorized since C-4b; the clean run exposed it. Fixed by
+  running the eval as an Administrator (→ Developer role, always granted), matching the Phase A / Roles
+  suites. The R4 disable behavior itself is correct (proven: disable → canon_disabled=1, dropped from
+  render; re-enable restores).
+
+All three fixes verified on the real install before re-running the full clean gate.

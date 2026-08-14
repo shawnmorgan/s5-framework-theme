@@ -38,11 +38,19 @@ $WP_ENV run cli wp theme activate s5-theme >/dev/null 2>&1 || fail "s5-theme fai
 $WP_ENV run cli wp s5 import "$PAGES_C" >/dev/null 2>&1 || fail "corpus import failed"
 ABOUT="$($WP_ENV run cli wp post list --post_type=page --name=about --field=ID 2>/dev/null | tr -d '\r' | head -n1)"
 [ -n "$ABOUT" ] || fail "about page missing"
-pass "environment ready (about #$ABOUT)"
+# An administrator context: mode:disable is a STRUCTURE-tree op, gated by
+# Roles::can('editor.structure') since Phase C-4b (R1). An Administrator resolves to the
+# Developer S5 role, which is always granted — so the disable save is authorized. Without a
+# user the gate correctly refuses (s5_role_structure); the test proves the WRITE path, so it
+# must run as a real capable user, exactly like the Phase A / Roles suites.
+ADMIN_ID="$($WP_ENV run cli wp user list --role=administrator --field=ID 2>/dev/null | tr -d '\r' | head -n1)"
+[ -n "$ADMIN_ID" ] || fail "no administrator user"
+pass "environment ready (about #$ABOUT, admin #$ADMIN_ID)"
 
 # Drive the whole disable → assert → re-enable flow inside one eval so state is
 # consistent, and print machine-checkable KEY=VALUE lines.
 OUT="$($WP_ENV run cli wp eval '
+wp_set_current_user('"$ADMIN_ID"');
 $id='"$ABOUT"';
 $c=\S5\Storage::get_canonical_html($id);
 $p=new WP_HTML_Tag_Processor($c); $node="";

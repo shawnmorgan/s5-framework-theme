@@ -45,7 +45,10 @@ $id='"$ABOUT"';
 $axes=\S5\ControlsManifest::axes();
 $keys=array_map(function($a){return $a["key"];},$axes);
 echo "HAS_TEXTALIGN=".(in_array("text-align",$keys,true)?"1":"0")."\n";
-echo "TEXTSCALE_ABSENT=".(in_array("text-scale",$keys,true)?"0":"1")."\n";
+// Item 5c shipped the text-scale / space ladders in utilities.css, so those axes now
+// light up (were absent by construction before the ladders existed).
+echo "HAS_TEXTSCALE=".(in_array("text-scale",$keys,true)?"1":"0")."\n";
+echo "HAS_SPACETOP=".(in_array("space-top",$keys,true)?"1":"0")."\n";
 
 $c=\S5\Storage::get_canonical_html($id);$p=new WP_HTML_Tag_Processor($c);$node="";
 while($p->next_tag()){ $n=$p->get_attribute("data-node"); if($n){$node=$n;break;} }
@@ -76,9 +79,15 @@ echo "FREEFORM_REJECTED=".(is_wp_error($res3)?"1":"0")."\n";
 echo "FREEFORM_CODE=".(is_wp_error($res3)?$res3->get_error_code():"none")."\n";
 echo "FREEFORM_UNCHANGED=".($before===\S5\Storage::get_canonical_html($id)?"1":"0")."\n";
 
-// Unavailable axis → rejected (no invented classes).
+// text-scale is now a REAL axis (5c): a valid swap within it must APPLY.
+$r5=new WP_REST_Request("POST","/s5/v1/pages/$id/save");$r5->set_url_params(array("id"=>$id));
+$r5->set_body_params(array("mode"=>"class","node"=>$node,"axis"=>"text-scale","class"=>"text-scale-lg"));
+$res5=\S5\Rest::handle_save($r5);
+echo "TEXTSCALE_APPLIED=".(is_wp_error($res5)?"0":(strpos(\S5\Storage::get_canonical_html($id),"text-scale-lg")!==false?"1":"0"))."\n";
+
+// A genuinely UNAVAILABLE axis (one the vocabulary never defines) → rejected (no invented classes).
 $r4=new WP_REST_Request("POST","/s5/v1/pages/$id/save");$r4->set_url_params(array("id"=>$id));
-$r4->set_body_params(array("mode"=>"class","node"=>$node,"axis"=>"text-scale","class"=>"text-scale-lg"));
+$r4->set_body_params(array("mode"=>"class","node"=>$node,"axis"=>"not-a-real-axis","class"=>"nope-nope"));
 $res4=\S5\Rest::handle_save($r4);
 echo "UNAVAIL_REJECTED=".(is_wp_error($res4)?"1":"0")."\n";
 ' 2>/dev/null | tr -d '\r')"
@@ -86,10 +95,11 @@ echo "UNAVAIL_REJECTED=".(is_wp_error($res4)?"1":"0")."\n";
 get() { printf '%s\n' "$OUT" | grep "^$1=" | head -n1 | cut -d= -f2; }
 
 info "1/4  Manifest exposes only vocabulary-backed axes…"
-[ "$(get HAS_TEXTALIGN)" = "1" ]   || fail "text-align axis missing from manifest"
-[ "$(get TEXTSCALE_ABSENT)" = "1" ] || fail "text-scale axis present but the vocabulary has no ladder — it must be absent"
-[ -n "$(get NODE)" ]                || fail "no data-node found"
-pass "manifest = only real axes (text-align present; text-scale absent by construction)"
+[ "$(get HAS_TEXTALIGN)" = "1" ]  || fail "text-align axis missing from manifest"
+[ "$(get HAS_TEXTSCALE)" = "1" ]  || fail "text-scale axis missing — the 5c utilities.css ladder should light it up"
+[ "$(get HAS_SPACETOP)" = "1" ]   || fail "space-top axis missing — the 5c utilities.css ladder should light it up"
+[ -n "$(get NODE)" ]              || fail "no data-node found"
+pass "manifest = real axes (text-align + text-scale + space-top, all vocabulary-backed)"
 
 info "2/4  Swap within the axis applies + replaces…"
 [ "$(get VALID_OK)" = "1" ]          || fail "valid swap did not succeed"
@@ -104,9 +114,10 @@ info "3/4  Free-form class rejected; canonical unchanged…"
 [ "$(get FREEFORM_UNCHANGED)" = "1" ] || fail "canonical changed on a rejected class swap"
 pass "no free-form class passes (s5_class_axis, canonical untouched)"
 
-info "4/4  Unavailable axis rejected (no invented classes)…"
-[ "$(get UNAVAIL_REJECTED)" = "1" ] || fail "an unavailable axis was accepted"
-pass "unavailable axis rejected — the vocabulary is never fabricated"
+info "4/4  text-scale swap applies; a truly-unavailable axis is rejected…"
+[ "$(get TEXTSCALE_APPLIED)" = "1" ] || fail "text-scale-lg swap did NOT apply (the 5c ladder should make it a real axis)"
+[ "$(get UNAVAIL_REJECTED)" = "1" ]  || fail "an unavailable axis was accepted"
+pass "text-scale swap applies; a fabricated axis is rejected — the vocabulary is never invented"
 
 echo
 pass "Style class-swap (R3) acceptance: ALL CHECKS PASSED (axis-swap-only; loud; no free-form)"

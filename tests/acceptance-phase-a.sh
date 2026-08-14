@@ -132,9 +132,19 @@ pass "S5 menu is Setup & Status + Theme Settings only"
 # 6. Theme Settings screen renders with the seven-screen sub-nav.
 # ---------------------------------------------------------------------------
 info "6/9  Theme Settings app shell renders (7-screen sub-nav)…"
-NAVCOUNT="$(wpev "$AS ob_start(); \S5\Settings::render_screen(); \$h=ob_get_clean(); echo substr_count(\$h,'data-s5-screen=');")"
-[ "${NAVCOUNT:-0}" -ge 7 ] || fail "settings sub-nav does not render 7 screens (got: ${NAVCOUNT:-0})"
-pass "settings app renders the seven-screen sub-nav"
+# The settings app was rebuilt to theme-settings-mockup.html: the left sub-nav uses the
+# mockup's OWN markup — `.snav` buttons carrying `data-screen="<key>"` (not the old
+# `data-s5-screen=`). Count the mockup's sub-nav links so the gate tracks the transcribed
+# reality; also assert the mockup's page shell + all seven screen sections render.
+# The mockup markup carries data-screen="<key>" on BOTH each sub-nav link and each screen
+# section — 7 screens → 14 occurrences (7 nav links + 7 sections). Assert exactly that, so
+# a dropped screen or a broken render is caught precisely.
+DSCOUNT="$(wpev "$AS ob_start(); \S5\Settings::render_screen(); \$h=ob_get_clean(); echo substr_count(\$h,'data-screen=');")"
+[ "${DSCOUNT:-0}" -eq 14 ] || fail "settings app does not render 7 sub-nav links + 7 screens (data-screen count: ${DSCOUNT:-0}, expected 14)"
+# The dark mockup shell must be present (page-head + subnav), not the old light wrap.
+SHELL_OK="$(wpev "$AS ob_start(); \S5\Settings::render_screen(); \$h=ob_get_clean(); echo (strpos(\$h,'s5set-page')!==false && strpos(\$h,'class=\"subnav')!==false)?'yes':'no';")"
+[ "$SHELL_OK" = "yes" ] || fail "settings app did not render the mockup page shell (.s5set-page + .subnav)"
+pass "settings app renders the mockup shell + seven-screen sub-nav ($NAVCOUNT snav · $SCREENCOUNT screens)"
 
 # ---------------------------------------------------------------------------
 # 7. Appearance cleanup: Patterns/Customize/Site-editor removed from the menu;
