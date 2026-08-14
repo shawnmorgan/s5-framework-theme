@@ -154,13 +154,29 @@ $s5_settings_css_url        = admin_url( 'admin.php?page=s5-settings&screen=css'
 					</div>
 				</div>
 
-				<?php /* STYLE — component variant + t-shirt sizing + theme-role color. No CSS. (R3) */ ?>
+				<?php /* STYLE — component variant + t-shirt sizing + theme-role color (R3), then the read-only design-token specimen. No CSS/class field. */ ?>
 				<div class="s5-editor__ptab-panel" data-s5-ppanel="style" hidden>
 					<div data-s5-style-controls>
 						<p class="s5-editor__hint"><?php esc_html_e( 'Select an element to adjust its variant, size, spacing and role color.', 's5' ); ?></p>
 					</div>
-					<?php /* Live design-token specimen + compiled stylesheet (relocated from the old Style tab). */ ?>
-					<div class="s5-editor__styletab" data-s5-styletab hidden></div>
+
+					<?php /* CSS mode switch — Semantic (active) / Tailwind (coming soon). */ ?>
+					<div class="s5-editor__cssmode" data-s5-cssmode>
+						<div class="s5-editor__field-label"><?php esc_html_e( 'CSS mode', 's5' ); ?></div>
+						<div class="s5-editor__seg is-wide" role="group" aria-label="<?php esc_attr_e( 'CSS mode', 's5' ); ?>">
+							<button type="button" class="s5-editor__seg-opt is-active" data-s5-cssmode-btn="semantic" aria-pressed="true"><?php esc_html_e( 'Semantic', 's5' ); ?></button>
+							<button type="button" class="s5-editor__seg-opt is-soon" data-s5-cssmode-btn="tailwind" aria-disabled="true" disabled title="<?php esc_attr_e( 'Tailwind mode is on the roadmap — the framework will compile the same authored HTML against a Tailwind build.', 's5' ); ?>"><?php esc_html_e( 'Tailwind', 's5' ); ?> · <?php esc_html_e( 'soon', 's5' ); ?></button>
+						</div>
+					</div>
+
+					<?php /* Live design-token specimen (read-only, from the real tokens — never drifts). */ ?>
+					<div class="s5-editor__styletab" data-s5-styletab></div>
+
+					<?php /* Compiled stylesheet view (read-only). */ ?>
+					<div class="s5-editor__stylesheet">
+						<button type="button" class="s5-editor__stylesheet-toggle" data-s5-stylesheet-toggle aria-expanded="false"><?php esc_html_e( 'View compiled stylesheet', 's5' ); ?></button>
+						<pre class="s5-editor__stylesheet-view" data-s5-stylesheet hidden></pre>
+					</div>
 				</div>
 
 				<?php /* ADVANCED — tag select, anchor/aria, responsive visibility (ships in DOM, R4). */ ?>
@@ -233,10 +249,6 @@ $s5_settings_css_url        = admin_url( 'admin.php?page=s5-settings&screen=css'
 			<textarea data-s5-head="description"></textarea>
 			<input type="url" data-s5-head="canonical">
 			<button type="button" data-s5-head-save disabled></button>
-		</div>
-		<div data-s5-stylesheet-wrap>
-			<button type="button" data-s5-stylesheet-toggle aria-expanded="false"></button>
-			<pre data-s5-stylesheet hidden></pre>
 		</div>
 		<div data-s5-comp-grid></div>
 		<div data-s5-comp-editor hidden>

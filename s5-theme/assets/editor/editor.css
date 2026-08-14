@@ -626,3 +626,28 @@ body.s5-editor-fullscreen .s5-editor__scrim { inset: var(--s5e-topbar-h) 0 0 0; 
 /* Style-tab specimen (light) — rendered by stylestab.js into data-s5-styletab. */
 .s5-editor__styletab[hidden] { display: none; }
 .s5-editor__style-section { background: #fff; border-radius: var(--s5e-radius-md); padding: 14px; margin-bottom: 12px; color: #1e1e1e; }
+
+/* ---- Style tab: read-only token specimen (light cards on dark) ---------- */
+.s5-editor__cssmode { margin-bottom: 14px; }
+.s5-editor__seg-opt.is-soon { opacity: 0.55; cursor: not-allowed; }
+.s5-editor__style-section { background: #fff; border-radius: var(--s5e-radius-md); padding: 12px 14px; margin-bottom: 10px; color: #1e1e1e; }
+.s5-editor__style-section .s5-editor__field-label { color: #50575e; }
+.s5-editor__swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.s5-editor__swatch { display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+.s5-editor__chip { height: 26px; border-radius: var(--s5e-radius-sm); border: 1px solid rgba(0,0,0,0.1); }
+.s5-editor__radius-box { height: 26px; background: #2271b1; }
+.s5-editor__swatch-name { color: #1e1e1e; font-weight: 600; }
+.s5-editor__swatch-val { color: #6c7278; font-family: var(--s5e-mono); font-size: 10px; }
+.s5-editor__ramp-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 4px 0; border-top: 1px solid #f0f0f1; }
+.s5-editor__ramp-row:first-of-type { border-top: 0; }
+.s5-editor__ramp-sample { color: #1e1e1e; line-height: 1; }
+.s5-editor__space-bar { height: 10px; background: #2271b1; border-radius: 2px; }
+.s5-editor__stylesheet { margin-top: 12px; }
+.s5-editor__stylesheet-toggle { background: transparent; border: 1px solid var(--s5e-line); border-radius: var(--s5e-radius-sm); color: var(--s5e-text-dim); font-size: 12px; padding: 8px 12px; cursor: pointer; width: 100%; text-align: left; }
+.s5-editor__stylesheet-toggle:hover { color: var(--s5e-text); background: var(--s5e-surface-3); }
+.s5-editor__stylesheet-view { max-height: 300px; overflow: auto; background: var(--s5e-canvas); border: 1px solid var(--s5e-line); border-radius: var(--s5e-radius-sm); padding: 12px; margin-top: 8px; font-family: var(--s5e-mono); font-size: 11px; color: var(--s5e-text-dim); white-space: pre; }
+.s5-editor__locked { padding: 12px; border: 1px dashed var(--s5e-warning); border-radius: var(--s5e-radius-md); }
+.s5-editor__badge { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; background: var(--s5e-warning); color: #1e1e1e; border-radius: 999px; padding: 2px 8px; margin-bottom: 6px; }
+.s5-editor__diagnostics { background: var(--s5e-danger-tint); border: 1px solid var(--s5e-danger); border-radius: var(--s5e-radius-sm); padding: 10px; margin-bottom: 12px; }
+.s5-editor__diag { color: var(--s5e-danger); font-size: 11.5px; font-family: var(--s5e-mono); }
+.s5-editor__fields .s5-editor__field-label { margin-top: 8px; }
