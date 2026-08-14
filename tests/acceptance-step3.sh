@@ -145,7 +145,6 @@ wp option update s5_roundtrip_mutate 0 >/dev/null 2>&1 || true  # disarm before 
 
 # Remove any pages from prior runs so slugs resolve to our fresh imports.
 for f in "$SRC_PAGES"/*.html; do
-	case "$(basename "$f")" in *-mockup.html) continue;; esac  # design refs, not corpus (see ValidateCommand::corpus_html_files)
 	slug="$(basename "$f" .html)"
 	pid="$(wp post list --post_type=page --name="$slug" --field=ID 2>/dev/null | head -n1 || true)"
 	[ -n "$pid" ] && wp post delete "$pid" --force >/dev/null 2>&1 || true
@@ -323,7 +322,6 @@ $block"; return 1; }
 roundtrip_corpus() {
 	local any_fail=0 f
 	for f in "$SRC_PAGES"/*.html; do
-		case "$(basename "$f")" in *-mockup.html) continue;; esac  # design refs, not corpus
 		if roundtrip_one "$f"; then
 			pass "  /$(basename "$f" .html)/  round-trips with zero unexplained deltas"
 		else

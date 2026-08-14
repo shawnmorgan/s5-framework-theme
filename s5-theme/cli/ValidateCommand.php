@@ -252,20 +252,20 @@ final class ValidateCommand {
 	}
 
 	/**
-	 * The corpus `.html` files in a directory: every `*.html`, sorted, MINUS the
-	 * design-reference documents that legitimately live alongside the corpus but are
-	 * not authored framework pages.
+	 * The corpus `.html` files in a directory: every `*.html`, sorted.
 	 *
-	 * `pages/` is both the import corpus AND, by owner preference, the working home of
-	 * the editor/settings design mockups (canvas-mockup.html, theme-settings-mockup.html)
-	 * and any `*-mockup.html`. Those are full builder-styled reference documents — they
-	 * carry classes deliberately outside the closed vocabulary — so importing/validating
-	 * them as corpus is a category error that would (and did) brick the gate. This is the
-	 * single, shared skip list so a reference file dropped in `pages/` can never poison
-	 * the corpus again.
+	 * `pages/` (the mapped `wp-content/s5-pages`) is the import corpus and NOTHING
+	 * else — anything in it is meant to import. Design references (the editor/settings
+	 * mockups) live in `docs/ui-reference/`, never here. So this is a plain, honest
+	 * "list every corpus document" — no skip list, no tolerance. If a non-corpus file
+	 * is ever dropped in `pages/`, the Authoring-Contract gate SHOULD fail loudly on
+	 * it; that failure is the signal that `pages/` was polluted, not a bug to paper over.
+	 *
+	 * A single shared lister so import + validate + the round-trip harness agree on
+	 * exactly what the corpus is.
 	 *
 	 * @param string $dir Directory to scan.
-	 * @return array<int, string> Absolute-or-given-relative file paths, sorted.
+	 * @return array<int, string> File paths, sorted.
 	 */
 	public static function corpus_html_files( string $dir ): array {
 		$files = glob( rtrim( $dir, '/\\' ) . '/*.html' );
@@ -273,31 +273,6 @@ final class ValidateCommand {
 			return array();
 		}
 		sort( $files );
-
-		$files = array_values(
-			array_filter(
-				$files,
-				static function ( string $file ): bool {
-					return ! self::is_reference_document( basename( $file ) );
-				}
-			)
-		);
-
 		return $files;
-	}
-
-	/**
-	 * Whether a filename is a design-reference document (not authored corpus).
-	 *
-	 * Excludes any `*-mockup.html` (the canvas/settings design references) — the one
-	 * convention the mockups follow. Extend this if other non-corpus reference docs
-	 * ever share the `pages/` directory.
-	 *
-	 * @param string $name Filename (basename).
-	 * @return bool
-	 */
-	public static function is_reference_document( string $name ): bool {
-		$name = strtolower( $name );
-		return (bool) preg_match( '/-mockup\.html$/', $name );
 	}
 }

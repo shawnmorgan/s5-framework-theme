@@ -557,15 +557,21 @@ etc., and cascaded a nonzero import into **11 of 13** gate suites. Every "failur
 clean baseline traced to this single collision. (Steps 0/1 and Distribution, which don't
 import from `pages/`, passed.)
 
-**Fix:** one shared skip list. `ValidateCommand::corpus_html_files()` globs + sorts + drops
-any `*-mockup.html` (the mockups' one naming convention), and both `ImportCommand` and
-`ValidateCommand` now source their file list through it. A design-reference document dropped
-in `pages/` can never brick the corpus again. This also honors the owner's "keep the mockups
-in `pages/` too" preference — the working copies stay; they're simply not corpus. The tracked
-contract copies live in `docs/ui-reference/` per the HANDOFF housekeeping line.
+**Fix (corrected on owner audit):** RELOCATE, do not accommodate. `pages/` (mapped
+`wp-content/s5-pages`) is the import corpus and NOTHING else — anything in it is meant to
+import. The mockups were **removed from `pages/`**; their only home is `docs/ui-reference/`
+(the tracked contract copies, per the HANDOFF housekeeping line). `ValidateCommand::corpus_html_files()`
+is now a plain, honest "list every `*.html`, sorted" shared by import + validate + the
+round-trip harness — **no skip list, no tolerance**. If a non-corpus file is ever dropped in
+`pages/` again, the Authoring-Contract gate SHOULD fail loudly on it; that failure is the
+signal that `pages/` was polluted, not a bug to paper over.
 
-**Verified:** `wp s5 import` processes exactly the 9 corpus pages, skips the mockups, exits
-Success; the previously-cascading suites go green.
+*(First pass mistakenly taught the gate to skip `*-mockup.html` while leaving the mockups in
+`pages/` — accommodation, not relocation. Reversed: mockups deleted from `pages/`, skip logic
+removed from `ValidateCommand` and `acceptance-step3.sh`.)*
+
+**Verified:** `wp s5 import` processes exactly the 9 corpus pages; `pages/` contains only the
+corpus; the previously-cascading suites go green with a plain corpus glob (no special-casing).
 
 **Phase A verified (2026-08-13):** full gate green — all 15 suites (13 original + Distribution +
 the new `Phase A` suite). Clean-slate boot proven by the destroy→start run (Steps 0–2 green from

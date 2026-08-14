@@ -16,52 +16,83 @@
    :where() keeps specificity at 0 so component rules below win normally.
    ============================================================================ */
 :where(.s5-editor) {
-	/* Accent (indigo) */
-	--s5e-accent: #3858e9;
-	--s5e-accent-hover: #1d35b4;
-	--s5e-accent-tint: #e8edff;
-	--s5e-accent-bright: #a8b8ff;
+	/* ---- EDITOR TOOL TOKENS (dark chrome) — values from canvas-mockup.html ----
+	   Phase B supersedes D27's indigo: the HANDOFF names canvas-mockup.html as the
+	   design contract, so its --s5e-* values are authoritative. Accent is the
+	   mockup's blue; surfaces/radii/gaps match the mockup exactly. */
+	--s5e-accent: #5b8cff;
+	--s5e-accent-hover: #4a7bef;
+	--s5e-accent-soft: rgba(91, 140, 255, 0.14);
+	--s5e-accent-bright: #a9c3ff;
+	/* Kept for existing rules that reference the old names (mapped to new values). */
+	--s5e-accent-tint: var(--s5e-accent-soft);
 
-	/* Dark surfaces */
-	--s5e-canvas: #0e1013;
-	--s5e-surface: #1a1d21;
-	--s5e-surface-2: #23272e;
-	--s5e-sidebar: #1e1e1e;
-	--s5e-bar: #1d2327;
+	/* Dark surfaces (mockup: canvas / bg / bg-2 / bg-3) */
+	--s5e-canvas: #0e0f13;          /* deepest — behind the stage */
+	--s5e-surface: #15171d;         /* panels */
+	--s5e-surface-2: #1b1e26;       /* raised (toolbar, cards) */
+	--s5e-surface-3: #232733;       /* hover / inputs */
+	--s5e-sidebar: #15171d;
+	--s5e-bar: #1b1e26;
 
-	/* Text */
-	--s5e-text: #f0f0f0;
-	--s5e-text-dim: #a7aaad;
-	--s5e-text-faint: #7c8085;
+	/* Lines */
+	--s5e-line: #2b2f3a;
+	--s5e-line-soft: #22252e;
+
+	/* Text (mockup) */
+	--s5e-text: #e6e8ee;
+	--s5e-text-dim: #9aa0ad;
+	--s5e-text-faint: #6b7180;
+
+	/* Brand mark (mockup green logo tile / primary nod) */
+	--s5e-brand: #25d366;
+	--s5e-brand-2: #1fae53;
 
 	/* Semantic */
 	--s5e-success: #00a32a;
 	--s5e-success-tint: rgba(0, 163, 42, 0.14);
-	--s5e-danger: #cc1818;
-	--s5e-danger-tint: rgba(204, 24, 24, 0.14);
+	--s5e-danger: #ff5c5c;
+	--s5e-danger-tint: rgba(255, 92, 92, 0.14);
 	--s5e-warning: #f0c33c;
 
-	/* Borders / rows */
-	--s5e-border: rgba(255, 255, 255, 0.10);
-	--s5e-border-strong: rgba(255, 255, 255, 0.16);
-	--s5e-row-hover: rgba(255, 255, 255, 0.04);
-	--s5e-row-active: rgba(255, 255, 255, 0.08);
+	/* Borders / rows (aliased to the mockup lines for continuity) */
+	--s5e-border: var(--s5e-line);
+	--s5e-border-strong: #3a3f4c;
+	--s5e-row-hover: var(--s5e-surface-3);
+	--s5e-row-active: rgba(91, 140, 255, 0.10);
 
-	/* Radii — 2 / 4 / 8 only */
-	--s5e-radius-sm: 2px;
-	--s5e-radius-md: 4px;
-	--s5e-radius-lg: 8px;
+	/* Radii — mockup: 5 / 8 / 11 */
+	--s5e-radius-sm: 5px;
+	--s5e-radius-md: 8px;
+	--s5e-radius-lg: 11px;
 
-	/* Gaps */
-	--s5e-gap-1: 4px;
-	--s5e-gap-2: 8px;
+	/* Gaps — mockup: 6 / 10 / 16 / 24 */
+	--s5e-gap-1: 6px;
+	--s5e-gap-2: 10px;
 	--s5e-gap-3: 16px;
 	--s5e-gap-4: 24px;
 	--s5e-gap-5: 32px;
 
+	/* Toolbar height (mockup) */
+	--s5e-topbar-h: 52px;
+
 	/* Type */
 	--s5e-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
-	--s5e-mono: Menlo, Consolas, monaco, ui-monospace, SFMono-Regular, monospace;
+	--s5e-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monaco, monospace;
+
+	/* ---- REAL S5 DESIGN SYSTEM (--s5-*) — used in the LIGHT preview/code so
+	   swatches never drift from the compiled site. Two token layers, never merged
+	   (HANDOFF §0.7). These are overridden at runtime from the real tokens when the
+	   Style tab loads; the literals here are a safe fallback. */
+	--s5-color-brand: #2271b1;
+	--s5-color-brand-strong: #135e96;
+	--s5-color-accent: #f0c33c;
+	--s5-color-ink: #1e1e1e;
+	--s5-color-ink-soft: #3c434a;
+	--s5-color-muted: #6c7278;
+	--s5-color-surface: #ffffff;
+	--s5-color-surface-alt: #f6f7f7;
+	--s5-color-line: #dcdcde;
 }
 
 /* Break out of the default wp-admin content padding for a full-bleed editor. */
