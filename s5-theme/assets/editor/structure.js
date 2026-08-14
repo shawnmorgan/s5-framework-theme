@@ -43,16 +43,6 @@
 		return node;
 	}
 
-	function kindGlyph( kind ) {
-		if ( 'component' === kind ) {
-			return '◧';
-		}
-		if ( 'dynamic' === kind ) {
-			return '↻';
-		}
-		return '·';
-	}
-
 	function render( nodes ) {
 		listEl.innerHTML = '';
 		rowsByNode = {};
@@ -61,18 +51,19 @@
 			return;
 		}
 		nodes.forEach( function ( n ) {
+			var kind = n.kind || 'editable';
 			var li = el( 'li', {
-				class: 's5-editor__structure-item is-' + ( n.kind || 'editable' ),
+				class: 's5-editor__trow is-' + kind + ( n.disabled ? ' is-disabled' : '' ),
 				'data-node': n.node,
 				'data-depth': String( n.depth || 0 ),
-				style: 'padding-left:' + ( 8 + ( n.depth || 0 ) * 12 ) + 'px',
+				style: 'padding-left:' + ( 10 + ( n.depth || 0 ) * 12 ) + 'px',
 				tabindex: '0',
 				role: 'button',
 			} );
-			li.appendChild( el( 'span', { class: 's5-editor__structure-kind' }, kindGlyph( n.kind ) ) );
-			li.appendChild( el( 'span', { class: 's5-editor__structure-label' }, n.label || n.node || '(node)' ) );
+			li.appendChild( el( 'span', { class: 's5-editor__trow-kind', 'aria-hidden': 'true' } ) );
+			li.appendChild( el( 'span', { class: 's5-editor__trow-label' }, n.label || n.node || '(node)' ) );
 			if ( n.type ) {
-				li.appendChild( el( 'span', { class: 's5-editor__structure-type' }, n.type ) );
+				li.appendChild( el( 'span', { class: 's5-editor__trow-type' }, n.type ) );
 			}
 			var select = function () {
 				if ( ! n.node ) {
@@ -99,10 +90,10 @@
 
 	function highlight( node ) {
 		Object.keys( rowsByNode ).forEach( function ( k ) {
-			rowsByNode[ k ].removeAttribute( 'data-s5-active' );
+			rowsByNode[ k ].classList.remove( 'is-selected' );
 		} );
 		if ( node && rowsByNode[ node ] ) {
-			rowsByNode[ node ].setAttribute( 'data-s5-active', '' );
+			rowsByNode[ node ].classList.add( 'is-selected' );
 		}
 	}
 
