@@ -175,6 +175,14 @@ const must = [
 	's5-theme/src/Admin.php',
 	's5-theme/site/s5.config.json',
 	's5-theme/site/dist/s5.css',
+	// FontAwesome — the mockups' icon system, bundled locally (editor + settings chrome).
+	's5-theme/assets/vendor/fontawesome/css/all.min.css',
+	's5-theme/assets/vendor/fontawesome/webfonts/fa-solid-900.woff2',
+	// Settings app driver + editor JS the reskinned UIs depend on.
+	's5-theme/assets/settings/settings.js',
+	's5-theme/assets/settings/settings.css',
+	's5-theme/assets/editor/editor.js',
+	's5-theme/assets/editor/overlay.js',
 ];
 const mustNot = ['s5-theme/tests/', 's5-theme/composer.json', 's5-theme/phpcs.xml'];
 let bad = false;
