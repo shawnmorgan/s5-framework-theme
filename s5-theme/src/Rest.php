@@ -310,6 +310,10 @@ final class Rest {
 
 		switch ( $mode ) {
 			case 'head':
+				// R1: page meta / SEO / schema lives behind the Page Settings gear.
+				if ( ! Roles::can( 'editor.page_settings' ) ) {
+					return new \WP_Error( 's5_role_page_settings', __( 'Your role cannot edit page settings.', 's5' ), array( 'status' => 403 ) );
+				}
 				return self::save_head( $post_id, $request );
 			case 'slots':
 				$canonical = self::build_canonical_from_slots( $post_id, $request );
@@ -321,12 +325,22 @@ final class Rest {
 				$canonical = (string) $request->get_param( 'canonical' );
 				return self::persist_canonical( $post_id, $canonical );
 			case 'insert':
+				// R1: the Embed primitive is Developer-only; block its insert for any
+				// role the matrix denies (hidden AND blocked). Other components follow
+				// the general editor grant.
+				if ( 'embed' === strtolower( (string) $request->get_param( 'component' ) ) && ! Roles::can( 'editor.embed' ) ) {
+					return new \WP_Error( 's5_role_embed', __( 'Your role cannot insert the Embed primitive.', 's5' ), array( 'status' => 403 ) );
+				}
 				$canonical = self::build_canonical_from_insert( $post_id, $request );
 				if ( $canonical instanceof \WP_Error ) {
 					return $canonical;
 				}
 				return self::persist_canonical( $post_id, $canonical );
 			case 'disable':
+				// R1: disabling/re-enabling is a structure-tree operation.
+				if ( ! Roles::can( 'editor.structure' ) ) {
+					return new \WP_Error( 's5_role_structure', __( 'Your role cannot disable elements.', 's5' ), array( 'status' => 403 ) );
+				}
 				$canonical = self::build_canonical_from_disable( $post_id, $request );
 				if ( $canonical instanceof \WP_Error ) {
 					return $canonical;

@@ -63,6 +63,7 @@ SUITES=(
 	"tests/acceptance-phase-a.sh|Phase A — WordPress integration (takeover · badge · menu · Appearance)"
 	"tests/acceptance-disable.sh|Phase B — Disable (R4): disabled ≠ hidden, dropped from render + mirror"
 	"tests/acceptance-classswap.sh|Phase B — Style class-swap (R3): axis-swap-only, loud, no free-form"
+	"tests/acceptance-roles.sh|Phase C — Roles (R1): hidden AND blocked, server-side, client-holds-admin"
 )
 
 fail_count=0

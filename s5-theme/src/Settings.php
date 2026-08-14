@@ -65,6 +65,11 @@ final class Settings {
 	public const ACTION_SAVE_TOKEN = 's5_save_token';
 
 	/**
+	 * Admin-post action: save the Roles matrix + per-user overrides.
+	 */
+	public const ACTION_SAVE_ROLES = 's5_save_roles';
+
+	/**
 	 * Register hooks. The menu entry itself is added by {@see Admin::register_menu}
 	 * (so the S5 menu stays the single owner of its children); this class owns the
 	 * render + asset enqueue + token-save handler for the settings screen only.
@@ -74,6 +79,62 @@ final class Settings {
 	public static function register(): void {
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		add_action( 'admin_post_' . self::ACTION_SAVE_TOKEN, array( self::class, 'handle_save_token' ) );
+		add_action( 'admin_post_' . self::ACTION_SAVE_ROLES, array( self::class, 'handle_save_roles' ) );
+	}
+
+	/**
+	 * Handle the Roles matrix + overrides save (Developer only, per the matrix).
+	 *
+	 * @return void
+	 */
+	public static function handle_save_roles(): void {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'settings.roles' ) ) {
+			wp_die( esc_html__( 'You do not have permission to edit roles.', 's5' ) );
+		}
+		check_admin_referer( self::ACTION_SAVE_ROLES );
+
+		// Matrix: matrix[cap][roleIndex] present = granted.
+		$posted = isset( $_POST['matrix'] ) && is_array( $_POST['matrix'] ) ? wp_unslash( $_POST['matrix'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- shaped + cast in Roles::save_matrix.
+		$matrix = array();
+		foreach ( Roles::capabilities() as $key => $def ) {
+			$row            = isset( $posted[ $key ] ) && is_array( $posted[ $key ] ) ? $posted[ $key ] : array();
+			$matrix[ $key ] = array(
+				true, // developer always all.
+				! empty( $row[1] ),
+				! empty( $row[2] ),
+			);
+		}
+		Roles::save_matrix( $matrix );
+
+		// Per-user overrides: overrides[user_id] = role_key ('' clears).
+		if ( isset( $_POST['override'] ) && is_array( $_POST['override'] ) ) {
+			$overrides = wp_unslash( $_POST['override'] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- keys intval'd, values validated in save_override.
+			foreach ( $overrides as $uid => $role ) {
+				Roles::save_override( (int) $uid, sanitize_key( (string) $role ) );
+			}
+		}
+
+		self::redirect_screen( 'roles', 'success', __( 'Roles updated.', 's5' ) );
+	}
+
+	/**
+	 * Redirect to a settings screen with a one-shot notice.
+	 *
+	 * @param string $screen  Screen key.
+	 * @param string $type    'success'|'error'|'warning'.
+	 * @param string $message Message.
+	 * @return void
+	 */
+	private static function redirect_screen( string $screen, string $type, string $message ): void {
+		$url = add_query_arg(
+			array(
+				's5_notice'      => rawurlencode( $type ),
+				's5_notice_text' => rawurlencode( $message ),
+			),
+			self::screen_url( $screen )
+		);
+		wp_safe_redirect( $url );
+		exit;
 	}
 
 	/**
@@ -84,7 +145,7 @@ final class Settings {
 	 * @return void
 	 */
 	public static function handle_save_token(): void {
-		if ( ! current_user_can( self::CAPABILITY ) ) {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'settings.styleguide_edit' ) ) {
 			wp_die( esc_html__( 'You do not have permission to edit tokens.', 's5' ) );
 		}
 		check_admin_referer( self::ACTION_SAVE_TOKEN );
@@ -152,6 +213,26 @@ final class Settings {
 	}
 
 	/**
+	 * The Roles capability key that governs viewing a settings screen ('' = the
+	 * coarse settings.view gate suffices).
+	 *
+	 * @param string $screen Screen key.
+	 * @return string
+	 */
+	private static function screen_capability( string $screen ): string {
+		$map = array(
+			'styleguide'   => 'settings.styleguide_view',
+			'templates'    => 'settings.templates',
+			'components'   => 'settings.components',
+			'integrations' => 'settings.integrations',
+			'general'      => 'settings.general',
+			'css'          => 'settings.css',
+			'roles'        => 'settings.roles',
+		);
+		return isset( $map[ $screen ] ) ? $map[ $screen ] : '';
+	}
+
+	/**
 	 * Enqueue settings-app assets — only on the settings screen.
 	 *
 	 * @param string $hook_suffix Current admin page hook suffix.
@@ -205,11 +286,19 @@ final class Settings {
 	 * @return void
 	 */
 	public static function render_screen(): void {
-		if ( ! current_user_can( self::CAPABILITY ) ) {
+		// R1: the S5 role gate — not just current_user_can — so a WP-Administrator pinned
+		// to Client is blocked from the settings page entirely (hidden AND blocked).
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'settings.view' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view Theme Settings.', 's5' ) );
 		}
 
 		$current = self::current_screen();
+
+		// Per-screen role gate: a screen the role cannot reach 403s even by direct URL.
+		$screen_cap = self::screen_capability( $current );
+		if ( '' !== $screen_cap && ! Roles::can( $screen_cap ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this settings screen.', 's5' ) );
+		}
 		?>
 		<div class="wrap s5-settings" data-s5-settings>
 			<h1><?php esc_html_e( 'S5 — Theme Settings', 's5' ); ?></h1>
@@ -217,7 +306,14 @@ final class Settings {
 			<div class="s5-settings__layout">
 				<nav class="s5-settings__nav" aria-label="<?php esc_attr_e( 'Theme settings screens', 's5' ); ?>">
 					<ul>
-						<?php foreach ( self::SCREENS as $key => $label ) : ?>
+						<?php
+						foreach ( self::SCREENS as $key => $label ) :
+							// Hide a screen the role cannot view (it is also blocked server-side).
+							$cap = self::screen_capability( $key );
+							if ( '' !== $cap && ! Roles::can( $cap ) ) {
+								continue;
+							}
+							?>
 							<li>
 								<a
 									class="s5-settings__navlink<?php echo $key === $current ? ' is-active' : ''; ?>"
@@ -253,6 +349,9 @@ final class Settings {
 				return;
 			case 'components':
 				self::render_components();
+				return;
+			case 'roles':
+				self::render_roles();
 				return;
 			default:
 				printf( '<h2>%s</h2>', esc_html( self::SCREENS[ $screen ] ?? '' ) );
@@ -474,6 +573,97 @@ final class Settings {
 				</div>
 			</div>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Roles screen (§3.7 / §4 / R1): the capability matrix + per-user overrides. The
+	 * matrix is the spec for which surfaces each S5 role reaches; it is enforced
+	 * server-side everywhere (Roles::can). Developer is always all-granted (the owner
+	 * role) so this screen can never lock itself out.
+	 *
+	 * @return void
+	 */
+	private static function render_roles(): void {
+		$caps   = Roles::capabilities();
+		$matrix = Roles::matrix();
+		$roles  = Roles::ROLES; // developer, marketer, client.
+		?>
+		<h2><?php esc_html_e( 'Roles & Access', 's5' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Which S5 role may reach which surface. Enforced server-side on every screen and route (hidden AND blocked) — a role that cannot reach a surface is refused even by direct URL. Developer is always fully granted.', 's5' ); ?></p>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_ROLES ); ?>">
+			<?php wp_nonce_field( self::ACTION_SAVE_ROLES ); ?>
+
+			<table class="widefat striped s5-roles__matrix">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Capability', 's5' ); ?></th>
+						<?php foreach ( $roles as $r ) : ?>
+							<th class="s5-roles__col"><?php echo esc_html( ucfirst( $r ) ); ?></th>
+						<?php endforeach; ?>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $caps as $key => $def ) : ?>
+						<tr>
+							<td><?php echo esc_html( $def['label'] ); ?></td>
+							<?php foreach ( $roles as $ci => $r ) : ?>
+								<td class="s5-roles__cell">
+									<?php $granted = isset( $matrix[ $key ][ $ci ] ) ? (bool) $matrix[ $key ][ $ci ] : false; ?>
+									<input
+										type="checkbox"
+										name="matrix[<?php echo esc_attr( $key ); ?>][<?php echo (int) $ci; ?>]"
+										value="1"
+										<?php checked( $granted ); ?>
+										<?php disabled( 0 === $ci ); /* developer locked-on */ ?>
+									>
+								</td>
+							<?php endforeach; ?>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<h3><?php esc_html_e( 'Per-user overrides', 's5' ); ?></h3>
+			<p class="description"><?php esc_html_e( 'Pin a specific user to an S5 role, regardless of their WordPress role. A per-user override always wins — even a WordPress Administrator pinned to Client gets the Client surface.', 's5' ); ?></p>
+			<table class="widefat striped s5-roles__users">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'User', 's5' ); ?></th>
+						<th><?php esc_html_e( 'WordPress role', 's5' ); ?></th>
+						<th><?php esc_html_e( 'S5 role', 's5' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php
+					$users     = get_users( array( 'number' => 50 ) );
+					$overrides = get_option( Roles::OPTION_OVERRIDES, array() );
+					$overrides = is_array( $overrides ) ? $overrides : array();
+					foreach ( $users as $u ) :
+						$uid      = (int) $u->ID;
+						$resolved = Roles::role_for_user( $uid );
+						$override = isset( $overrides[ $uid ] ) ? (string) $overrides[ $uid ] : '';
+						?>
+						<tr>
+							<td><?php echo esc_html( $u->display_name ); ?></td>
+							<td><?php echo esc_html( implode( ', ', (array) $u->roles ) ); ?></td>
+							<td>
+								<select name="override[<?php echo esc_attr( (string) $uid ); ?>]">
+									<option value=""<?php selected( '', $override ); ?>><?php echo esc_html( sprintf( /* translators: %s: resolved role. */ __( 'Default (%s)', 's5' ), $resolved ) ); ?></option>
+									<?php foreach ( $roles as $r ) : ?>
+										<option value="<?php echo esc_attr( $r ); ?>"<?php selected( $r, $override ); ?>><?php echo esc_html( ucfirst( $r ) ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<p><?php submit_button( __( 'Save roles', 's5' ), 'primary', 'submit', false ); ?></p>
+		</form>
 		<?php
 	}
 

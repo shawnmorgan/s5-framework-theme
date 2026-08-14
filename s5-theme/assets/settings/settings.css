@@ -175,3 +175,8 @@
 .s5-cb__diagnostics { flex: 1 1 auto; font-size: 12px; }
 .s5-cb__diag { color: #ff5c5c; font-family: Menlo, Consolas, monospace; font-size: 11px; margin: 2px 0; }
 .s5-cb__ok { color: #00d084; }
+
+/* Roles screen */
+.s5-roles__matrix, .s5-roles__users { max-width: 760px; margin-top: 12px; }
+.s5-roles__col, .s5-roles__cell { text-align: center; width: 100px; }
+.s5-roles__cell input { transform: scale(1.2); }
