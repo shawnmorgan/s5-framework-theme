@@ -46,16 +46,30 @@ click against the real install, one screenshot per step, results in `RESULTS.md`
 Includes the Save round-trip (served page shows the new text) and disable-drops-from-served
 (tree row red-lined + text removed from the served render). 10/10 steps passed.
 
-### C. Automated gate + distribution suite
+### C. Automated gate + distribution suite — ✅ GREEN
 `npm test` from the wp-env mirror — clean `destroy → start → all suites` (mandatory full
-run, not SKIP_DESTROY, because 5a is compiler/storage-touching). Includes the distribution
-suite (both scenarios: fresh site + site-with-content), Phase A (hardened Appearance
-rendered-menu gate), and every step suite. Output captured below on completion.
+run, not SKIP_DESTROY, because 5a is compiler/storage-touching). **ALL SUITES PASSED
+(single-environment clean-slate run), GATE_EXIT=0.** All 13 step suites + the distribution
+suite (both scenarios: fresh site + site-with-content, incl. the 5a adopt/restore checks) +
+Phase A (hardened Appearance rendered-menu gate) + Phase B Disable + Style class-swap +
+Phase C Roles. Full results: `docs/ui-fidelity/gate/full-clean-gate-results.txt`.
 
-### D. Rebuilt artifact
-`dist/s5-theme.zip` — rebuilt as the last step; the artifact everything above was verified
-against. build-zip.mjs release verification now also asserts the bundled FontAwesome + the
-settings/editor JS the reskinned UIs depend on, so a dropped asset fails the build loudly.
+Three suites went red on the first clean run — investigated each against the real install
+before touching anything; none was a runtime regression (D38): two were stale assertions my
+intentional changes invalidated (the Item 3 sub-nav attribute; the Item 5c size axis, now
+available), and one was a pre-existing test bug the clean run exposed (the Disable eval never
+set a user, so the Phase-C-4b structure role gate refused it). Fixed the tests, re-ran clean
+→ green. The Phase A §7 Appearance assertions were moved into a standalone `eval-file` probe
+(`tests/lib/appearance-menu-probe.php`) because multi-statement eval-in-`$()` was fragile
+under `set -euo pipefail`.
+
+### D. Rebuilt artifact — ✅ built (560K)
+`dist/s5-theme.zip` — rebuilt from the source that passed the green gate; the artifact
+everything above was verified against. Bundles FontAwesome (the mockups' icon system), the
+settings + editor JS the reskinned UIs depend on, the freshly-compiled `site/dist/s5.css`
+(with the 5c ladders), version 0.9.0, and the installed-audience description — no dev cruft.
+build-zip.mjs release verification asserts every critical asset, so a dropped one fails the
+build loudly. Installed fresh into a clean WordPress and confirmed it carries every asset.
 
 ---
 

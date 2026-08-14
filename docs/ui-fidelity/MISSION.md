@@ -174,12 +174,19 @@ real browser and watched the served page change.
 - [x] Acceptance B: clicked DEMO.md walkthrough — docs/demo-walkthrough/real-browser/, 10/10 real
       Playwright clicks (incl. Save round-trip to served + disable-drops-from-served) + RESULTS.md.
       Committed 65b7121. ACCEPTANCE.md summary written.
-- [~] Acceptance C: full clean wp-env gate + dist suite (destroy→start→all, no SKIP_DESTROY).
-      Run 1: 3 red = 2 stale assertions my intentional changes invalidated (Phase A subnav attr,
-      Style axis-absent) + 1 pre-existing test bug the clean run exposed (Disable never set a user →
-      the Phase-C-4b structure role gate refused it). All three fixed + verified on the real install
-      (D38). Run 2: 1 red = my own $NAVCOUNT-in-pass-message typo (set -u). Run 3: after moving the
-      Phase A §7 Appearance assertions into a standalone eval-file probe (multi-statement eval strings
-      were fragile under set -euo pipefail), Phase A passes ALL 9 sections in isolation; full clean
-      run in progress. Commits 31252fc, 426b891.
-- [ ] Acceptance D: rebuild dist/s5-theme.zip (the verified artifact) — after the gate is green.
+- [x] Acceptance C: full clean wp-env gate + dist suite (destroy→start→all, no SKIP_DESTROY) —
+      GREEN. "ALL SUITES PASSED (single-environment clean-slate run)", GATE_EXIT=0. All 13 step
+      suites + the Distribution suite (both scenarios, mount-free, incl. the 5a adopt/restore
+      extensions) + Phase A (hardened Appearance rendered-menu gate) + Phase B Disable + Style
+      class-swap + Phase C Roles. Results: docs/ui-fidelity/gate/full-clean-gate-results.txt.
+      Path: run 1 = 2 stale assertions my intentional changes invalidated (Phase A subnav attr;
+      Style axis-absent — 5c makes it available) + 1 pre-existing test bug the clean run exposed
+      (Disable eval never set a user → the Phase-C-4b structure role gate refused it). Run 2 = my
+      own $NAVCOUNT pass-message typo (set -u). Run 3 = moved the Phase A §7 Appearance assertions
+      into a standalone eval-file probe (multi-statement eval-in-$() was fragile under
+      set -euo pipefail) → all green. D38. Commits 31252fc, 426b891.
+- [x] Acceptance D: dist/s5-theme.zip rebuilt (560K) from the source that passed the green gate —
+      bundles FontAwesome + settings/editor assets + the freshly-compiled site/dist/s5.css (with the
+      5c ladders) + version 0.9.0; no dev cruft; release verification asserts every critical asset.
+      Installed fresh into clean WP and confirmed it carries every fidelity asset. THE MISSION IS
+      COMPLETE.
