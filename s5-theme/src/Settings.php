@@ -227,6 +227,9 @@ final class Settings {
 			case 'styleguide':
 				self::render_styleguide();
 				return;
+			case 'templates':
+				self::render_templates();
+				return;
 			default:
 				printf( '<h2>%s</h2>', esc_html( self::SCREENS[ $screen ] ?? '' ) );
 				echo '<p class="description">' . esc_html__( 'This screen is being wired to the design contract. The sub-nav and routing are live; its controls land in Phase C.', 's5' ) . '</p>';
@@ -323,6 +326,71 @@ final class Settings {
 			<?php endif; ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Templates screen (HANDOFF §3.2): the shared template PARTS (real files under
+	 * site/parts) and the WordPress template HIERARCHY. Each part is canonical HTML in
+	 * the framework — the pencil opens it in the canvas editor in ?template mode (the
+	 * SAME editor, HANDOFF §3.3). Parts are driven by the real files; hierarchy
+	 * templates appear as they are authored (the theme ships parts today).
+	 *
+	 * @return void
+	 */
+	private static function render_templates(): void {
+		$parts = Templates::list_parts();
+		?>
+		<h2><?php esc_html_e( 'Templates', 's5' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Shared template parts and the WordPress template hierarchy. Each is canonical HTML — the pencil opens it in the canvas editor, the same way you edit any page.', 's5' ); ?></p>
+
+		<div class="s5-tpl__card">
+			<div class="s5-tpl__card-head"><?php esc_html_e( 'Template Parts', 's5' ); ?></div>
+			<?php if ( empty( $parts ) ) : ?>
+				<p class="description"><?php esc_html_e( 'No template parts found under site/parts.', 's5' ); ?></p>
+			<?php else : ?>
+				<?php foreach ( $parts as $p ) : ?>
+					<div class="s5-tpl__row">
+						<div class="s5-tpl__row-main">
+							<span class="s5-tpl__row-name"><?php echo esc_html( $p['label'] ); ?></span>
+							<span class="s5-tpl__row-file"><?php echo esc_html( $p['file'] ); ?></span>
+						</div>
+						<span class="s5-tpl__badge"><?php esc_html_e( 'part', 's5' ); ?></span>
+						<a class="button button-small s5-tpl__edit" href="<?php echo esc_url( self::template_editor_url( $p['name'] ) ); ?>">
+							<?php esc_html_e( 'Edit', 's5' ); ?>
+						</a>
+					</div>
+				<?php endforeach; ?>
+			<?php endif; ?>
+		</div>
+
+		<div class="s5-tpl__card">
+			<div class="s5-tpl__card-head"><?php esc_html_e( 'Template Hierarchy', 's5' ); ?>
+				<span class="s5-tpl__note"><?php esc_html_e( 'WordPress resolves top → bottom', 's5' ); ?></span>
+			</div>
+			<p class="description">
+				<?php esc_html_e( 'The theme currently serves pages through the canvas render path and its parts. Hierarchy templates (front-page, single, archive, 404 …) register here as they are authored — each will open in the canvas in template mode, with its own display rules & conditions.', 's5' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * The canvas editor URL for a template/part in ?template mode.
+	 *
+	 * Opens the SAME editor (Editor::PAGE_SLUG) with a `template` flag — the editor's
+	 * gear then shows Display & Conditions instead of Page Settings (HANDOFF §2.7/§3.3).
+	 *
+	 * @param string $name Part/template name.
+	 * @return string
+	 */
+	private static function template_editor_url( string $name ): string {
+		return add_query_arg(
+			array(
+				'page'     => Editor::PAGE_SLUG,
+				'template' => $name,
+			),
+			admin_url( 'admin.php' )
+		);
 	}
 
 	/**

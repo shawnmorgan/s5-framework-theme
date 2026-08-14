@@ -109,6 +109,82 @@ final class Rest {
 				),
 			)
 		);
+
+		// Template PART source save (Phase C §3.3): a part is canonical HTML edited in
+		// the canvas in template mode. Its own route (not page-scoped); same
+		// manage_options + wp_rest nonce discipline. The body's `canonical` is validated
+		// against the SAME closed vocabulary as a page, then written to the part file.
+		register_rest_route(
+			self::NAMESPACE,
+			'/templates/(?P<name>[A-Za-z0-9][A-Za-z0-9_-]*)/save',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'handle_template_save' ),
+				'permission_callback' => array( self::class, 'can_save' ),
+			)
+		);
+	}
+
+	/**
+	 * Save a template part's canonical HTML through the one door: validate against the
+	 * closed vocabulary (ERROR ⇒ reject, file unchanged), write the file, recompile the
+	 * bundle (a part change affects every page that includes it).
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_template_save( \WP_REST_Request $request ) {
+		$name = (string) $request->get_param( 'name' );
+		if ( ! Templates::part_exists( $name ) ) {
+			return new \WP_Error( 's5_no_part', __( 'Unknown template part.', 's5' ), array( 'status' => 404 ) );
+		}
+
+		$mode = (string) $request->get_param( 'mode' );
+		if ( '' !== $mode && 'canonical' !== $mode ) {
+			return new \WP_Error( 's5_bad_mode', __( 'Template parts save as canonical.', 's5' ), array( 'status' => 400 ) );
+		}
+		$canonical = (string) $request->get_param( 'canonical' );
+
+		// SAME vocabulary gate as page canonical saves.
+		try {
+			$repo  = Cli\ValidateCommand::repo_root();
+			$vocab = Stylesheet::load_vocabulary( $repo );
+			$vocab = isset( $vocab['classes'] ) && is_array( $vocab['classes'] ) ? $vocab['classes'] : array();
+		} catch ( \RuntimeException $e ) {
+			return new \WP_Error( 's5_vocab', $e->getMessage(), array( 'status' => 500 ) );
+		}
+		$findings = Validator::validate( $canonical, $vocab, 'template:' . $name );
+		if ( Validator::has_errors( $findings ) ) {
+			return new \WP_REST_Response(
+				array(
+					'ok'          => false,
+					'diagnostics' => self::shape_diagnostics( $findings ),
+				),
+				422
+			);
+		}
+
+		$written = Templates::write_part( $name, $canonical );
+		if ( is_wp_error( $written ) ) {
+			return $written;
+		}
+
+		// A part change ripples into every including page — recompile the bundle so
+		// served renders reflect it. Recompiling all framework pages is heavier and is
+		// handled by `wp s5 recompile`; the bundle rebuild keeps styling correct now.
+		try {
+			StyleBundle::build();
+		} catch ( \Throwable $e ) {
+			unset( $e ); // Non-fatal for the save result.
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'ok'          => true,
+				'diagnostics' => self::shape_diagnostics( $findings ),
+			),
+			200
+		);
 	}
 
 	/**

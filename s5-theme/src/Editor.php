@@ -578,6 +578,22 @@ final class Editor {
 			return; // Fall through to WP's own permission handling on the registered screen.
 		}
 
+		// Template PREVIEW sub-request: serve the part file's HTML in a minimal doc for
+		// the editor's preview iframe (capability-gated; template mode only).
+		$preview_part = isset( $_GET['s5-template-preview'] ) ? sanitize_file_name( wp_unslash( (string) $_GET['s5-template-preview'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only preview flag; capability checked above.
+		if ( '' !== $preview_part && Templates::part_exists( $preview_part ) ) {
+			self::render_template_preview( $preview_part );
+			exit;
+		}
+
+		// Template mode: ?template=<name> (no post) edits a template PART file in the
+		// SAME editor (HANDOFF §3.3). Handled before the post branch.
+		$template = isset( $_GET['template'] ) ? sanitize_file_name( wp_unslash( (string) $_GET['template'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only route match; capability checked above.
+		if ( '' !== $template && Templates::part_exists( $template ) ) {
+			self::render_fullscreen_document( 0, $template );
+			exit;
+		}
+
 		$post_id = isset( $_GET['post'] ) ? (int) $_GET['post'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen bootstrap; saves are nonce-guarded.
 		$post    = $post_id ? get_post( $post_id ) : null;
 
@@ -599,23 +615,65 @@ final class Editor {
 	 * HTML document that includes only those enqueued head/footer assets. No
 	 * admin menu, no admin bar, no admin-header.php.
 	 *
-	 * @param int $post_id Framework page ID.
+	 * @param int    $post_id       Framework page ID (0 in template mode).
+	 * @param string $template_name Part/template name when in template mode, else ''.
 	 * @return void
 	 */
-	private static function render_fullscreen_document( int $post_id ): void {
+	private static function render_fullscreen_document( int $post_id, string $template_name = '' ): void {
 		// Enqueue the editor assets through the same code path the admin screen uses,
 		// so there is one asset list to maintain. The hook-suffix guard inside
 		// enqueue_assets() keys on the editor page hook; call it with that value.
 		set_current_screen( self::PAGE_SLUG );
 		self::enqueue_assets( 'admin_page_' . self::PAGE_SLUG );
 
-		// Template data, identical to render_screen().
-		$s5_editor = array(
-			'post_id'     => $post_id,
-			'title'       => get_the_title( $post_id ),
-			'preview_url' => self::preview_url( $post_id ),
-			'back_url'    => (string) get_edit_post_link( $post_id, 'raw' ),
-		);
+		$is_template = ( '' !== $template_name );
+
+		if ( $is_template ) {
+			// Template mode: the stage/source is the PART FILE, not a post (HANDOFF §3.3).
+			$title     = ucwords( str_replace( array( '-', '_' ), ' ', $template_name ) );
+			$s5_editor = array(
+				'post_id'     => 0,
+				'title'       => $title,
+				'preview_url' => self::template_preview_url( $template_name ),
+				'back_url'    => Settings::screen_url( 'templates' ),
+			);
+			// Re-localize S5Editor so the code lens shows the PART's canonical HTML and
+			// the save URL targets the template save route. A self-contained array —
+			// template mode needs no post head/components.
+			wp_localize_script(
+				's5-editor',
+				'S5Editor',
+				array(
+					'postId'       => 0,
+					'templateMode' => true,
+					'templateName' => $template_name,
+					'title'        => $title,
+					'previewUrl'   => self::template_preview_url( $template_name ),
+					'backUrl'      => Settings::screen_url( 'templates' ),
+					'canonical'    => Templates::read_part( $template_name ),
+					'head'         => array(
+						'title'       => '',
+						'description' => '',
+						'canonical'   => '',
+					),
+					'saveUrl'      => rest_url( Rest::NAMESPACE . '/templates/' . rawurlencode( $template_name ) . '/save' ),
+					'nonce'        => wp_create_nonce( 'wp_rest' ),
+					'cmSettings'   => function_exists( 'wp_get_code_editor_settings' ) ? wp_get_code_editor_settings( array( 'type' => 'text/html' ) ) : false,
+					'tokens'       => Styles::read_tokens(),
+					'components'   => self::components_for_palette(),
+					'bundleUrl'    => StyleBundle::url(),
+					'styleAxes'    => ControlsManifest::ui_axes(),
+				)
+			);
+		} else {
+			// Template data, identical to render_screen().
+			$s5_editor = array(
+				'post_id'     => $post_id,
+				'title'       => get_the_title( $post_id ),
+				'preview_url' => self::preview_url( $post_id ),
+				'back_url'    => (string) get_edit_post_link( $post_id, 'raw' ),
+			);
+		}
 
 		$template = S5_PLUGIN_DIR . 'templates/editor.php';
 
@@ -642,6 +700,64 @@ final class Editor {
 
 		wp_print_footer_scripts();
 		echo "\n</body>\n</html>";
+	}
+
+	/**
+	 * The preview URL for a template part (the editor iframe src in template mode).
+	 *
+	 * @param string $name Part name.
+	 * @return string
+	 */
+	public static function template_preview_url( string $name ): string {
+		return add_query_arg(
+			array(
+				'page'                 => self::PAGE_SLUG,
+				's5-template-preview'  => $name,
+			),
+			admin_url( 'admin.php' )
+		);
+	}
+
+	/**
+	 * Serve a template part's HTML in a minimal document for the editor preview iframe.
+	 *
+	 * Capability-gated (the caller already checked manage_options). The part's canonical
+	 * is echoed inside the design-system stylesheet + the selection overlay, so the same
+	 * data-node selection machinery works on a template part exactly as on a page.
+	 *
+	 * @param string $name Part name.
+	 * @return void
+	 */
+	private static function render_template_preview( string $name ): void {
+		$html   = Templates::read_part( $name );
+		$bundle = StyleBundle::url();
+
+		nocache_headers();
+		header( 'Content-Type: text/html; charset=' . get_option( 'blog_charset' ) );
+
+		echo '<!DOCTYPE html>' . "\n";
+		printf( '<html %s>' . "\n", get_language_attributes() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WP core helper.
+		echo '<head>' . "\n";
+		echo '<meta charset="' . esc_attr( get_option( 'blog_charset' ) ) . '">' . "\n";
+		echo '<meta name="viewport" content="width=device-width, initial-scale=1.0">' . "\n";
+		echo '<meta name="robots" content="noindex,nofollow">' . "\n";
+		if ( '' !== $bundle ) {
+			// Bespoke standalone preview document (like the page canvas template): the
+			// stylesheet/script are printed directly, not through wp_enqueue, because
+			// this is not the wp_head render path.
+			printf( '<link rel="stylesheet" href="%s">' . "\n", esc_url( $bundle ) ); // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet -- standalone preview doc, not wp_head.
+		}
+		echo '</head>' . "\n";
+		echo '<body>' . "\n";
+		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- authored canonical part HTML, served verbatim by design (same as the page canvas).
+
+		// The selection overlay (same one the page preview uses) so data-node selection
+		// works on the part. Printed inline since this is a bespoke minimal doc.
+		printf(
+			'<script src="%s"></script>' . "\n", // phpcs:ignore WordPress.WP.EnqueuedResources.NonEnqueuedScript -- standalone preview doc, not wp_head.
+			esc_url( constant( 'S5\\S5_PLUGIN_URL' ) . 'assets/editor/overlay.js?ver=' . rawurlencode( self::asset_ver( 'overlay.js' ) ) )
+		);
+		echo "</body>\n</html>";
 	}
 
 	/**

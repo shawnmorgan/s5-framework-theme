@@ -128,3 +128,17 @@
 .s5-sg__edit-toggle::-webkit-details-marker { display: none; }
 .s5-sg__edit-form { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
 .s5-sg__edit-input { width: 100%; max-width: 140px; font-family: Menlo, Consolas, monospace; font-size: 12px; }
+
+/* ============================================================================
+   Templates screen (§3.2)
+   ============================================================================ */
+.s5-tpl__card { background: #fff; border: 1px solid #dcdcde; border-radius: 6px; padding: 8px 0; margin-bottom: 16px; }
+.s5-tpl__card-head { display: flex; align-items: center; gap: 12px; font-size: 13px; font-weight: 700; color: #1e1e1e; padding: 8px 16px 12px; border-bottom: 1px solid #f0f0f1; }
+.s5-tpl__note { font-weight: 400; font-size: 11px; color: #6c7278; }
+.s5-tpl__row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f0f0f1; }
+.s5-tpl__row:last-child { border-bottom: 0; }
+.s5-tpl__row-main { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; }
+.s5-tpl__row-name { font-weight: 600; color: #1e1e1e; }
+.s5-tpl__row-file { font-family: Menlo, Consolas, monospace; font-size: 11px; color: #6c7278; }
+.s5-tpl__badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #50575e; border: 1px solid #dcdcde; border-radius: 999px; padding: 2px 8px; }
+.s5-tpl__card .description { padding: 12px 16px; margin: 0; }
