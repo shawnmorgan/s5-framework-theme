@@ -423,6 +423,15 @@ final class Editor {
 			true
 		);
 
+		// Advanced tab: tag / node id / responsive visibility (read + honest notes).
+		wp_enqueue_script(
+			's5-editor-advanced',
+			$base . 'advancedtab.js',
+			array( 's5-editor' ),
+			self::asset_ver( 'advancedtab.js' ),
+			true
+		);
+
 		$head = Storage::get_head( $post_id );
 
 		wp_localize_script(
