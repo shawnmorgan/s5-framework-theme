@@ -20,7 +20,9 @@
 	}
 	var cfg = window.S5Editor || {};
 	var root = document.querySelector( '[data-s5-editor]' );
-	var panelBody = root.querySelector( '[data-s5-panel-body]' );
+	// The Content pane the selected element's fields render into. Prefer the Phase B
+	// hook [data-s5-content]; fall back to the legacy [data-s5-panel-body] alias.
+	var panelBody = root.querySelector( '[data-s5-content]' ) || root.querySelector( '[data-s5-panel-body]' );
 	var updateBtn = root.querySelector( '[data-s5-update]' );
 	var ORIGIN = window.location.origin;
 
@@ -156,6 +158,11 @@
 		}
 		if ( 'select' === msg.s5 ) {
 			selected = msg;
+			// Flip the left panel from palette to the props editor (palette⇄props
+			// swap, HANDOFF §2.3). Content-tab fields render below.
+			if ( shell.showProps ) {
+				shell.showProps( msg.label || msg.type || 'Element', msg.node || '' );
+			}
 			renderFields( msg );
 		}
 	} );
