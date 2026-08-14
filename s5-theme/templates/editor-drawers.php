@@ -37,7 +37,25 @@ $s5_is_template = isset( $s5_is_template ) ? (bool) $s5_is_template : false;
 		</section>
 		<section class="s5-editor__drawer-sec">
 			<div class="s5-editor__drawer-sec-head"><?php esc_html_e( 'Page Meta & SEO', 's5' ); ?></div>
-			<p class="s5-editor__hint"><?php esc_html_e( 'SEO title, meta description, canonical, index/follow, OG image. Writes through to Yoast/RankMath when present.', 's5' ); ?></p>
+			<?php /* Head fields — seeded + saved by codelens.js through the ONE door (mode:head → _s5_head). The head round-trip contract lives here now. */ ?>
+			<div class="s5-editor__headform" data-s5-headform>
+				<div class="s5-editor__field">
+					<label class="s5-editor__field-label" for="s5-head-title"><?php esc_html_e( 'SEO Title', 's5' ); ?></label>
+					<input id="s5-head-title" class="s5-editor__input" type="text" data-s5-head="title">
+				</div>
+				<div class="s5-editor__field">
+					<label class="s5-editor__field-label" for="s5-head-desc"><?php esc_html_e( 'Meta Description', 's5' ); ?></label>
+					<textarea id="s5-head-desc" class="s5-editor__textarea" rows="3" data-s5-head="description"></textarea>
+				</div>
+				<div class="s5-editor__field">
+					<label class="s5-editor__field-label" for="s5-head-canonical"><?php esc_html_e( 'Canonical URL', 's5' ); ?></label>
+					<input id="s5-head-canonical" class="s5-editor__input" type="url" data-s5-head="canonical">
+				</div>
+				<button type="button" class="button button-primary s5-editor__head-save" data-s5-head-save disabled>
+					<?php esc_html_e( 'Save meta', 's5' ); ?>
+				</button>
+				<p class="s5-editor__field-hint"><?php esc_html_e( 'Index/follow, OG image, and Yoast/RankMath write-through land in Phase C.', 's5' ); ?></p>
+			</div>
 		</section>
 		<section class="s5-editor__drawer-sec">
 			<div class="s5-editor__drawer-sec-head"><?php esc_html_e( 'Schema (JSON-LD)', 's5' ); ?></div>

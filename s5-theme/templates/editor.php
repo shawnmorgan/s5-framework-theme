@@ -243,13 +243,10 @@ $s5_settings_css_url        = admin_url( 'admin.php?page=s5-settings&screen=css'
 	 * do not error. They carry the same data-s5-* attributes their handlers expect.
 	 */
 	?>
+	<?php /* Head fields now live in the Page Settings drawer (editor-drawers.php). The
+	   Components tab machinery is parked here until it moves to the settings Components
+	   screen in Phase C — keeps componentstab.js from erroring in the meantime. */ ?>
 	<div class="s5-editor__legacy-hooks" data-s5-legacy hidden aria-hidden="true">
-		<div data-s5-headform>
-			<input type="text" data-s5-head="title">
-			<textarea data-s5-head="description"></textarea>
-			<input type="url" data-s5-head="canonical">
-			<button type="button" data-s5-head-save disabled></button>
-		</div>
 		<div data-s5-comp-grid></div>
 		<div data-s5-comp-editor hidden>
 			<button type="button" data-s5-comp-back></button>
