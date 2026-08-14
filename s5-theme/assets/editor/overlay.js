@@ -168,6 +168,7 @@
 				alt: el.getAttribute( 'alt' ) || '',
 				items: listItems( el ),
 				dynamic: el.hasAttribute( 'data-s5-dynamic' ),
+				classes: el.getAttribute( 'class' ) || '',
 			},
 			ORIGIN
 		);

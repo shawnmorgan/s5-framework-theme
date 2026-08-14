@@ -405,12 +405,21 @@ final class Editor {
 			true
 		);
 
-		// Style tab (read-only) + Content/Style tab switching.
+		// Style tab (read-only token specimen) + Content/Style tab switching.
 		wp_enqueue_script(
 			's5-editor-styles',
 			$base . 'stylestab.js',
 			array( 's5-editor' ),
 			self::asset_ver( 'stylestab.js' ),
+			true
+		);
+
+		// Style tab per-element axis controls (R3, axis-swap-only through mode:class).
+		wp_enqueue_script(
+			's5-editor-styleaxes',
+			$base . 'styleaxes.js',
+			array( 's5-editor' ),
+			self::asset_ver( 'styleaxes.js' ),
 			true
 		);
 
@@ -435,6 +444,7 @@ final class Editor {
 				'tokens'     => Styles::read_tokens(),
 				'components' => self::components_for_palette(),
 				'bundleUrl'  => StyleBundle::url(),
+				'styleAxes'  => ControlsManifest::ui_axes(),
 			)
 		);
 	}

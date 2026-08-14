@@ -32,7 +32,8 @@
     "test:editor": "bash tests/acceptance-editor.sh",
     "validate": "wp-env run cli wp s5 validate wp-content/s5-pages",
     "recompile": "wp-env run cli wp s5 recompile --all",
-    "test:disable": "bash tests/acceptance-disable.sh"
+    "test:disable": "bash tests/acceptance-disable.sh",
+    "test:classswap": "bash tests/acceptance-classswap.sh"
   },
   "devDependencies": {
     "@wordpress/env": "^10.0.0"

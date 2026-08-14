@@ -227,10 +227,16 @@ final class Rest {
 					return $canonical;
 				}
 				return self::persist_canonical( $post_id, $canonical );
+			case 'class':
+				$canonical = self::build_canonical_from_class_swap( $post_id, $request );
+				if ( $canonical instanceof \WP_Error ) {
+					return $canonical;
+				}
+				return self::persist_canonical( $post_id, $canonical );
 			default:
 				return new \WP_Error(
 					's5_bad_mode',
-					__( 'Unknown save mode. Expected slots, canonical, insert, disable, or head.', 's5' ),
+					__( 'Unknown save mode. Expected slots, canonical, insert, disable, class, or head.', 's5' ),
 					array( 'status' => 400 )
 				);
 		}
@@ -426,6 +432,114 @@ final class Rest {
 			$processor->set_attribute( 'data-disabled', 'true' );
 		} else {
 			$processor->remove_attribute( 'data-disabled' );
+		}
+		return $processor->get_updated_html();
+	}
+
+	/**
+	 * Swap ONE class within a sanctioned axis on a node (R3, axis-swap-only).
+	 *
+	 * Narrow by construction: the controls manifest (ControlsManifest) defines each
+	 * axis's full, mutually-exclusive class set. This save removes EVERY class on the
+	 * node that belongs to the chosen axis's set, then adds the single chosen class
+	 * (which must itself be a member of that set). There is NO free-form class path:
+	 * a class outside the axis set is rejected, and only classes within the set are
+	 * ever touched — an unrelated class on the node is left exactly as-is. The result
+	 * still runs the standard closed-vocabulary validate + one-door persist, so even a
+	 * manifest bug cannot smuggle an out-of-vocabulary class into canonical.
+	 *
+	 * Empty `class` clears the axis (removes all of the axis's classes) — a valid swap
+	 * to "none".
+	 *
+	 * Expects params: `node`, `axis` (manifest key), `class` (member of the axis, or '').
+	 *
+	 * @param int              $post_id Page ID.
+	 * @param \WP_REST_Request $request Request.
+	 * @return string|\WP_Error New canonical, or an error.
+	 */
+	private static function build_canonical_from_class_swap( int $post_id, \WP_REST_Request $request ) {
+		$node   = (string) $request->get_param( 'node' );
+		$axis   = (string) $request->get_param( 'axis' );
+		$chosen = (string) $request->get_param( 'class' );
+
+		if ( '' === $node || '' === $axis ) {
+			return new \WP_Error( 's5_class_args', __( 'node and axis are required.', 's5' ), array( 'status' => 400 ) );
+		}
+
+		$axis_set = ControlsManifest::classes_for_axis( $axis );
+		if ( empty( $axis_set ) ) {
+			return new \WP_Error(
+				's5_unknown_axis',
+				sprintf( /* translators: %s: axis key. */ __( 'Unknown or unavailable style axis "%s".', 's5' ), $axis ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// The chosen class must be a member of THIS axis (or empty = clear). No
+		// free-form class ever passes this gate. Return a WP_Error so handle_save's
+		// class-branch surfaces it (like every other builder) rather than persisting.
+		if ( '' !== $chosen && ! in_array( $chosen, $axis_set, true ) ) {
+			return new \WP_Error(
+				's5_class_axis',
+				sprintf( /* translators: 1: class, 2: axis. */ __( 'Class "%1$s" is not in the "%2$s" axis. Style controls may only swap within a sanctioned axis.', 's5' ), $chosen, $axis ),
+				array(
+					'status'      => 422,
+					'diagnostics' => array(
+						array(
+							'severity'  => 'error',
+							'rule'      => 's5.class.axis',
+							'message'   => sprintf( /* translators: 1: class, 2: axis. */ __( 'Class "%1$s" is not in the "%2$s" axis.', 's5' ), $chosen, $axis ),
+							'token'     => $chosen,
+							'permitted' => $axis_set,
+						),
+					),
+				)
+			);
+		}
+
+		$canonical = Storage::get_canonical_html( $post_id );
+		if ( '' === $canonical ) {
+			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		// Locate the node + read its current class list.
+		$processor = new \WP_HTML_Tag_Processor( $canonical );
+		$found     = false;
+		$current   = '';
+		while ( $processor->next_tag() ) {
+			if ( (string) $processor->get_attribute( 'data-node' ) === $node ) {
+				$found   = true;
+				$current = (string) $processor->get_attribute( 'class' );
+				break;
+			}
+		}
+		if ( ! $found ) {
+			return new \WP_Error(
+				's5_node_not_found',
+				sprintf( /* translators: %s: data-node id. */ __( 'Node "%s" not found in canonical.', 's5' ), $node ),
+				array( 'status' => 409 )
+			);
+		}
+
+		// Rebuild the class list: keep everything NOT in this axis, drop the axis's
+		// classes, then add the chosen one (if any). Order preserved for non-axis
+		// classes; the chosen class appended.
+		$classes = '' === trim( $current ) ? array() : preg_split( '/\s+/', trim( $current ) );
+		$kept    = array();
+		foreach ( (array) $classes as $c ) {
+			if ( '' === $c || in_array( $c, $axis_set, true ) ) {
+				continue; // Drop empties + any class from this axis.
+			}
+			$kept[] = $c;
+		}
+		if ( '' !== $chosen ) {
+			$kept[] = $chosen;
+		}
+
+		if ( empty( $kept ) ) {
+			$processor->remove_attribute( 'class' );
+		} else {
+			$processor->set_attribute( 'class', implode( ' ', $kept ) );
 		}
 		return $processor->get_updated_html();
 	}
