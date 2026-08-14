@@ -820,3 +820,42 @@ the real admin submenu via `wp-admin/menu.php` in a bootstrapped admin context, 
 forbidden child remains. The AUTHORITATIVE rendered-menu assertion (real authenticated HTTP, the true
 source of truth that caught this) lives in the Playwright real-install walkthrough (Acceptance B) —
 CLI cannot faithfully reproduce the fully-rendered admin menu, so the browser is the ground truth.
+
+---
+
+**D37 — Carry-over audit fixes (Item 5 a–e).**
+
+**5a — convert_page() ADOPTS, never scaffolds.** `Seeder::convert_page()` was replacing an
+existing page's content with `starter_canonical()` (a scaffold), destroying the page's real
+content. Now it WRAPS the page's own `post_content` as the canonical body inside the part shell
+(`adopt_canonical()`), so the served page is identical after adoption. A revision is captured
+(`wp_save_post_revision`) BEFORE the first framework write, so the pre-adoption state is restorable.
+Added `Storage::clear_page()` (removes all framework meta) and taught `Revisions::on_restore()` to
+un-adopt when a restored revision carries an empty canonical — so restoring a pre-adoption revision
+returns a plain page with its original content. `starter_canonical()` now used ONLY by `create_page()`
+(Add S5 Page). Proven on the real install: adopt → content survives, no scaffold, revision captured;
+restore → is_framework_page false, content back. Dist-suite step 4 extended to assert all of this.
+
+**5b — bare `wp s5 import` resolves from any CWD.** `ValidateCommand::pages_root()` fell back to a
+bare relative `'pages'`, resolved against getcwd(), so a bare import from any other directory died
+("Import directory not found: pages"). Now resolves to an ABSOLUTE path — wp-env mount → repo mount →
+the INSTALLED THEME's `site/pages` (the shipped authoring source, the site-root resolution) → ABSPATH.
+Proven: bare `wp s5 import` run from /tmp imports all 9 corpus files.
+
+**5c — full size/spacing ladders ship in utilities.css.** Added `.text-scale-{xxs…xxxl}`,
+`.space-top-{xxs…xxxl}`, `.space-bottom-{xxs…xxxl}` (24 classes), each wired to a `--s5-{text,space}-*`
+scale custom property, to both the live `site/styles/utilities.css` and the `InitCommand` starter, so
+the Style-tab size/spacing axes light up on a fresh `wp s5 init`. Proven: `ControlsManifest::ui_axes()`
+now reports text-scale / space-top / space-bottom as AVAILABLE (8 classes each) alongside text-align.
+
+**5d — loud door on empty writes + anchor-less insert.** (i) Slots mode now tracks EFFECTIVE writes;
+a payload of only empty/malformed/anchorless slots returns 400 `s5_no_effective_slots` with a
+per-slot diagnostic instead of a silent 200 on an unchanged canonical. (ii) Anchor-less insert now
+splices before `</main>` (inside the content region), NEVER at document end (which is after the
+`<s5-part name="site-footer">`); a page with no `<main>` is refused with 400 `s5_no_main`. Both proven
+on the real install.
+
+**5e — version + description for an installed audience.** style.css Version 0.0.0 → 0.9.0; the
+Description was rewritten for someone who just installed the theme (what it does, that pages are
+canonical HTML edited in the S5 canvas editor, tokens/components/vocabulary in Theme Settings) with
+no repo/PRD/Build-Order references. The Step-0 code comment was likewise de-repo'd.

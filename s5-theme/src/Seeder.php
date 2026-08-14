@@ -203,10 +203,18 @@ final class Seeder {
 	}
 
 	/**
-	 * Convert an EXISTING plain page into an S5 framework page.
+	 * Convert an EXISTING plain page into an S5 framework page — ADOPTION, not replacement.
 	 *
-	 * If the page already carries canonical HTML it is left untouched. Otherwise
-	 * a minimal valid canonical is persisted (seeded from the page's title).
+	 * The page's own existing content is what gets adopted: its `post_content` is WRAPPED
+	 * as the canonical body inside the framework part shell (header/footer), so the served
+	 * page shows the SAME content after adoption as before — the framework now owns it, but
+	 * it is the page's real content, never a starter scaffold. `starter_canonical()` is only
+	 * for Add-S5-Page (a brand-new blank page), never here.
+	 *
+	 * A revision is captured BEFORE the first framework write, so the pre-adoption state
+	 * (original post_content, no S5 meta) is restorable: restoring it un-adopts the page.
+	 *
+	 * If the page is already a framework page it is left untouched.
 	 *
 	 * @param int $post_id Target page id.
 	 * @return array{ok:bool,error:string}
@@ -226,13 +234,21 @@ final class Seeder {
 			);
 		}
 
+		// (1) Snapshot the PRE-ADOPTION state as a revision, BEFORE any framework write.
+		// At this point the page carries its original post_content and NO S5 canonical meta,
+		// so this revision is the clean "un-adopted" state to restore back to.
+		wp_save_post_revision( $post_id );
+
 		$title = '' !== $post->post_title ? $post->post_title : __( 'S5 Page', 's5' );
 		if ( ! get_post_meta( $post_id, Storage::HEAD_KEY, true ) ) {
 			update_post_meta( $post_id, Storage::HEAD_KEY, array( 'title' => $title ) );
 		}
 
+		// (2) WRAP the page's existing content as the canonical body inside the part shell.
+		$canonical = self::adopt_canonical( (string) $post->post_content, $title );
+
 		try {
-			Compiler::persist_page( $post_id, self::starter_canonical( $title ) );
+			Compiler::persist_page( $post_id, $canonical );
 		} catch ( \RuntimeException $e ) {
 			return array(
 				'ok'    => false,
@@ -244,6 +260,34 @@ final class Seeder {
 			'ok'    => true,
 			'error' => '',
 		);
+	}
+
+	/**
+	 * Wrap an existing page's content as a contract-valid canonical body inside the
+	 * framework part shell (site-header / site-footer). The adopted content becomes the
+	 * page's `<main>` body verbatim, so the served page is unchanged by adoption.
+	 *
+	 * The content is kept as-authored (it is the page's own, already-trusted content);
+	 * an empty page gets a single empty prose region so the shell is still valid. No
+	 * data-node anchors are injected here — an adopted page is editable in Code view and,
+	 * once its content carries anchors, in the glass; adoption never rewrites the content.
+	 *
+	 * @param string $content Existing post_content (the page's body).
+	 * @param string $title   Page title (used only for the empty-body fallback label).
+	 * @return string Canonical body HTML.
+	 */
+	private static function adopt_canonical( string $content, string $title ): string {
+		$body = trim( $content );
+		if ( '' === $body ) {
+			// Empty page: a single empty prose region so the shell validates; the title
+			// stays in the WP page title, not injected into the body.
+			$body = "  <section class=\"section\">\n    <div class=\"prose\">\n      <p></p>\n    </div>\n  </section>";
+		}
+		return "<s5-part name=\"site-header\"></s5-part>\n\n"
+			. "<main data-s5=\"page\">\n"
+			. $body . "\n"
+			. "</main>\n\n"
+			. "<s5-part name=\"site-footer\"></s5-part>\n";
 	}
 
 	/**

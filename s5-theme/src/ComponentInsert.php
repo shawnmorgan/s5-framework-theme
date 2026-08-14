@@ -102,7 +102,17 @@ final class ComponentInsert {
 		$block = "\n" . $markup . "\n";
 
 		if ( '' === $at ) {
-			return rtrim( $canonical, "\r\n" ) . $block . "\n";
+			// Anchor-less insert (append). It MUST land inside the page's main content
+			// region — before </main> — never at the very end of the document, which is
+			// AFTER the <s5-part name="site-footer"> part (Item 5d). Appending after the
+			// footer would render the new component below the site footer, outside the
+			// content. If there is no <main> to append into, refuse loudly (the caller
+			// returns 400) rather than silently misplacing the component.
+			$close = strripos( $canonical, '</main>' );
+			if ( false === $close ) {
+				return null;
+			}
+			return substr( $canonical, 0, $close ) . $block . substr( $canonical, $close );
 		}
 
 		$pattern = '/<([a-zA-Z][a-zA-Z0-9]*)\b[^>]*\bdata-node=(["\'])' . preg_quote( $at, '/' ) . '\2[^>]*>/';

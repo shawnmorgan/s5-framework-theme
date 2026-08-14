@@ -430,8 +430,16 @@ final class Rest {
 			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical HTML.', 's5' ), array( 'status' => 409 ) );
 		}
 
-		foreach ( $slots as $slot ) {
+		// Loud door: a slots write must actually write something. Track effective
+		// writes and the reasons any slot was skipped, so a payload of only malformed /
+		// anchorless slots FAILS with diagnostics instead of silently 200-ing on an
+		// unchanged canonical (Item 5d).
+		$effective = 0;
+		$skipped   = array();
+
+		foreach ( $slots as $i => $slot ) {
 			if ( ! is_array( $slot ) ) {
+				$skipped[] = array( 'rule' => 's5_slot_shape', 'message' => sprintf( /* translators: %d: slot index. */ __( 'Slot %d is not an object.', 's5' ), (int) $i ) );
 				continue;
 			}
 			$node  = isset( $slot['node'] ) ? (string) $slot['node'] : '';
@@ -440,6 +448,7 @@ final class Rest {
 			$attr  = isset( $slot['attr'] ) ? (string) $slot['attr'] : '';
 
 			if ( '' === $node ) {
+				$skipped[] = array( 'rule' => 's5_slot_no_node', 'message' => sprintf( /* translators: %d: slot index. */ __( 'Slot %d has no data-node id — nothing to write.', 's5' ), (int) $i ) );
 				continue;
 			}
 
@@ -448,6 +457,20 @@ final class Rest {
 				return $written;
 			}
 			$canonical = $written;
+			++$effective;
+		}
+
+		if ( 0 === $effective ) {
+			return new \WP_Error(
+				's5_no_effective_slots',
+				__( 'No slot edits were applied — every slot was empty, malformed, or anchorless. Nothing was written.', 's5' ),
+				array(
+					'status'      => 400,
+					'diagnostics' => ! empty( $skipped ) ? $skipped : array(
+						array( 'rule' => 's5_no_effective_slots', 'message' => __( 'The slots payload produced zero effective writes.', 's5' ) ),
+					),
+				)
+			);
 		}
 
 		return $canonical;
@@ -495,6 +518,19 @@ final class Rest {
 		$rekeyed  = ComponentInsert::rekey( $component['html'], $component['name'], $existing );
 		$spliced  = ComponentInsert::splice( $canonical, $rekeyed['markup'], $at );
 		if ( null === $spliced ) {
+			// Two loud failures collapse here (Item 5d): an anchor-less insert into a
+			// page with no <main> content region, or a named anchor that does not exist.
+			// Either way NOTHING is written — the component never lands after the footer.
+			if ( '' === $at ) {
+				return new \WP_Error(
+					's5_no_main',
+					__( 'Cannot append: this page has no main content region to insert into.', 's5' ),
+					array(
+						'status'      => 400,
+						'diagnostics' => array( array( 'rule' => 's5_no_main', 'message' => __( 'Anchor-less insert requires a <main> region; the component is never placed after the site footer.', 's5' ) ) ),
+					)
+				);
+			}
 			return new \WP_Error( 's5_anchor', __( 'Insert anchor not found.', 's5' ), array( 'status' => 409 ) );
 		}
 

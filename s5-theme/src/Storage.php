@@ -322,4 +322,26 @@ final class Storage {
 	public static function set_head( int $post_id, array $head ): void {
 		update_post_meta( $post_id, self::HEAD_KEY, $head );
 	}
+
+	/**
+	 * Remove ALL framework artifacts from a page — un-adopt it back to a plain page.
+	 *
+	 * Deletes the canonical (the framework flag {@see self::is_framework_page}), the
+	 * derived render, the media reversal map, the dynamic flag, the head blob, and the
+	 * islands sidecar. After this the page is an ordinary WordPress page again: the
+	 * render path no longer intercepts it, the "S5" badge is gone, and its post_content
+	 * serves normally. Used when a pre-adoption revision is restored (Item 5a) and by
+	 * any future explicit "revert to plain page" flow.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return void
+	 */
+	public static function clear_page( int $post_id ): void {
+		delete_post_meta( $post_id, self::META_KEY );
+		delete_post_meta( $post_id, self::RENDER_KEY );
+		delete_post_meta( $post_id, self::MEDIA_MAP_KEY );
+		delete_post_meta( $post_id, self::DYNAMIC_KEY );
+		delete_post_meta( $post_id, self::HEAD_KEY );
+		delete_post_meta( $post_id, Islands::META_KEY );
+	}
 }

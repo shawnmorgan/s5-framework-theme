@@ -199,8 +199,29 @@ final class InitCommand {
 	 * @return string
 	 */
 	private static function starter_utilities(): string {
-		return "/* Utility vocabulary (u- prefix). */\n"
-			. ".u-visually-hidden {}\n"
-			. ".u-text-center {}\n";
+		$out  = "/* Utility vocabulary. Micro-utilities (u- prefix) + the size/spacing\n";
+		$out .= "   axis ladders the editor's Style tab swaps within (ControlsManifest\n";
+		$out .= "   text-scale / space-top / space-bottom). Each rung maps to a scale\n";
+		$out .= "   custom property, so a size/spacing edit is only ever a token swap. */\n\n";
+		$out .= ".u-visually-hidden {\n\tposition: absolute;\n\twidth: 1px;\n\theight: 1px;\n\tmargin: -1px;\n\tpadding: 0;\n\toverflow: hidden;\n\tclip: rect(0, 0, 0, 0);\n\twhite-space: nowrap;\n\tborder: 0;\n}\n";
+		$out .= ".u-text-left { text-align: left; }\n";
+		$out .= ".u-text-center { text-align: center; }\n";
+		$out .= ".u-text-right { text-align: right; }\n\n";
+
+		$steps = array( 'xxs', 'xs', 'sm', 'md', 'lg', 'xl', 'xxl', 'xxxl' );
+
+		$out .= "/* Text size — font-size from the --s5-text-* ladder. */\n";
+		foreach ( $steps as $s ) {
+			$out .= ".text-scale-{$s} { font-size: var(--s5-text-{$s}); }\n";
+		}
+		$out .= "\n/* Space top — margin-block-start from the --s5-space-* ladder. */\n";
+		foreach ( $steps as $s ) {
+			$out .= ".space-top-{$s} { margin-block-start: var(--s5-space-{$s}); }\n";
+		}
+		$out .= "\n/* Space bottom — margin-block-end from the --s5-space-* ladder. */\n";
+		foreach ( $steps as $s ) {
+			$out .= ".space-bottom-{$s} { margin-block-end: var(--s5-space-{$s}); }\n";
+		}
+		return $out;
 	}
 }

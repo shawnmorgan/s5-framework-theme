@@ -31,3 +31,41 @@
 	white-space: nowrap;
 	border: 0;
 }
+
+/*
+ * SIZE + SPACING AXES (t-shirt ladders) — the sanctioned class sets the editor's
+ * Style tab swaps within (ControlsManifest text-scale / space-top / space-bottom).
+ * Each rung maps 1:1 to a scale custom property (scales.css), so a size/spacing edit
+ * is only ever a swap to a scale token — never a free-form value. Shipping the full
+ * xxs–xxxl ladders here is what makes those axes light up on a fresh `wp s5 init`.
+ */
+
+/* Text size — font-size from the --s5-text-* ladder. */
+.text-scale-xxs  { font-size: var(--s5-text-xxs); }
+.text-scale-xs   { font-size: var(--s5-text-xs); }
+.text-scale-sm   { font-size: var(--s5-text-sm); }
+.text-scale-md   { font-size: var(--s5-text-md); }
+.text-scale-lg   { font-size: var(--s5-text-lg); }
+.text-scale-xl   { font-size: var(--s5-text-xl); }
+.text-scale-xxl  { font-size: var(--s5-text-xxl); }
+.text-scale-xxxl { font-size: var(--s5-text-xxxl); }
+
+/* Space top — margin-block-start from the --s5-space-* ladder. */
+.space-top-xxs  { margin-block-start: var(--s5-space-xxs); }
+.space-top-xs   { margin-block-start: var(--s5-space-xs); }
+.space-top-sm   { margin-block-start: var(--s5-space-sm); }
+.space-top-md   { margin-block-start: var(--s5-space-md); }
+.space-top-lg   { margin-block-start: var(--s5-space-lg); }
+.space-top-xl   { margin-block-start: var(--s5-space-xl); }
+.space-top-xxl  { margin-block-start: var(--s5-space-xxl); }
+.space-top-xxxl { margin-block-start: var(--s5-space-xxxl); }
+
+/* Space bottom — margin-block-end from the --s5-space-* ladder. */
+.space-bottom-xxs  { margin-block-end: var(--s5-space-xxs); }
+.space-bottom-xs   { margin-block-end: var(--s5-space-xs); }
+.space-bottom-sm   { margin-block-end: var(--s5-space-sm); }
+.space-bottom-md   { margin-block-end: var(--s5-space-md); }
+.space-bottom-lg   { margin-block-end: var(--s5-space-lg); }
+.space-bottom-xl   { margin-block-end: var(--s5-space-xl); }
+.space-bottom-xxl  { margin-block-end: var(--s5-space-xxl); }
+.space-bottom-xxxl { margin-block-end: var(--s5-space-xxxl); }

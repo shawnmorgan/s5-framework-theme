@@ -94,13 +94,23 @@ final class Revisions {
 	public static function on_restore( $post_id, $revision_id ): void {
 		$post_id = (int) $post_id;
 
+		$restored_canonical = get_post_meta( (int) $revision_id, Storage::META_KEY, true );
+
+		// Restoring a PRE-ADOPTION revision (one captured before the page became a
+		// framework page) carries an empty canonical. That means "un-adopt": clear the
+		// framework artifacts so is_framework_page() is false again and WordPress serves
+		// the revision's plain post_content (which core has already restored). Without
+		// this, the stale framework canonical would linger and the page would keep
+		// rendering the adopted body — restore would not return the pre-adoption state.
+		if ( ! is_string( $restored_canonical ) || '' === $restored_canonical ) {
+			Storage::clear_page( $post_id );
+			return;
+		}
+
 		// Belt-and-suspenders: ensure the parent's canonical matches the revision
 		// (core restores revisioned meta, but restoring explicitly is harmless and
 		// guards against ordering differences across WP versions).
-		$restored_canonical = get_post_meta( (int) $revision_id, Storage::META_KEY, true );
-		if ( is_string( $restored_canonical ) && '' !== $restored_canonical ) {
-			update_post_meta( $post_id, Storage::META_KEY, $restored_canonical );
-		}
+		update_post_meta( $post_id, Storage::META_KEY, $restored_canonical );
 
 		$canonical = Storage::get_canonical_html( $post_id );
 		if ( '' === $canonical ) {

@@ -220,11 +220,20 @@ final class ValidateCommand {
 	}
 
 	/**
-	 * Resolve the page-source directory (the repo `pages/` dir).
+	 * Resolve the page-source directory to an ABSOLUTE path, independent of CWD.
 	 *
-	 * Pages are authoring SOURCE, not shipped theme content, so they stay at the
-	 * repo root — NOT under the theme's site/ subtree. In wp-env they are mapped to
-	 * wp-content/s5-pages (see .wp-env.json). Try that mapping, then the repo root.
+	 * `wp s5 import` (bare, no arg) must find the corpus from ANY working directory —
+	 * not only when the shell happens to sit next to a `pages/` folder. The old bare
+	 * relative `'pages'` fallback resolved against getcwd(), so a bare import from any
+	 * other CWD died with "Import directory not found: pages" (Item 5b).
+	 *
+	 * Resolution order, all absolute:
+	 *   1. wp-env mount:    WP_CONTENT_DIR/s5-pages
+	 *   2. repo mount:      WP_CONTENT_DIR/s5-repo/pages
+	 *   3. INSTALLED THEME: the active theme's site/pages — the shipped authoring
+	 *      source on a real install (get_stylesheet_directory()/site/pages). This is
+	 *      the site-root resolution the bare command needs.
+	 *   4. last resort:     ABSPATH/pages, then the bare relative 'pages' (dev/CI only).
 	 *
 	 * @return string
 	 */
@@ -238,6 +247,20 @@ final class ValidateCommand {
 			if ( is_dir( $repo ) ) {
 				return $repo;
 			}
+		}
+
+		// Installed-theme authoring source — the site-root resolution. Absolute, so a
+		// bare `wp s5 import` works from any CWD on a real install.
+		if ( function_exists( 'get_stylesheet_directory' ) ) {
+			$theme = rtrim( (string) get_stylesheet_directory(), '/' ) . '/site/pages';
+			if ( is_dir( $theme ) ) {
+				return $theme;
+			}
+		}
+
+		// Absolute last resorts (dev/CI): the site root, then bare relative.
+		if ( defined( 'ABSPATH' ) && is_dir( rtrim( (string) ABSPATH, '/' ) . '/pages' ) ) {
+			return rtrim( (string) ABSPATH, '/' ) . '/pages';
 		}
 		return 'pages';
 	}

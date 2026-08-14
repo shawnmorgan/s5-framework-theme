@@ -152,8 +152,22 @@ real browser and watched the served page change.
       checkbox, component builder opens with real REST data, token-edit save round-trips (install token file
       changed then restored from clean repo source). GAPs logged in FIDELITY-EXCEPTIONS.md; D35 in DECISIONS.
       [/compact AFTER item 3, before item 5 — user-ordered.]
-- [ ] Item 4: Appearance cleanup + rendered-menu gate
-- [ ] Item 5a–e: carry-over fixes
+- [x] Item 4: Appearance cleanup + rendered-menu gate — DONE. Root cause: remove_submenu_page()
+      called with stale EXACT slugs while WP registers Patterns/Customize with query strings
+      (site-editor.php?p=/pattern, customize.php?return=…) + Fonts as font-library.php → every call
+      silently no-oped; old gate only checked the removal-target CONSTANT (code-exists). Fix:
+      remove by PREFIX against the real registered $submenu['themes.php']; Fonts added to removal +
+      block lists. Gate §7 hardened to a removal-EFFECT test (seed real slugs + run remover; plus a
+      bootstrapped rendered-menu check). Authoritative rendered-menu assertion = Playwright real HTTP.
+      Verified: rendered submenu = Themes + Theme File Editor only; direct URLs 302 to Themes. D36.
+- [x] Item 5a–e: carry-over fixes — ALL DONE, each proven on the real install. (a) convert_page WRAPS
+      content (adopt_canonical), revision-before-write, Storage::clear_page + on_restore un-adopt on
+      empty canonical → restore returns pre-adoption; starter_canonical only for Add-S5-Page; dist
+      step 4 extended. (b) pages_root() absolute (installed theme site/pages) → bare import from any
+      CWD. (c) text-scale-*/space-top-*/space-bottom-* ladders (24 classes) in live + starter
+      utilities.css → axes AVAILABLE. (d) slots zero-effective-writes → 400 s5_no_effective_slots +
+      diagnostics; anchor-less insert splices before </main> not after footer, no-main → 400 s5_no_main.
+      (e) style.css 0.9.0 + installed-audience description, no repo refs. D37.
 - [ ] Acceptance A: fidelity matrix + exceptions
 - [ ] Acceptance B: clicked walkthrough
 - [ ] Acceptance C: full gate + dist suite green from clean

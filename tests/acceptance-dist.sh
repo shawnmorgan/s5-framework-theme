@@ -113,11 +113,44 @@ pass "existing page survived and renders through the styled fallback"
 # ---------------------------------------------------------------------------
 # 4. Adopt the existing page into S5 → it becomes a framework page.
 # ---------------------------------------------------------------------------
-info "4  Adopt the existing page into S5…"
+info "4  Adopt the existing page into S5 — content WRAPPED, not replaced (Item 5a)…"
+# Count revisions BEFORE adoption so we can prove one is captured pre-write.
+REV_BEFORE="$(wpc eval "echo count(wp_get_post_revisions($AB_ID));" | tail -1)"
 wpc eval "\$r = \S5\\Seeder::convert_page($AB_ID); echo empty(\$r['ok'])?'FAIL':'OK';" | grep -q OK \
   || fail "adoption (convert_page) failed"
 IS_FW="$(wpc eval "echo \S5\\Storage::is_framework_page($AB_ID)?'yes':'no';" | tail -1)"
 [ "$IS_FW" = "yes" ] || fail "page is not a framework page after adoption"
+
+# 4a. The page's OWN content must survive adoption — the canonical WRAPS post_content
+# in the part shell, it is NOT replaced with a starter scaffold. Assert the served page
+# still shows the original marker (and does NOT show the starter-scaffold text).
+CANON="$(wpc eval "echo \S5\\Storage::get_canonical_html($AB_ID);")"
+echo "$CANON" | grep -q 'DIST-SURVIVE-MARKER'  || fail "adopted canonical LOST the page's original content"
+echo "$CANON" | grep -q 'site-header'          || fail "adopted canonical missing the framework part shell"
+if echo "$CANON" | grep -q 'Edit this in the S5 editor'; then fail "adoption wrongly injected the starter scaffold instead of wrapping content"; fi
+AB_HTML2="$(curl -sL "$AB_URL")"
+echo "$AB_HTML2" | grep -q 'DIST-SURVIVE-MARKER' || fail "served page LOST its content after adoption"
+pass "adoption WRAPPED the page's own content (marker survives, no starter scaffold)"
+
+# 4b. A revision was captured BEFORE the first framework write (pre-adoption state).
+REV_AFTER="$(wpc eval "echo count(wp_get_post_revisions($AB_ID));" | tail -1)"
+[ "${REV_AFTER:-0}" -gt "${REV_BEFORE:-0}" ] || fail "no pre-adoption revision captured ($REV_BEFORE → $REV_AFTER)"
+pass "pre-adoption revision captured before the first framework write ($REV_BEFORE → $REV_AFTER)"
+
+# 4c. Restoring the pre-adoption revision returns the page to a PLAIN page (un-adopt):
+# framework meta cleared, is_framework_page false, and its original content still serves.
+PRE_REV="$(wpc eval "\$rs=wp_get_post_revisions($AB_ID,array('order'=>'ASC','numberposts'=>1)); \$r=reset(\$rs); echo \$r? (int)\$r->ID : 0;" | tail -1)"
+[ "${PRE_REV:-0}" -gt 0 ] || fail "could not find the pre-adoption revision to restore"
+wpc eval "wp_restore_post_revision($PRE_REV); echo 'restored';" | grep -q restored || fail "revision restore call failed"
+IS_FW_AFTER="$(wpc eval "echo \S5\\Storage::is_framework_page($AB_ID)?'yes':'no';" | tail -1)"
+[ "$IS_FW_AFTER" = "no" ] || fail "restore did NOT un-adopt the page (still a framework page)"
+AB_HTML3="$(curl -sL "$AB_URL")"
+echo "$AB_HTML3" | grep -q 'DIST-SURVIVE-MARKER' || fail "restored plain page LOST its original content"
+echo "$AB_HTML3" | grep -q 'data-s5="fallback"'  || fail "restored page not served through the plain fallback (still framework?)"
+pass "restore returns the pre-adoption plain page (un-adopted, original content serves)"
+
+# Re-adopt so the rest of the suite continues against a framework page.
+wpc eval "\S5\\Seeder::convert_page($AB_ID);" >/dev/null 2>&1 || true
 pass "existing page adopted into S5 (now a framework page, editable in the S5 editor)"
 
 # ---------------------------------------------------------------------------
