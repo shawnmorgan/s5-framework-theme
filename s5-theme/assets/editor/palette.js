@@ -60,45 +60,98 @@
 
 	/* --- render the palette --------------------------------------------- */
 
+	// Build one palette tile (registered component). An Embed primitive tile is
+	// added separately with insertsRaw=true so it reads as the single raw primitive.
+	function tile( name, description, preview, isEmbed ) {
+		var card = el( 'button', {
+			type: 'button',
+			class: 's5-editor__palette-item' + ( isEmbed ? ' is-embed' : '' ),
+			'data-s5-component': name,
+			draggable: 'true',
+			title: description || name,
+		} );
+
+		var thumb = el( 'span', { class: 's5-editor__palette-thumb' } );
+		if ( preview ) {
+			thumb.appendChild( el( 'img', { src: preview, alt: '' } ) );
+		} else {
+			thumb.appendChild( el( 'span', { class: 's5-editor__palette-glyph' }, ( name || '?' ).charAt( 0 ).toUpperCase() ) );
+		}
+		card.appendChild( thumb );
+		card.appendChild( el( 'span', { class: 's5-editor__palette-name' }, name ) );
+		if ( isEmbed ) {
+			card.appendChild( el( 'span', { class: 's5-editor__prim-badge' }, 'raw' ) );
+		}
+
+		card.addEventListener( 'click', function () {
+			doInsert( name, selectedNode );
+		} );
+		card.addEventListener( 'dragstart', function ( e ) {
+			e.dataTransfer.setData( 'text/s5-component', name );
+			e.dataTransfer.effectAllowed = 'copy';
+			sendToFrame( { s5: 's5-drag', on: true, component: name } );
+		} );
+		card.addEventListener( 'dragend', function () {
+			sendToFrame( { s5: 's5-drag', on: false } );
+		} );
+		return card;
+	}
+
+	// A labelled group holding a grid of tiles.
+	function group( label ) {
+		var g = el( 'div', { class: 's5-editor__palette-group' } );
+		g.appendChild( el( 'div', { class: 's5-editor__palette-label' }, label ) );
+		var grid = el( 'div', { class: 's5-editor__palette-grid' } );
+		g.appendChild( grid );
+		g._grid = grid;
+		return g;
+	}
+
 	function render() {
 		var comps = cfg.components || [];
 		palette.innerHTML = '';
-		if ( ! comps.length ) {
-			palette.appendChild( el( 'p', { class: 's5-editor__hint' }, 'No components registered.' ) );
-			return;
-		}
-		comps.forEach( function ( c ) {
-			var card = el( 'button', {
-				type: 'button',
-				class: 's5-editor__palette-item',
-				'data-s5-component': c.name,
-				draggable: 'true',
-				title: c.description || c.name,
-			} );
 
-			var thumb = el( 'span', { class: 's5-editor__palette-thumb' } );
-			if ( c.preview ) {
-				thumb.appendChild( el( 'img', { src: c.preview, alt: '' } ) );
-			} else {
-				thumb.appendChild( el( 'span', { class: 's5-editor__palette-glyph' }, ( c.name || '?' ).charAt( 0 ).toUpperCase() ) );
+		// Intro: only registered components + Embed are insertable (HANDOFF §0.2/§2.2).
+		palette.appendChild( el( 'p', { class: 's5-editor__palette-intro' },
+			'These are the only elements you can add — every one is a registered, contract-valid component. Need something new? Ask us to register it.' ) );
+
+		// Registered components. The registry is flat, so one honest "Components"
+		// group (not fabricated Sections/Content/Dynamic buckets the data can't back).
+		// Any registry entry named "embed" is the Embed primitive — pull it out so it
+		// appears once, in the Primitive group (never duplicated across both).
+		var embedComp = null;
+		var regular = comps.filter( function ( c ) {
+			if ( 'embed' === ( c.name || '' ).toLowerCase() ) {
+				embedComp = c;
+				return false;
 			}
-			card.appendChild( thumb );
-			card.appendChild( el( 'span', { class: 's5-editor__palette-name' }, c.name ) );
-
-			card.addEventListener( 'click', function () {
-				doInsert( c.name, selectedNode );
-			} );
-			card.addEventListener( 'dragstart', function ( e ) {
-				e.dataTransfer.setData( 'text/s5-component', c.name );
-				e.dataTransfer.effectAllowed = 'copy';
-				sendToFrame( { s5: 's5-drag', on: true, component: c.name } );
-			} );
-			card.addEventListener( 'dragend', function () {
-				sendToFrame( { s5: 's5-drag', on: false } );
-			} );
-
-			palette.appendChild( card );
+			return true;
 		} );
+
+		if ( regular.length ) {
+			var cg = group( 'Components' );
+			regular.forEach( function ( c ) {
+				cg._grid.appendChild( tile( c.name, c.description, c.preview, false ) );
+			} );
+			palette.appendChild( cg );
+		} else if ( ! embedComp ) {
+			palette.appendChild( el( 'p', { class: 's5-editor__hint' }, 'No components registered.' ) );
+		}
+
+		// The single raw primitive — Embed (HANDOFF §0.2). Inserts third-party
+		// HTML/script; still recorded in the tree and disable-able. Uses the registry's
+		// embed entry (name/description/preview) when present, else a hardcoded tile.
+		var pg = group( 'Primitive' );
+		pg._grid.appendChild( tile(
+			embedComp ? embedComp.name : 'embed',
+			( embedComp && embedComp.description ) || 'Embed — the only raw primitive, for third-party HTML/scripts.',
+			embedComp ? embedComp.preview : '',
+			true
+		) );
+		palette.appendChild( pg );
+		palette.appendChild( el( 'p', { class: 's5-editor__palette-note' },
+			'Embed is the only raw primitive — for third-party HTML/scripts we can’t wrap in a component.' ) );
+
 		if ( hint ) {
 			hint.hidden = false;
 		}
