@@ -786,3 +786,37 @@ on s5-audit (docs/ui-fidelity/_shots/s3-*): all 7 screens + component-builder mo
 clone + css layer/engine + perm toggle + token-edit save round-trip. Two PHP `?>`-leak defects found
 in-flight (Components `$glyphs`, Roles `$role_meta`, Integrations `$icon_for` arrays emitted as text)
 and fixed; a wp-admin heading-color bleed neutralized under `.s5set`.
+
+---
+
+**D36 — Appearance regression root cause: stale exact slugs; fix = prefix-match the real registered slugs + rendered-menu gate.**
+Fidelity-repair Item 4. Patterns, Customize, and Fonts had reappeared under Appearance.
+
+**Root cause (why a later phase "reverted" the Phase-A cleanup — it never actually worked).**
+`Appearance::remove_menus()` called `remove_submenu_page('themes.php', $slug)` with EXACT slugs
+`customize.php` and `edit.php?post_type=wp_block`. Modern WordPress registers those Appearance
+children with per-request QUERY STRINGS:
+  • Patterns  → `site-editor.php?p=/pattern`   (not `edit.php?post_type=wp_block`)
+  • Customize → `customize.php?return=%2F…`      (not bare `customize.php`)
+  • Fonts     → `font-library.php`               (never in the list at all)
+`remove_submenu_page()` matches the FULL slug string, so every exact-match call silently no-oped
+and all three stayed visible. It was never removed in any phase — the Phase-A gate only asserted the
+removal-target CONSTANT existed (a code-exists check), so it went green while the menu showed the
+items. Confirmed by reading the RENDERED menu over real authenticated HTTP (Playwright): the live
+`#menu-appearance` submenu listed Themes · Patterns · Customize · Fonts · Theme File Editor.
+
+**Fix.** `remove_menus()` now reads the REAL registered `$submenu['themes.php']` at runtime and
+removes every entry whose slug starts with a forbidden PREFIX (customize.php · site-editor.php[?p=/pattern] ·
+edit.php?post_type=wp_block · font-library.php), never touching themes.php / theme-editor.php — so a
+changed query arg can never smuggle an item back. `font-library.php` added to the removal + direct-access
+block lists. Verified over real HTTP (Playwright): rendered submenu is now Themes + Theme File Editor
+only; direct hits on customize.php / site-editor.php / font-library.php / legacy-Patterns all 302 to Themes;
+Themes + Theme File Editor stay reachable.
+
+**Gate hardening.** The old §7 checked the removal-target CONSTANT — pure code-exists. Replaced with a
+removal EFFECT test: (7a) seed `$submenu['themes.php']` with the REAL-WORLD slug shapes core uses, run
+`remove_menus()`, assert the forbidden entries are gone and Themes + Theme File Editor survive; (7b) build
+the real admin submenu via `wp-admin/menu.php` in a bootstrapped admin context, run the remover, assert no
+forbidden child remains. The AUTHORITATIVE rendered-menu assertion (real authenticated HTTP, the true
+source of truth that caught this) lives in the Playwright real-install walkthrough (Acceptance B) —
+CLI cannot faithfully reproduce the fully-rendered admin menu, so the browser is the ground truth.

@@ -140,26 +140,66 @@ pass "settings app renders the seven-screen sub-nav"
 # 7. Appearance cleanup: Patterns/Customize/Site-editor removed from the menu;
 #    Themes + Theme File Editor kept.
 # ---------------------------------------------------------------------------
-info "7/9  Appearance menu cleanup — removal hooked, correct targets…"
-# NOTE: core Appearance submenus (themes.php children) are registered by
-# wp-admin/menu.php during a real admin request, NOT on the admin_menu action —
-# so a reconstructed do_action('admin_menu') menu is empty in eval and cannot be
-# used to observe removals. Assert instead that our remover is hooked late on
-# admin_menu, and that it removes the right slugs while NOT touching Themes or the
-# Theme File Editor. remove_submenu_page() only removes real entries, so a live
-# admin request is where the effect lands; these checks pin the intent precisely.
+info "7/9  Appearance menu cleanup — removal RUN against the real rendered submenu…"
+# HARDENED (fidelity-repair Item 4). The old gate checked only that a REMOVAL-TARGET
+# CONSTANT existed — a pure code-exists test. That let a regression pass: the constant
+# held stale exact slugs (customize.php, edit.php?post_type=wp_block) while WordPress
+# actually registers Patterns/Customize/Fonts with per-request query strings
+# (site-editor.php?p=/pattern, customize.php?return=…, font-library.php), so
+# remove_submenu_page() silently no-oped and the menu still showed all three.
+#
+# This version proves the REMOVAL EFFECT, two ways:
+#  (7a) unit: seed $submenu['themes.php'] with the REAL-WORLD slug shapes core uses,
+#       run Appearance::remove_menus(), and assert the forbidden entries are gone and
+#       Themes + Theme File Editor survive. This exercises the actual removal logic
+#       against the actual slugs — the thing that failed.
+#  (7b) rendered: build the real admin submenu via wp-admin/menu.php in a bootstrapped
+#       admin context, run the remover, and assert no forbidden Appearance child
+#       remains. (The AUTHORITATIVE rendered-menu check over real authenticated HTTP
+#       lives in the Playwright real-install acceptance — see tools/*walkthrough*.)
 REMOVE_HOOK="$(wpev "$AS echo has_action('admin_menu',array('S5\\\\Appearance','remove_menus'))!==false?'hooked':'no';")"
 [ "$REMOVE_HOOK" = "hooked" ] || fail "Appearance remover not hooked on admin_menu (got: $REMOVE_HOOK)"
-# The removal target list, read via a tiny reflection into the private const.
-TARGETS="$(wpev "$AS \$r=new ReflectionClass('S5\\\\Appearance'); \$c=\$r->getConstant('REMOVE_SUBMENUS'); echo implode(',',\$c);")"
-info "     removal targets: $TARGETS"
-echo "$TARGETS" | grep -q 'customize.php'          || fail "Customize not in removal list: $TARGETS"
-echo "$TARGETS" | grep -q 'post_type=wp_block'     || fail "Patterns not in removal list: $TARGETS"
-case "$TARGETS" in
-	*theme-editor.php*) fail "Theme File Editor wrongly in removal list: $TARGETS";;
-	*themes.php,*|*,themes.php|themes.php) fail "Themes wrongly in removal list: $TARGETS";;
-esac
-pass "removal hooked late; targets Patterns/Customize/Site-editor; keeps Themes + Theme File Editor"
+
+# (7a) Removal RUN against the real-world slug shapes (the ones core actually registers).
+UNIT="$(wpev "$AS \
+\$GLOBALS['submenu']['themes.php']=array( \
+ array('Themes','switch_themes','themes.php'), \
+ array('Patterns','edit_theme_options','site-editor.php?p=/pattern'), \
+ array('Customize','customize','customize.php?return=%2Fwp-admin%2F'), \
+ array('Fonts','edit_theme_options','font-library.php'), \
+ array('Patterns (legacy)','edit_theme_options','edit.php?post_type=wp_block'), \
+ array('Theme File Editor','edit_themes','theme-editor.php') ); \
+S5\\\\Appearance::remove_menus(); \
+\$left=array(); foreach(\$GLOBALS['submenu']['themes.php'] as \$e){ \$left[]=\$e[2]; } \
+echo implode(',',\$left);")"
+info "     submenu after removal: ${UNIT:-<empty>}"
+if echo "$UNIT" | grep -q 'customize.php'; then fail "Customize survived removal: $UNIT"; fi
+if echo "$UNIT" | grep -q 'site-editor.php'; then fail "Patterns (site-editor) survived removal: $UNIT"; fi
+if echo "$UNIT" | grep -q 'font-library.php'; then fail "Fonts survived removal: $UNIT"; fi
+if echo "$UNIT" | grep -q 'post_type=wp_block'; then fail "Legacy Patterns survived removal: $UNIT"; fi
+echo "$UNIT" | grep -q 'themes.php'           || fail "Themes wrongly removed: $UNIT"
+echo "$UNIT" | grep -q 'theme-editor.php'     || fail "Theme File Editor wrongly removed: $UNIT"
+pass "removal RUN drops Patterns/Customize/Fonts (real slug shapes); keeps Themes + Theme File Editor"
+
+# (7b) Build the REAL admin submenu (wp-admin/menu.php) in a bootstrapped admin context,
+# run the remover, and assert no forbidden Appearance child remains in the rendered menu.
+RENDERED="$(wpev "$AS \
+if(!defined('WP_ADMIN'))define('WP_ADMIN',true); \
+\$GLOBALS['pagenow']='themes.php'; \$GLOBALS['hook_suffix']=''; \
+foreach(array('menu','submenu','_wp_menu_nopriv','_wp_submenu_nopriv','_registered_pages','_parent_pages','_wp_real_parent_file') as \$g){ \$GLOBALS[\$g]=array(); } \
+require_once ABSPATH.'wp-admin/includes/admin.php'; \
+set_current_screen('themes'); \
+require ABSPATH.'wp-admin/menu.php'; \
+S5\\\\Appearance::remove_menus(); \
+\$left=array(); if(isset(\$GLOBALS['submenu']['themes.php'])) foreach(\$GLOBALS['submenu']['themes.php'] as \$e){ \$left[]=\$e[2]; } \
+echo implode(',',\$left);" 2>/dev/null)"
+info "     rendered themes.php submenu after removal: ${RENDERED:-<none>}"
+# Whatever core registered here, none of the forbidden children may remain.
+if echo "$RENDERED" | grep -q 'customize.php'; then fail "rendered menu still has Customize: $RENDERED"; fi
+if echo "$RENDERED" | grep -q 'site-editor.php'; then fail "rendered menu still has Patterns/Site-editor: $RENDERED"; fi
+if echo "$RENDERED" | grep -q 'font-library.php'; then fail "rendered menu still has Fonts: $RENDERED"; fi
+if echo "$RENDERED" | grep -q 'post_type=wp_block'; then fail "rendered menu still has legacy Patterns: $RENDERED"; fi
+pass "rendered themes.php submenu carries no forbidden Appearance child"
 
 # ---------------------------------------------------------------------------
 # 8. Direct-access guard registered (removed screens unreachable by URL).

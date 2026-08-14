@@ -32,34 +32,44 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Appearance {
 
 	/**
-	 * Appearance submenu slugs to remove (parent = themes.php).
+	 * Appearance submenu slug PREFIXES to remove (parent = themes.php).
 	 *
-	 * - `edit.php?post_type=wp_block` — block Patterns / Pattern management.
-	 * - `customize.php`               — the block/legacy Customizer.
-	 * - `theme-editor.php` is KEPT (Theme File Editor).
-	 * - `site-editor.php` covers Patterns/Templates on block themes; S5 is not a
-	 *   block theme so it is typically absent, but we remove it defensively.
+	 * WordPress registers several of these with a query string that varies by
+	 * request, so an exact-match remove_submenu_page() silently no-ops. We therefore
+	 * match by PREFIX against the real registered slugs:
+	 *
+	 * - `customize.php`      — the Customizer; registered as `customize.php?return=…`.
+	 * - `site-editor.php?p=/pattern` — Patterns (modern WP; NOT edit.php?post_type=wp_block).
+	 * - `site-editor.php`    — the block site editor itself (defensive; also its other tabs).
+	 * - `edit.php?post_type=wp_block` — legacy Patterns list (older WP).
+	 * - `font-library.php`   — the Fonts library.
+	 *
+	 * `themes.php` (Themes) and `theme-editor.php` (Theme File Editor) are KEPT.
 	 *
 	 * @var array<int, string>
 	 */
-	private const REMOVE_SUBMENUS = array(
-		'edit.php?post_type=wp_block', // Patterns.
-		'customize.php',               // Customize.
-		'site-editor.php',             // Editor (block-theme site editor: patterns/fonts live here).
+	private const REMOVE_SUBMENU_PREFIXES = array(
+		'customize.php',
+		'site-editor.php?p=/pattern',
+		'site-editor.php',
+		'edit.php?post_type=wp_block',
+		'font-library.php',
 	);
 
 	/**
 	 * Base admin scripts (basenames) whose direct access is redirected to Themes.
 	 *
-	 * The Fonts library and the Customizer have their own top-level scripts; a
-	 * bookmarked link to them must not open. Patterns live under edit.php with a
-	 * wp_block post type, handled by the query-var check in {@see self::block_direct_access}.
+	 * The Fonts library, the block site editor, and the Customizer have their own
+	 * top-level scripts; a bookmarked link to any must not open. Patterns live under
+	 * site-editor.php (modern) or edit.php?post_type=wp_block (legacy), both handled in
+	 * {@see self::block_direct_access}.
 	 *
 	 * @var array<int, string>
 	 */
 	private const BLOCK_SCRIPTS = array(
 		'customize.php',
 		'site-editor.php',
+		'font-library.php',
 	);
 
 	/**
@@ -80,8 +90,33 @@ final class Appearance {
 	 * @return void
 	 */
 	public static function remove_menus(): void {
-		foreach ( self::REMOVE_SUBMENUS as $slug ) {
-			remove_submenu_page( 'themes.php', $slug );
+		global $submenu;
+
+		// Match by PREFIX against the REAL registered slugs. WordPress registers
+		// Patterns/Customize/etc. with per-request query strings (e.g.
+		// `customize.php?return=…`, `site-editor.php?p=/pattern`), so an exact-slug
+		// remove_submenu_page() silently misses. We read what is actually registered
+		// under themes.php and remove every entry whose slug starts with a target
+		// prefix — so a changed query arg can never smuggle the item back.
+		if ( isset( $submenu['themes.php'] ) && is_array( $submenu['themes.php'] ) ) {
+			foreach ( $submenu['themes.php'] as $entry ) {
+				$slug = isset( $entry[2] ) ? (string) $entry[2] : '';
+				if ( '' === $slug || 'themes.php' === $slug || 'theme-editor.php' === $slug ) {
+					continue; // Never remove Themes or the Theme File Editor.
+				}
+				foreach ( self::REMOVE_SUBMENU_PREFIXES as $prefix ) {
+					if ( 0 === strpos( $slug, $prefix ) ) {
+						remove_submenu_page( 'themes.php', $slug );
+						break;
+					}
+				}
+			}
+		}
+
+		// Belt-and-braces: also try the bare prefixes directly (covers a slug that is
+		// exactly the prefix, e.g. a legacy `customize.php` with no query).
+		foreach ( self::REMOVE_SUBMENU_PREFIXES as $prefix ) {
+			remove_submenu_page( 'themes.php', $prefix );
 		}
 	}
 
