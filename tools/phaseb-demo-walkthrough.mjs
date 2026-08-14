@@ -41,12 +41,13 @@ page.on('pageerror', (e) => errs.push(e.message));
 const shot = (name) => page.screenshot({ path: join(OUT, name) });
 
 try {
-	await page.goto(`${BASE}/wp-login.php`, { waitUntil: 'domcontentloaded' });
+	await page.goto(`${BASE}/wp-login.php`, { waitUntil: 'networkidle' });
 	await page.fill('#user_login', USER);
 	await page.fill('#user_pass', PASS);
-	await Promise.all([page.waitForNavigation({ waitUntil: 'domcontentloaded' }), page.click('#wp-submit')]);
+	await page.click('#wp-submit');
+	await page.waitForTimeout(2500);
 
-	await page.goto(`${BASE}/wp-admin/admin.php?page=s5-editor&post=${EDIT_POST}`, { waitUntil: 'domcontentloaded' });
+	await page.goto(`${BASE}/wp-admin/admin.php?page=s5-editor&post=${EDIT_POST}`, { waitUntil: 'networkidle' });
 	await page.waitForSelector('.s5-editor', { timeout: 15000 });
 	await page.waitForTimeout(2500);
 
@@ -116,19 +117,22 @@ try {
 	step(7, 'Style tab — read-only token specimen + axis controls', style.specimen >= 4 && style.axes >= 1, JSON.stringify(style));
 	await shot('demo-7-style-tab.png');
 
-	// §8 — props-off untouchable: a non-[data-edit] element does not select.
+	// §8 — props-off untouchable: a plain element with NO [data-edit] anywhere in its
+	// subtree or ancestry does not select; an editable still does.
 	f = frame();
-	const offSelectable = await f.evaluate(() => {
-		// find an element WITHOUT data-edit and click it; overlay should not select it.
-		const all = document.querySelectorAll('body *');
-		let plain = null;
-		for (const e of all) {
-			if (!e.closest('[data-edit]') && e.tagName !== 'SCRIPT' && e.tagName !== 'STYLE') { plain = e; break; }
-		}
+	const off = await f.evaluate(() => {
+		document.querySelectorAll('[data-s5-selected]').forEach((n) => n.removeAttribute('data-s5-selected'));
+		const plain = [...document.querySelectorAll('body *')].find(
+			(e) => !e.closest('[data-edit]') && !e.querySelector('[data-edit]') && e.tagName !== 'SCRIPT' && e.tagName !== 'STYLE' && e.textContent.trim()
+		);
 		if (plain) plain.click();
-		return document.querySelectorAll('[data-s5-selected]').length;
+		const afterPlain = document.querySelectorAll('[data-s5-selected]').length;
+		const editable = document.querySelector('[data-edit]');
+		if (editable) editable.click();
+		const afterEditable = document.querySelectorAll('[data-s5-selected]').length;
+		return { afterPlain, afterEditable };
 	});
-	step(8, 'Props-off element is untouchable (no selection on non-[data-edit])', true, 'selected=' + offSelectable);
+	step(8, 'Props-off element is untouchable (plain=0, editable=1)', off.afterPlain === 0 && off.afterEditable === 1, JSON.stringify(off));
 
 	// Structure tree bidirectional sync.
 	const treeRows = await page.evaluate(() => document.querySelectorAll('.s5-editor__trow').length);
