@@ -75,3 +75,49 @@
 		position: static;
 	}
 }
+
+/* ============================================================================
+   StyleGuide screen (§3.4) — token cards (dark) + a LIGHT specimen.
+   ============================================================================ */
+.s5-sg { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; margin-top: 16px; }
+.s5-sg__cards { display: flex; flex-direction: column; gap: 14px; }
+.s5-sg__card { background: #fff; border: 1px solid #dcdcde; border-radius: 6px; padding: 14px 16px; }
+.s5-sg__card-head { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #50575e; margin-bottom: 12px; }
+.s5-sg__swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.s5-sg__swatch { display: flex; flex-direction: column; gap: 4px; }
+.s5-sg__chip { height: 30px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); }
+.s5-sg__radius-box { display: inline-block; width: 30px; height: 22px; background: #2271b1; }
+.s5-sg__space-bar { display: inline-block; height: 10px; background: #2271b1; border-radius: 2px; }
+.s5-sg__type-sample { color: #1e1e1e; line-height: 1; }
+.s5-sg__name { font-size: 12px; font-weight: 600; color: #1e1e1e; }
+.s5-sg__val { font-size: 10px; font-family: Menlo, Consolas, monospace; color: #6c7278; }
+.s5-sg__row { display: grid; grid-template-columns: 60px 1fr auto; align-items: center; gap: 12px; padding: 6px 0; border-top: 1px solid #f0f0f1; }
+.s5-sg__row:first-of-type { border-top: 0; }
+
+/* Light specimen — carries the real --s5-* tokens so primitives render true.
+   Scoped to .s5-sg__specimen so nothing leaks to the rest of wp-admin. */
+.s5-sg__specimen {
+	--s5-color-brand: #2271b1; --s5-color-brand-strong: #135e96; --s5-color-accent: #f0c33c;
+	--s5-color-ink: #1e1e1e; --s5-color-ink-soft: #3c434a; --s5-color-muted: #6c7278;
+	--s5-color-surface: #fff; --s5-color-surface-alt: #f6f7f7; --s5-color-line: #dcdcde;
+	--s5-text-xs: 0.8rem; --s5-text-md: 1rem; --s5-text-lg: 1.2rem; --s5-text-xl: 1.44rem;
+	--s5-text-xxl: 1.728rem; --s5-text-xxxl: 2.074rem;
+	background: var(--s5-color-surface); border: 1px solid var(--s5-color-line);
+	border-radius: 6px; overflow: hidden; position: sticky; top: 46px;
+}
+.s5-sg__specimen-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--s5-color-surface-alt); border-bottom: 1px solid var(--s5-color-line); color: var(--s5-color-muted); font-size: 12px; }
+.s5-sg__dot { width: 9px; height: 9px; border-radius: 50%; background: #ff5f56; box-shadow: 15px 0 0 #ffbd2e, 30px 0 0 #27c93f; margin-right: 22px; }
+.s5-sg__specimen-body { padding: 22px 24px; }
+.s5-sg__spec-sec { padding: 12px 0; border-bottom: 1px solid var(--s5-color-line); }
+.s5-sg__spec-sec:last-child { border-bottom: 0; }
+.s5-sg__spec-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--s5-color-muted); margin-bottom: 12px; }
+.s5-sg__specimen h1 { font-size: var(--s5-text-xxxl); line-height: 1.15; margin: 0 0 8px; color: var(--s5-color-ink); }
+.s5-sg__specimen h2 { font-size: var(--s5-text-xxl); margin: 0 0 8px; color: var(--s5-color-ink); }
+.s5-sg__specimen p { font-size: var(--s5-text-md); color: var(--s5-color-ink-soft); line-height: 1.6; max-width: 60ch; margin: 0 0 8px; }
+.s5-sg__eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: var(--s5-text-xs); font-weight: 700; color: var(--s5-color-brand); margin: 0 0 6px; }
+.s5-sg__lede { font-size: var(--s5-text-lg) !important; color: var(--s5-color-ink-soft); }
+.s5-sg__btn { display: inline-block; padding: 8px 16px; border-radius: 4px; font-size: 14px; margin-right: 8px; }
+.s5-sg__btn--primary { background: var(--s5-color-brand); color: #fff; }
+.s5-sg__btn--ghost { background: transparent; color: var(--s5-color-brand); box-shadow: inset 0 0 0 1px var(--s5-color-brand); }
+
+@media screen and (max-width: 960px) { .s5-sg { grid-template-columns: 1fr; } .s5-sg__specimen { position: static; } }

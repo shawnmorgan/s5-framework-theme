@@ -154,10 +154,145 @@ final class Settings {
 					</ul>
 				</nav>
 				<section class="s5-settings__screen" data-s5-screen-body="<?php echo esc_attr( $current ); ?>">
-					<h2><?php echo esc_html( self::SCREENS[ $current ] ); ?></h2>
-					<p class="description">
-						<?php esc_html_e( 'This screen is being wired to the design contract. The sub-nav and routing are live; the screen’s controls land in Phase C.', 's5' ); ?>
-					</p>
+					<?php self::render_screen_body( $current ); ?>
+				</section>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Dispatch to a per-screen body renderer. Screens not yet wired show a stub.
+	 *
+	 * @param string $screen Screen key.
+	 * @return void
+	 */
+	private static function render_screen_body( string $screen ): void {
+		switch ( $screen ) {
+			case 'styleguide':
+				self::render_styleguide();
+				return;
+			default:
+				printf( '<h2>%s</h2>', esc_html( self::SCREENS[ $screen ] ?? '' ) );
+				echo '<p class="description">' . esc_html__( 'This screen is being wired to the design contract. The sub-nav and routing are live; its controls land in Phase C.', 's5' ) . '</p>';
+		}
+	}
+
+	/**
+	 * StyleGuide screen (HANDOFF §3.4): token cards (read from the real token files)
+	 * + a LIGHT specimen of the real primitives, so a non-dev sees what the tokens
+	 * produce and swatches never drift. Token EDITING (rewrite files + recompile)
+	 * lands as a gated follow-up; this is the read + specimen surface.
+	 *
+	 * @return void
+	 */
+	private static function render_styleguide(): void {
+		$tokens = Styles::read_tokens();
+		?>
+		<h2><?php esc_html_e( 'StyleGuide', 's5' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'The design tokens the site is built from, read live from tokens.css / scales.css — and a light specimen of the primitives they produce.', 's5' ); ?></p>
+
+		<div class="s5-sg">
+			<div class="s5-sg__cards">
+				<?php
+				self::sg_color_card( __( 'Colors', 's5' ), isset( $tokens['color'] ) ? $tokens['color'] : array() );
+				self::sg_scale_card( __( 'Type scale', 's5' ), isset( $tokens['text'] ) ? $tokens['text'] : array(), 'text' );
+				self::sg_scale_card( __( 'Spacing', 's5' ), isset( $tokens['space'] ) ? $tokens['space'] : array(), 'space' );
+				self::sg_scale_card( __( 'Radius', 's5' ), isset( $tokens['radius'] ) ? $tokens['radius'] : array(), 'radius' );
+				?>
+			</div>
+			<?php self::sg_specimen(); ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * A colour token card: swatch + name + value per token.
+	 *
+	 * @param string                                      $title  Card title.
+	 * @param array<int, array{name:string,value:string}> $tokens Colour tokens.
+	 * @return void
+	 */
+	private static function sg_color_card( string $title, array $tokens ): void {
+		?>
+		<div class="s5-sg__card">
+			<div class="s5-sg__card-head"><?php echo esc_html( $title ); ?></div>
+			<?php if ( empty( $tokens ) ) : ?>
+				<p class="description"><?php esc_html_e( 'No colour tokens declared.', 's5' ); ?></p>
+			<?php else : ?>
+				<div class="s5-sg__swatches">
+					<?php foreach ( $tokens as $t ) : ?>
+						<div class="s5-sg__swatch">
+							<span class="s5-sg__chip" style="background:<?php echo esc_attr( $t['value'] ); ?>"></span>
+							<span class="s5-sg__name"><?php echo esc_html( str_replace( '--s5-color-', '', $t['name'] ) ); ?></span>
+							<span class="s5-sg__val"><?php echo esc_html( $t['value'] ); ?></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * A scale token card (type / space / radius): a visual sample + name + value.
+	 *
+	 * @param string                                      $title  Card title.
+	 * @param array<int, array{name:string,value:string}> $tokens Scale tokens.
+	 * @param string                                      $kind   'text' | 'space' | 'radius'.
+	 * @return void
+	 */
+	private static function sg_scale_card( string $title, array $tokens, string $kind ): void {
+		$prefix = '--s5-' . ( 'text' === $kind ? 'text-' : ( 'space' === $kind ? 'space-' : 'radius-' ) );
+		?>
+		<div class="s5-sg__card">
+			<div class="s5-sg__card-head"><?php echo esc_html( $title ); ?></div>
+			<?php if ( empty( $tokens ) ) : ?>
+				<p class="description"><?php esc_html_e( 'No tokens declared.', 's5' ); ?></p>
+			<?php else : ?>
+				<?php foreach ( $tokens as $t ) : ?>
+					<div class="s5-sg__row">
+						<?php if ( 'text' === $kind ) : ?>
+							<span class="s5-sg__type-sample" style="font-size:<?php echo esc_attr( $t['value'] ); ?>">Ag</span>
+						<?php elseif ( 'space' === $kind ) : ?>
+							<span class="s5-sg__space-bar" style="width:<?php echo esc_attr( $t['value'] ); ?>"></span>
+						<?php else : ?>
+							<span class="s5-sg__radius-box" style="border-radius:<?php echo esc_attr( $t['value'] ); ?>"></span>
+						<?php endif; ?>
+						<span class="s5-sg__name"><?php echo esc_html( str_replace( $prefix, '', $t['name'] ) ); ?></span>
+						<span class="s5-sg__val"><?php echo esc_html( $t['value'] ); ?></span>
+					</div>
+				<?php endforeach; ?>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * The light specimen: real primitives rendered with the real --s5-* tokens so a
+	 * non-dev sees what the design system produces (Client-First style, HANDOFF §3.4).
+	 * The specimen inlines the token stylesheet so it renders with real values inside
+	 * the dark admin without leaking those tokens to the rest of wp-admin.
+	 *
+	 * @return void
+	 */
+	private static function sg_specimen(): void {
+		?>
+		<div class="s5-sg__specimen">
+			<div class="s5-sg__specimen-bar"><span class="s5-sg__dot"></span> <?php esc_html_e( 'Live specimen · real tokens', 's5' ); ?></div>
+			<div class="s5-sg__specimen-body">
+				<section class="s5-sg__spec-sec">
+					<div class="s5-sg__spec-tag"><?php esc_html_e( 'Type', 's5' ); ?></div>
+					<p class="s5-sg__eyebrow"><?php esc_html_e( 'Eyebrow', 's5' ); ?></p>
+					<h1><?php esc_html_e( 'Heading one', 's5' ); ?></h1>
+					<h2><?php esc_html_e( 'Heading two', 's5' ); ?></h2>
+					<p class="s5-sg__lede"><?php esc_html_e( 'A lede paragraph in the site’s real type scale and ink color.', 's5' ); ?></p>
+					<p><?php esc_html_e( 'Body copy rendered with the real --s5-* tokens, so what you see here is what ships.', 's5' ); ?></p>
+				</section>
+				<section class="s5-sg__spec-sec">
+					<div class="s5-sg__spec-tag"><?php esc_html_e( 'Buttons', 's5' ); ?></div>
+					<span class="s5-sg__btn s5-sg__btn--primary"><?php esc_html_e( 'Primary', 's5' ); ?></span>
+					<span class="s5-sg__btn s5-sg__btn--ghost"><?php esc_html_e( 'Ghost', 's5' ); ?></span>
 				</section>
 			</div>
 		</div>
