@@ -581,3 +581,53 @@ proven at the DOM level by the screenshot harness's chrome-check:
 `{"adminmenu":false,"wpadminbar":false,"wpwrap":false,"s5editor":true}` — the admin menu/bar are
 absent, not hidden. Screenshots in `docs/phase-a-walkthrough/` (pages-list badge + row actions,
 S5 menu, Theme Settings shell, Appearance cleaned, fullscreen editor).
+
+## D30 — Phase B: editor rebuilt to canvas-mockup.html (architecture preserved)
+
+The editor's UI + interaction were rebuilt to `canvas-mockup.html` while the PROVEN
+architecture underneath was kept intact: iframe preview + `overlay.js` selection by
+server-assigned **data-node** (R2) via postMessage + REST **one save door**. The mockup
+drives *what the UI is and how it behaves*; the plumbing did not change. Built incrementally,
+with the editor + round-trip (step3) suites GREEN after every JS chunk so a broken save door
+would surface at the chunk that broke it — never at the end.
+
+**Layout (templates/editor.php + editor-drawers.php + rewritten editor.css):** toolbar
+(logo·gear·Tools │ viewport+lens │ undo/redo·View·Save+dirty); LEFT = palette ⇄ props
+(Content/Style/Advanced); CENTER = stage edit/code lens; RIGHT = **structure tree ONLY** —
+fixing the pre-rebuild §0.6/§6 violation where the old right panel jammed
+props/style/structure/components together. Gear drawers: Page Settings (default) / Display &
+Conditions (`?template`). Two token layers (`--s5e-*` dark tool / `--s5-*` light preview),
+retokened to the mockup's values (accent #5b8cff, canvas #0e0f13) — **superseding D27's
+indigo** (owner chose the mockup values).
+
+**Rulings landed:**
+- **R2** — selection anchors to data-node throughout; the mockup's positional `el-N` was NOT
+  copied. Verified: clicking the hero shows "Node: about-hero-title".
+- **R4 (disable ≠ hidden)** — new one-door `mode:disable` sets `data-disabled` in canonical
+  (kept, so re-enable is possible); a new Compiler `disabled-removal` transform + a
+  `derive_mirror` strip DROP the subtree from render AND mirror (absent, not display:none).
+  Preview (`?s5-preview=1`) serves CANONICAL so the editor still sees + re-enables disabled
+  nodes. `tests/acceptance-disable.sh` proves it.
+- **R3 (Style controls = axis-swap only)** — `ControlsManifest` defines each axis's sanctioned
+  class set from the REAL vocabulary; new one-door `mode:class` strips the axis's classes and
+  adds the chosen one, rejecting any non-member (`s5_class_axis`, canonical untouched). NO
+  free-form class path exists. Only vocabulary-backed axes appear (today: text-align); size /
+  space / breakpoint-hide axes are ABSENT by construction (no ladder in the theme yet) and
+  render disabled with an honest note — never invented classes. `tests/acceptance-classswap.sh`
+  proves it. (Owner spec: axis-swap-only by construction.)
+- **R7 (no canvas delete)** — the selection-chrome toolbar is edit·duplicate·disable, no trash.
+  Duplicate is surfaced honestly as "coming with the component tools" (its re-keying server op
+  lands later) rather than half-built.
+
+**Head-field relocation:** SEO title/description/canonical moved from a hidden hook block into
+the Page Settings drawer; the head round-trip contract moved with them — that chunk's gate
+re-ran the head assertions explicitly (editor + step3 HEAD deltas + step9), all green.
+
+**Code lens (DEMO §3)** verified: CodeMirror mounts, loads the canonical, canonical/reject save
+path unchanged. **Style tab (DEMO §7)** shows the read-only token specimen + CSS-mode switch.
+
+**Flake noted:** the L&L plugin emits PHP 8.2 `${var}` deprecations on dynamic-page requests;
+step3's debug.log error-check can trip on them when suites are chained without clearing the log.
+step3 is clean in isolation and `run-all.sh` clears per suite — not an S5 regression.
+
+New gate suites: `acceptance-disable.sh`, `acceptance-classswap.sh` (17 suites total).
