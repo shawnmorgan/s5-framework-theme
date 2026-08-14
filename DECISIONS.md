@@ -631,3 +631,42 @@ step3's debug.log error-check can trip on them when suites are chained without c
 step3 is clean in isolation and `run-all.sh` clears per suite — not an S5 regression.
 
 New gate suites: `acceptance-disable.sh`, `acceptance-classswap.sh` (17 suites total).
+
+## D31 — Phase C StyleGuide + Templates screens (real data, one door, honest scope)
+
+The Theme Settings app (`S5\Settings`) gains its first two demo-critical screens, both
+driven by REAL data and writing through validated one-door paths.
+
+**StyleGuide (§3.4).** Colors/Type/Space/Radius cards read live from the real
+`tokens.css` / `scales.css` via `Styles::read_tokens()` (never drift), beside a LIGHT
+Client-First specimen rendered with the real `--s5-*` tokens (scoped to the specimen so
+nothing leaks to wp-admin). Token EDITING is a native `<details>` pencil → a real POST to
+`admin_post s5_save_token` → `Styles::update_token()` (surgical single-line rewrite;
+refuses unknown tokens and any value with CSS-structural chars `; { } <`, so a value edit
+can never inject a selector/close the rule/smuggle markup) → `StyleBundle::build()`. One
+write door + one recompile, so the specimen and every framework page reflect the change.
+
+**Templates (§3.2/§3.3).** New `S5\Templates` = path-safe discovery/read/write of the real
+parts under `site/parts` (no traversal). The screen lists the real parts with a pencil that
+opens the SAME canvas editor in `?template` mode — a real §3.3 implementation, not a stub:
+`Editor::maybe_render_fullscreen` handles `?template=<name>` (no post), the gear defaults to
+Display & Conditions, the part's canonical loads into the code lens, and a capability-gated
+`s5-template-preview` route serves the part's HTML (design-system stylesheet + overlay.js)
+so the glass renders the part and data-node selection works on it. `POST /templates/<name>/save`
+validates the part against the SAME closed vocabulary as a page (ERROR ⇒ reject, file
+unchanged), writes via `Templates::write_part`, recompiles.
+
+**Honest-scope rulings:**
+- Token size/space/breakpoint ladders and template hierarchy files DON'T exist in this
+  theme's vocabulary/disk yet, so the UI shows them as roadmap notes rather than fabricating
+  classes/files — same principle as the R3 axis manifest (D30). What ships reflects what the
+  design system actually backs.
+- Duplicate (selection chrome) and full template-hierarchy registration remain follow-ups.
+
+**Bug fixed:** `sort( (array) glob(...) )` is a PHP 8.2 fatal (sort() needs a by-reference
+variable); assign first.
+
+**Verified in-browser** (0 errors): StyleGuide 4 cards + 12 real swatches + specimen h1 at
+the real `--s5-text-xxxl`; token edit → success redirect + recompiled bundle carries the new
+value; Templates 2 parts → pencil → template-mode editor (tpl drawer active, part canonical
+in CodeMirror, part preview renders). Full clean gate + DECISIONS.
