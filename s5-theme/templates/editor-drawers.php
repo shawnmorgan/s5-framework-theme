@@ -51,15 +51,42 @@ $s5_is_template = isset( $s5_is_template ) ? (bool) $s5_is_template : false;
 					<label class="s5-editor__field-label" for="s5-head-canonical"><?php esc_html_e( 'Canonical URL', 's5' ); ?></label>
 					<input id="s5-head-canonical" class="s5-editor__input" type="url" data-s5-head="canonical">
 				</div>
+				<div class="s5-editor__field-row">
+					<div class="s5-editor__field">
+						<label class="s5-editor__field-label"><?php esc_html_e( 'Index', 's5' ); ?></label>
+						<div class="s5-editor__seg is-wide" data-s5-head-seg="index">
+							<button type="button" class="s5-editor__seg-opt is-active" data-val="1"><?php esc_html_e( 'Index', 's5' ); ?></button>
+							<button type="button" class="s5-editor__seg-opt" data-val="0"><?php esc_html_e( 'Noindex', 's5' ); ?></button>
+						</div>
+					</div>
+					<div class="s5-editor__field">
+						<label class="s5-editor__field-label"><?php esc_html_e( 'Follow', 's5' ); ?></label>
+						<div class="s5-editor__seg is-wide" data-s5-head-seg="follow">
+							<button type="button" class="s5-editor__seg-opt is-active" data-val="1"><?php esc_html_e( 'Follow', 's5' ); ?></button>
+							<button type="button" class="s5-editor__seg-opt" data-val="0"><?php esc_html_e( 'Nofollow', 's5' ); ?></button>
+						</div>
+					</div>
+				</div>
+				<div class="s5-editor__field">
+					<label class="s5-editor__field-label" for="s5-head-og"><?php esc_html_e( 'Social / OG image URL', 's5' ); ?></label>
+					<input id="s5-head-og" class="s5-editor__input" type="url" data-s5-head="og_image">
+				</div>
 				<button type="button" class="button button-primary s5-editor__head-save" data-s5-head-save disabled>
 					<?php esc_html_e( 'Save meta', 's5' ); ?>
 				</button>
-				<p class="s5-editor__field-hint"><?php esc_html_e( 'Index/follow, OG image, and Yoast/RankMath write-through land in Phase C.', 's5' ); ?></p>
+				<p class="s5-editor__field-hint"><?php esc_html_e( 'When Yoast or RankMath is active, these values are written through to it; otherwise S5 emits them.', 's5' ); ?></p>
 			</div>
 		</section>
 		<section class="s5-editor__drawer-sec">
 			<div class="s5-editor__drawer-sec-head"><?php esc_html_e( 'Schema (JSON-LD)', 's5' ); ?></div>
-			<p class="s5-editor__hint"><?php esc_html_e( 'Per-page JSON-LD injected into <head> on render.', 's5' ); ?></p>
+			<div class="s5-editor__field">
+				<label class="s5-editor__field-label" for="s5-head-jsonld"><?php esc_html_e( 'Per-page JSON-LD', 's5' ); ?> <span class="s5-editor__opt"><?php esc_html_e( 'injected into <head> on render', 's5' ); ?></span></label>
+				<textarea id="s5-head-jsonld" class="s5-editor__textarea" rows="6" data-s5-head="json_ld" spellcheck="false" style="font-family:var(--s5e-mono);font-size:12px"></textarea>
+			</div>
+			<button type="button" class="button button-primary s5-editor__head-save" data-s5-head-save disabled>
+				<?php esc_html_e( 'Save schema', 's5' ); ?>
+			</button>
+			<p class="s5-editor__field-hint"><?php esc_html_e( 'Validated as JSON on save — invalid JSON is rejected, never emitted.', 's5' ); ?></p>
 		</section>
 	</div>
 	<div class="s5-editor__drawer-foot">

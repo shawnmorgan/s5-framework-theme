@@ -58,6 +58,9 @@ final class Render {
 		// two canonicals. Emit the S5-owned schema graph on the same head seam.
 		add_action( 'template_redirect', array( self::class, 'own_canonical' ) );
 		add_action( 'wp_head', array( self::class, 'output_schema' ), 5 );
+		// Per-page SEO head: robots (index/follow), OG image, and custom JSON-LD from
+		// the Page Settings drawer. Suppressed when a SEO provider owns the head.
+		add_action( 'wp_head', array( self::class, 'output_seo_head' ), 4 );
 
 		// Bypassing the theme means no theme declares title-tag support, so
 		// core wp_head() would not print a <title>. Declare it here so core
@@ -187,6 +190,46 @@ final class Render {
 		}
 
 		echo "\n" . '<script type="application/ld+json">' . "\n" . $json . "\n" . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_json_encode output; JSON-LD emitted verbatim by design.
+	}
+
+	/**
+	 * Emit per-page SEO head bits from the Page Settings drawer: a robots meta when the
+	 * page is noindex and/or nofollow, an og:image, and any custom per-page JSON-LD.
+	 *
+	 * Gated by the same `s5_emit_owned_schema` filter so that when a SEO provider (Yoast
+	 * / RankMath) owns the head, S5 stays out of its way — the write-through in save_head
+	 * has already handed the values to the provider.
+	 *
+	 * @return void
+	 */
+	public static function output_seo_head(): void {
+		$post_id = get_queried_object_id();
+		if ( ! $post_id || ! Storage::is_framework_page( (int) $post_id ) ) {
+			return;
+		}
+		if ( ! apply_filters( 's5_emit_owned_schema', true, (int) $post_id ) ) {
+			return; // A SEO provider owns the head.
+		}
+
+		$head   = Storage::get_head( (int) $post_id );
+		$index  = ! isset( $head['index'] ) || (bool) $head['index'];
+		$follow = ! isset( $head['follow'] ) || (bool) $head['follow'];
+
+		// Robots meta only when it deviates from the default index,follow.
+		if ( ! $index || ! $follow ) {
+			$directives = array( $index ? 'index' : 'noindex', $follow ? 'follow' : 'nofollow' );
+			printf( '<meta name="robots" content="%s">' . "\n", esc_attr( implode( ',', $directives ) ) );
+		}
+
+		// Open Graph image.
+		if ( ! empty( $head['og_image'] ) ) {
+			printf( '<meta property="og:image" content="%s">' . "\n", esc_url( (string) $head['og_image'] ) );
+		}
+
+		// Custom per-page JSON-LD (validated as JSON on save; emitted verbatim).
+		if ( ! empty( $head['json_ld'] ) ) {
+			echo "\n" . '<script type="application/ld+json">' . "\n" . (string) $head['json_ld'] . "\n" . '</script>' . "\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- validated JSON-LD, stored canonically, emitted by design.
+		}
 	}
 
 	/**

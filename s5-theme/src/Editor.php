@@ -448,6 +448,10 @@ final class Editor {
 					'title'       => isset( $head['title'] ) ? (string) $head['title'] : '',
 					'description' => isset( $head['description'] ) ? (string) $head['description'] : '',
 					'canonical'   => isset( $head['canonical'] ) ? (string) $head['canonical'] : '',
+					'og_image'    => isset( $head['og_image'] ) ? (string) $head['og_image'] : '',
+					'json_ld'     => isset( $head['json_ld'] ) ? (string) $head['json_ld'] : '',
+					'index'       => ! isset( $head['index'] ) || (bool) $head['index'],
+					'follow'      => ! isset( $head['follow'] ) || (bool) $head['follow'],
 				),
 				'cmSettings' => $cm_settings,
 				'tokens'     => Styles::read_tokens(),
@@ -711,8 +715,8 @@ final class Editor {
 	public static function template_preview_url( string $name ): string {
 		return add_query_arg(
 			array(
-				'page'                 => self::PAGE_SLUG,
-				's5-template-preview'  => $name,
+				'page'                => self::PAGE_SLUG,
+				's5-template-preview' => $name,
 			),
 			admin_url( 'admin.php' )
 		);

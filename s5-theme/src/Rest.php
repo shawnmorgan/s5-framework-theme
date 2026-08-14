@@ -817,7 +817,55 @@ final class Rest {
 			}
 		}
 
+		// SEO extras (§2.7): index/follow booleans, OG image URL, per-page JSON-LD.
+		$index  = $request->get_param( 'index' );
+		$follow = $request->get_param( 'follow' );
+		if ( null !== $index ) {
+			$head['index'] = self::truthy( $index );
+		}
+		if ( null !== $follow ) {
+			$head['follow'] = self::truthy( $follow );
+		}
+		$og = $request->get_param( 'og_image' );
+		if ( null !== $og ) {
+			$head['og_image'] = esc_url_raw( (string) $og );
+		}
+
+		// Per-page JSON-LD: must be valid JSON (or empty to clear). Reject bad JSON loudly
+		// rather than emitting broken structured data into <head>.
+		$json_ld = $request->get_param( 'json_ld' );
+		if ( null !== $json_ld ) {
+			$json_ld = (string) $json_ld;
+			if ( '' === trim( $json_ld ) ) {
+				unset( $head['json_ld'] );
+			} else {
+				$decoded = json_decode( $json_ld, true );
+				if ( null === $decoded && JSON_ERROR_NONE !== json_last_error() ) {
+					return new \WP_REST_Response(
+						array(
+							'ok'          => false,
+							'diagnostics' => array(
+								array(
+									'severity' => 'error',
+									'rule'     => 's5.jsonld.invalid',
+									'message'  => __( 'JSON-LD is not valid JSON: ', 's5' ) . json_last_error_msg(),
+								),
+							),
+						),
+						422
+					);
+				}
+				// Re-encode canonically so what we store is exactly what we emit.
+				$head['json_ld'] = (string) wp_json_encode( $decoded );
+			}
+		}
+
 		Storage::set_head( $post_id, $head );
+
+		// SEO-provider write-through: if Yoast or RankMath is active, mirror the fields
+		// into their meta so their front-end output matches S5's (native fallback = the
+		// S5 emitter in Render). Only writes keys for whichever provider is present.
+		self::seo_provider_write_through( $post_id, $head );
 
 		return new \WP_REST_Response(
 			array(
@@ -826,10 +874,72 @@ final class Rest {
 					'title'       => isset( $head['title'] ) ? (string) $head['title'] : '',
 					'description' => isset( $head['description'] ) ? (string) $head['description'] : '',
 					'canonical'   => isset( $head['canonical'] ) ? (string) $head['canonical'] : '',
+					'index'       => ! isset( $head['index'] ) || (bool) $head['index'],
+					'follow'      => ! isset( $head['follow'] ) || (bool) $head['follow'],
+					'og_image'    => isset( $head['og_image'] ) ? (string) $head['og_image'] : '',
+					'json_ld'     => isset( $head['json_ld'] ) ? (string) $head['json_ld'] : '',
 				),
 			),
 			200
 		);
+	}
+
+	/**
+	 * Coerce a request param to bool (accepts true/false, 1/0, "true"/"false", "1"/"0").
+	 *
+	 * @param mixed $val Raw param.
+	 * @return bool
+	 */
+	private static function truthy( $val ): bool {
+		if ( is_bool( $val ) ) {
+			return $val;
+		}
+		$s = strtolower( trim( (string) $val ) );
+		return in_array( $s, array( '1', 'true', 'yes', 'on' ), true );
+	}
+
+	/**
+	 * Mirror the S5 head/SEO fields into an active SEO provider's post meta (Yoast or
+	 * RankMath), so a site using one of those plugins shows consistent output. When
+	 * neither is active this is a no-op and S5's own emitter (Render) is the source.
+	 *
+	 * @param int                  $post_id Page ID.
+	 * @param array<string, mixed> $head    Head blob.
+	 * @return void
+	 */
+	private static function seo_provider_write_through( int $post_id, array $head ): void {
+		$title = isset( $head['title'] ) ? (string) $head['title'] : '';
+		$desc  = isset( $head['description'] ) ? (string) $head['description'] : '';
+		$canon = isset( $head['canonical'] ) ? (string) $head['canonical'] : '';
+		$index = ! isset( $head['index'] ) || (bool) $head['index'];
+
+		// Yoast SEO.
+		if ( defined( 'WPSEO_VERSION' ) ) {
+			if ( '' !== $title ) {
+				update_post_meta( $post_id, '_yoast_wpseo_title', $title );
+			}
+			if ( '' !== $desc ) {
+				update_post_meta( $post_id, '_yoast_wpseo_metadesc', $desc );
+			}
+			if ( '' !== $canon ) {
+				update_post_meta( $post_id, '_yoast_wpseo_canonical', $canon );
+			}
+			update_post_meta( $post_id, '_yoast_wpseo_meta-robots-noindex', $index ? '0' : '1' );
+		}
+
+		// RankMath.
+		if ( defined( 'RANK_MATH_VERSION' ) ) {
+			if ( '' !== $title ) {
+				update_post_meta( $post_id, 'rank_math_title', $title );
+			}
+			if ( '' !== $desc ) {
+				update_post_meta( $post_id, 'rank_math_description', $desc );
+			}
+			if ( '' !== $canon ) {
+				update_post_meta( $post_id, 'rank_math_canonical_url', $canon );
+			}
+			update_post_meta( $post_id, 'rank_math_robots', $index ? array( 'index' ) : array( 'noindex' ) );
+		}
 	}
 
 	/**

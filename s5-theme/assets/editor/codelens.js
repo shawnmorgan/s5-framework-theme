@@ -172,32 +172,79 @@
 		} );
 	}
 
-	/* --- save head (mode:head) ------------------------------------------- */
+	/* --- head SEO segments (index / follow) ------------------------------ */
 
-	if ( headSaveBtn ) {
-		headSaveBtn.addEventListener( 'click', function () {
-			var body = { mode: 'head' };
-			root.querySelectorAll( '[data-s5-head]' ).forEach( function ( input ) {
-				body[ input.getAttribute( 'data-s5-head' ) ] = input.value;
-			} );
-			headSaveBtn.disabled = true;
-			headSaveBtn.textContent = 'Saving…';
-			post( body )
-				.then( function ( res ) {
-					headSaveBtn.textContent = 'Save head';
-					if ( res.data && res.data.ok ) {
-						var f = shell.getPreviewFrame();
-						if ( f ) {
-							f.contentWindow.location.reload();
-						}
-					} else {
-						headSaveBtn.disabled = false;
-					}
-				} )
-				.catch( function () {
-					headSaveBtn.textContent = 'Save head';
-					headSaveBtn.disabled = false;
+	// Seed each index/follow segment from cfg.head (default = on/true), and make it a
+	// single-active toggle that marks the head dirty.
+	root.querySelectorAll( '[data-s5-head-seg]' ).forEach( function ( seg ) {
+		var key = seg.getAttribute( 'data-s5-head-seg' );
+		var val = ( cfg.head && ( key in cfg.head ) ) ? cfg.head[ key ] : true;
+		var on = ( true === val || 1 === val || '1' === val || 'true' === val );
+		seg.querySelectorAll( '.s5-editor__seg-opt' ).forEach( function ( opt ) {
+			var isOn = ( '1' === opt.getAttribute( 'data-val' ) );
+			opt.classList.toggle( 'is-active', isOn === on );
+			opt.addEventListener( 'click', function () {
+				seg.querySelectorAll( '.s5-editor__seg-opt' ).forEach( function ( o ) {
+					o.classList.remove( 'is-active' );
 				} );
+				opt.classList.add( 'is-active' );
+				enableHeadSave();
+			} );
+		} );
+	} );
+
+	function segValue( key ) {
+		var seg = root.querySelector( '[data-s5-head-seg="' + key + '"]' );
+		if ( ! seg ) {
+			return '1';
+		}
+		var active = seg.querySelector( '.s5-editor__seg-opt.is-active' );
+		return active ? active.getAttribute( 'data-val' ) : '1';
+	}
+
+	function enableHeadSave() {
+		root.querySelectorAll( '[data-s5-head-save]' ).forEach( function ( b ) {
+			b.disabled = false;
 		} );
 	}
+
+	/* --- save head (mode:head) — every head-save button saves ALL head fields */
+
+	function saveHead( btn ) {
+		var label = btn.textContent;
+		var body = { mode: 'head' };
+		root.querySelectorAll( '[data-s5-head]' ).forEach( function ( input ) {
+			body[ input.getAttribute( 'data-s5-head' ) ] = input.value;
+		} );
+		body.index = segValue( 'index' );
+		body.follow = segValue( 'follow' );
+
+		root.querySelectorAll( '[data-s5-head-save]' ).forEach( function ( b ) {
+			b.disabled = true;
+		} );
+		btn.textContent = 'Saving…';
+		post( body )
+			.then( function ( res ) {
+				btn.textContent = label;
+				if ( res.data && res.data.ok ) {
+					var f = shell.getPreviewFrame();
+					if ( f ) {
+						f.contentWindow.location.reload();
+					}
+				} else {
+					renderDiagnostics( res.data && res.data.diagnostics );
+					enableHeadSave();
+				}
+			} )
+			.catch( function () {
+				btn.textContent = label;
+				enableHeadSave();
+			} );
+	}
+
+	root.querySelectorAll( '[data-s5-head-save]' ).forEach( function ( btn ) {
+		btn.addEventListener( 'click', function () {
+			saveHead( btn );
+		} );
+	} );
 }() );
