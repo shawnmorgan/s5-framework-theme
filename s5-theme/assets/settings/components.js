@@ -22,6 +22,7 @@
 	}
 
 	var nameEl = modal.querySelector( '[data-s5-cb-name]' );
+	var slugEl = modal.querySelector( '[data-s5-cb-slug]' );
 	var htmlEl = modal.querySelector( '[data-s5-cb-html]' );
 	var cssEl = modal.querySelector( '[data-s5-cb-css]' );
 	var manEl = modal.querySelector( '[data-s5-cb-manifest]' );
@@ -36,14 +37,33 @@
 		return ( cfg.restBase || '' );
 	}
 
+	// Mockup modal: show via the `.open` class (.cb-modal.open{display:flex}).
+	function showModal() {
+		modal.classList.add( 'open' );
+		modal.setAttribute( 'aria-hidden', 'false' );
+	}
+	function hideModal() {
+		modal.classList.remove( 'open' );
+		modal.setAttribute( 'aria-hidden', 'true' );
+	}
+
 	function openBuilder( name ) {
 		current = name;
-		diagEl.textContent = '';
-		nameEl.textContent = name;
+		if ( diagEl ) {
+			diagEl.textContent = '';
+		}
+		// The mockup's cb-name is an <input> (editable); fill its value, and the slug.
+		if ( nameEl ) {
+			nameEl.value = name;
+		}
+		if ( slugEl ) {
+			slugEl.textContent = '<s5-' + name + '>';
+		}
 		htmlEl.value = 'Loading…';
 		cssEl.value = '';
 		manEl.value = '';
 		propsEl.innerHTML = '';
+		showModal();
 
 		fetch( restBase() + encodeURIComponent( name ), {
 			credentials: 'same-origin',
@@ -57,12 +77,10 @@
 				cssEl.value = data.css || '/* This component ships no CSS. */';
 				manEl.value = data.manifest || '';
 				renderProps( data.manifest );
-				modal.hidden = false;
 			} )
 			.catch( function () {
 				htmlEl.value = '';
 				diag( [ { message: 'Could not load the component.' } ] );
-				modal.hidden = false;
 			} );
 	}
 
@@ -80,25 +98,37 @@
 		var keys = Object.keys( props );
 		if ( ! keys.length ) {
 			var none = document.createElement( 'p' );
-			none.className = 'description';
+			none.className = 'cb-f-hint';
+			none.style.padding = '0 16px';
 			none.textContent = 'No props declared in the manifest.';
 			propsEl.appendChild( none );
 			return;
 		}
+		// Render each prop as the mockup's .cb-field card (read view of the schema).
 		keys.forEach( function ( k ) {
-			var row = document.createElement( 'div' );
-			row.className = 's5-cb__prop';
-			var def = props[ k ];
-			row.textContent = k + ( def && def.type ? ' · ' + def.type : '' );
-			propsEl.appendChild( row );
+			var def = props[ k ] || {};
+			var card = document.createElement( 'div' );
+			card.className = 'cb-field';
+			card.innerHTML =
+				'<div class="cb-field-top"><span class="lbl">' + esc( def.label || k ) + '</span></div>' +
+				'<div class="cb-f"><label>Token</label>' +
+				'<div class="cb-token"><span class="braces">{{</span><input value="' + esc( k ) + '" readonly><span class="braces">}}</span></div></div>' +
+				'<div class="cb-f"><label>Type</label><input value="' + esc( def.type || 'Text' ) + '" readonly></div>' +
+				( def.description ? '<div class="cb-f"><label>Description</label><textarea readonly>' + esc( def.description ) + '</textarea></div>' : '' );
+			propsEl.appendChild( card );
 		} );
+	}
+
+	function esc( s ) {
+		return String( s == null ? '' : s )
+			.replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' ).replace( /"/g, '&quot;' );
 	}
 
 	function diag( list ) {
 		diagEl.innerHTML = '';
 		( list || [] ).forEach( function ( d ) {
-			var p = document.createElement( 'p' );
-			p.className = 's5-cb__diag';
+			var p = document.createElement( 'span' );
+			p.style.color = 'var(--s5e-danger)';
 			p.textContent = ( d.rule ? '[' + d.rule + '] ' : '' ) + ( d.message || '' ) + ( d.token ? ' — token: ' + d.token : '' );
 			diagEl.appendChild( p );
 		} );
@@ -127,7 +157,7 @@
 				saveBtn.disabled = false;
 				saveBtn.textContent = 'Save component';
 				if ( res.body && res.body.ok ) {
-					diagEl.innerHTML = '<p class="s5-cb__ok">Saved. The design bundle was recompiled.</p>';
+					diagEl.innerHTML = '<span style="color:var(--s5e-brand)">Saved. The design bundle was recompiled.</span>';
 				} else {
 					diag( ( res.body && res.body.diagnostics ) || [ { message: 'Save rejected.' } ] );
 				}
@@ -139,15 +169,33 @@
 			} );
 	}
 
+	// The card AND its pencil both carry data-s5-comp-open. Bind once per element but,
+	// on the card, ignore clicks that started on an inner control (pencil / switch) so
+	// the builder opens once — the pencil's own handler already opened it.
 	grid.querySelectorAll( '[data-s5-comp-open]' ).forEach( function ( btn ) {
-		btn.addEventListener( 'click', function () {
+		var isCard = btn.classList.contains( 'comp-card' );
+		btn.addEventListener( 'click', function ( e ) {
+			if ( isCard && e.target.closest( '.comp-open, .switch' ) ) {
+				return;
+			}
 			openBuilder( btn.getAttribute( 'data-s5-comp-open' ) );
 		} );
 	} );
 	modal.querySelectorAll( '[data-s5-cb-close]' ).forEach( function ( b ) {
+		b.addEventListener( 'click', hideModal );
+	} );
+	// Dev/Preview lens toggle (presentational — the mockup ships it this way).
+	modal.querySelectorAll( '.cb-lens-btn' ).forEach( function ( b ) {
 		b.addEventListener( 'click', function () {
-			modal.hidden = true;
+			modal.querySelectorAll( '.cb-lens-btn' ).forEach( function ( x ) {
+				x.classList.toggle( 'active', x === b );
+			} );
 		} );
+	} );
+	document.addEventListener( 'keydown', function ( e ) {
+		if ( 'Escape' === e.key && modal.classList.contains( 'open' ) ) {
+			hideModal();
+		}
 	} );
 	if ( saveBtn ) {
 		saveBtn.addEventListener( 'click', save );

@@ -50,13 +50,29 @@ final class Settings {
 	 * @var array<string, string>
 	 */
 	private const SCREENS = array(
-		'styleguide'   => 'StyleGuide',
-		'templates'    => 'Templates',
-		'components'   => 'Components',
-		'integrations' => 'Integrations',
 		'general'      => 'General',
+		'templates'    => 'Templates',
+		'styleguide'   => 'StyleGuide',
+		'components'   => 'Components',
 		'css'          => 'CSS / Tailwind',
+		'integrations' => 'Integrations',
 		'roles'        => 'Roles',
+	);
+
+	/**
+	 * Sub-nav metadata per screen (mockup order): FontAwesome glyph + one-line sub.
+	 * TRANSCRIBED from theme-settings-mockup.html subnav (lines 618-648).
+	 *
+	 * @var array<string, array{icon:string, sub:string}>
+	 */
+	private const SUBNAV = array(
+		'general'      => array( 'icon' => 'fa-sliders', 'sub' => 'Identity · homepage' ),
+		'templates'    => array( 'icon' => 'fa-layer-group', 'sub' => 'Parts · WP hierarchy' ),
+		'styleguide'   => array( 'icon' => 'fa-swatchbook', 'sub' => 'Tokens · live specimen' ),
+		'components'   => array( 'icon' => 'fa-cubes', 'sub' => 'Registered library' ),
+		'css'          => array( 'icon' => 'fa-code', 'sub' => 'Tokens · classes · custom' ),
+		'integrations' => array( 'icon' => 'fa-plug', 'sub' => 'Snippets · analytics · pixels' ),
+		'roles'        => array( 'icon' => 'fa-user-shield', 'sub' => 'Who sees & edits what' ),
 	);
 
 	/**
@@ -312,13 +328,37 @@ final class Settings {
 		if ( 's5_page_' . self::MENU_SLUG !== $hook_suffix ) {
 			return;
 		}
+		// FontAwesome 6.5.1 (Free), bundled locally — the settings mockup's icon system.
+		$fa = S5_PLUGIN_DIR . 'assets/vendor/fontawesome/css/all.min.css';
+		if ( is_readable( $fa ) ) {
+			wp_enqueue_style(
+				's5-fontawesome',
+				get_stylesheet_directory_uri() . '/assets/vendor/fontawesome/css/all.min.css',
+				array(),
+				'6.5.1'
+			);
+		}
+
 		$css = S5_PLUGIN_DIR . 'assets/settings/settings.css';
 		if ( is_readable( $css ) ) {
 			wp_enqueue_style(
 				's5-settings',
 				get_stylesheet_directory_uri() . '/assets/settings/settings.css',
-				array(),
+				array( 's5-fontawesome' ),
 				(string) filemtime( $css )
+			);
+		}
+
+		// The settings app driver (screen toggle, token edit, templates, css layers,
+		// integrations, roles). Enqueued on every settings screen so all interactions work.
+		$app = S5_PLUGIN_DIR . 'assets/settings/settings.js';
+		if ( is_readable( $app ) ) {
+			wp_enqueue_script(
+				's5-settings-app',
+				get_stylesheet_directory_uri() . '/assets/settings/settings.js',
+				array(),
+				(string) filemtime( $app ),
+				true
 			);
 		}
 
@@ -365,40 +405,120 @@ final class Settings {
 		// Per-screen role gate: a screen the role cannot reach 403s even by direct URL.
 		$screen_cap = self::screen_capability( $current );
 		if ( '' !== $screen_cap && ! Roles::can( $screen_cap ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this settings screen.', 's5' ) );
+			// Fall back to the first screen the role CAN see, so a deep-link to a blocked
+			// screen lands on an allowed one instead of dying.
+			$current = self::first_allowed_screen();
 		}
+
+		// The app renders ALL role-visible screens at once; the left sub-nav toggles them
+		// client-side (settings.js), exactly like theme-settings-mockup.html. Server-side
+		// role gating still decides which screens exist in the DOM at all — a blocked
+		// screen is neither rendered nor reachable by the `?screen=` URL (it 403s above).
 		?>
-		<div class="wrap s5-settings" data-s5-settings>
-			<h1><?php esc_html_e( 'S5 — Theme Settings', 's5' ); ?></h1>
-			<?php self::maybe_render_oneshot_notice(); ?>
-			<div class="s5-settings__layout">
-				<nav class="s5-settings__nav" aria-label="<?php esc_attr_e( 'Theme settings screens', 's5' ); ?>">
-					<ul>
+		<div class="wrap s5set-wrap s5set" data-s5-settings>
+			<h1 class="screen-reader-text"><?php esc_html_e( 'S5 — Theme Settings', 's5' ); ?></h1>
+			<?php
+			// Inline the REAL --s5-* token values on the app root so the StyleGuide specimen
+			// renders from the actual tokens.css / scales.css, never drifting from the site.
+			self::render_real_token_style();
+			self::maybe_render_oneshot_notice();
+			?>
+
+			<div class="s5set-page">
+				<header class="page-head">
+					<div class="page-logo">S5</div>
+					<div class="page-title">
+						<h1><?php esc_html_e( 'S5 Framework — Theme Settings', 's5' ); ?></h1>
+						<p><?php esc_html_e( 'Agent-native theme · single source of truth for tokens, components & vocabulary', 's5' ); ?></p>
+					</div>
+					<div class="status-pill"><span class="dot"></span> <?php echo StyleBundle::exists() ? esc_html__( 'Compiled · in sync', 's5' ) : esc_html__( 'Not compiled', 's5' ); ?></div>
+				</header>
+
+				<div class="page-body">
+					<aside class="subnav" aria-label="<?php esc_attr_e( 'Theme settings screens', 's5' ); ?>">
+						<div class="subnav-label"><?php esc_html_e( 'Settings', 's5' ); ?></div>
 						<?php
 						foreach ( self::SCREENS as $key => $label ) :
-							// Hide a screen the role cannot view (it is also blocked server-side).
+							$cap = self::screen_capability( $key );
+							if ( '' !== $cap && ! Roles::can( $cap ) ) {
+								continue; // Hidden AND blocked (server-side).
+							}
+							$meta = self::SUBNAV[ $key ] ?? array( 'icon' => 'fa-circle', 'sub' => '' );
+							?>
+							<a
+								class="snav<?php echo $key === $current ? ' active' : ''; ?>"
+								href="<?php echo esc_url( self::screen_url( $key ) ); ?>"
+								data-screen="<?php echo esc_attr( $key ); ?>"
+								aria-current="<?php echo $key === $current ? 'page' : 'false'; ?>"
+							>
+								<i class="fa-solid <?php echo esc_attr( $meta['icon'] ); ?>"></i>
+								<span><?php echo esc_html( $label ); ?><span class="snav-sub"><?php echo esc_html( $meta['sub'] ); ?></span></span>
+							</a>
+						<?php endforeach; ?>
+					</aside>
+
+					<main class="screen-wrap">
+						<?php
+						foreach ( self::SCREENS as $key => $label ) :
 							$cap = self::screen_capability( $key );
 							if ( '' !== $cap && ! Roles::can( $cap ) ) {
 								continue;
 							}
 							?>
-							<li>
-								<a
-									class="s5-settings__navlink<?php echo $key === $current ? ' is-active' : ''; ?>"
-									aria-current="<?php echo $key === $current ? 'page' : 'false'; ?>"
-									href="<?php echo esc_url( self::screen_url( $key ) ); ?>"
-									data-s5-screen="<?php echo esc_attr( $key ); ?>"
-								><?php echo esc_html( $label ); ?></a>
-							</li>
+							<section class="screen<?php echo $key === $current ? ' active' : ''; ?>" data-screen="<?php echo esc_attr( $key ); ?>">
+								<?php self::render_screen_body( $key ); ?>
+							</section>
 						<?php endforeach; ?>
-					</ul>
-				</nav>
-				<section class="s5-settings__screen" data-s5-screen-body="<?php echo esc_attr( $current ); ?>">
-					<?php self::render_screen_body( $current ); ?>
-				</section>
+					</main>
+				</div>
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Emit an inline <style> setting the REAL --s5-* token values on the app root, read
+	 * live from the token files. The StyleGuide specimen and color-role swatches then
+	 * render from the actual design system — the mockup hardcodes these, but the build
+	 * pulls them from tokens.css / scales.css so a token edit shows immediately.
+	 *
+	 * @return void
+	 */
+	private static function render_real_token_style(): void {
+		$decls = array();
+		foreach ( Styles::read_tokens() as $group ) {
+			foreach ( $group as $prop ) {
+				$name = (string) $prop['name'];
+				$val  = (string) $prop['value'];
+				// Only --s5-* custom props; values are already file-sourced. Guard against
+				// stray CSS-structural chars so this inline block can't be broken out of.
+				if ( 0 === strpos( $name, '--s5-' ) && ! preg_match( '/[{}<;]/', $val ) ) {
+					$decls[] = $name . ':' . $val;
+				}
+			}
+		}
+		if ( empty( $decls ) ) {
+			return;
+		}
+		printf(
+			'<style id="s5set-real-tokens">.s5set{%s;}</style>',
+			esc_html( implode( ';', $decls ) )
+		);
+	}
+
+	/**
+	 * The first screen the current role is allowed to view (fallback for a blocked deep-link).
+	 *
+	 * @return string
+	 */
+	private static function first_allowed_screen(): string {
+		foreach ( self::SCREENS as $key => $label ) {
+			$cap = self::screen_capability( $key );
+			if ( '' === $cap || Roles::can( $cap ) ) {
+				return $key;
+			}
+		}
+		return (string) array_key_first( self::SCREENS );
 	}
 
 	/**
@@ -445,20 +565,45 @@ final class Settings {
 	 * @return void
 	 */
 	private static function render_styleguide(): void {
-		$tokens = Styles::read_tokens();
+		$tokens   = Styles::read_tokens();
+		$can_edit = Roles::can( 'settings.styleguide_edit' );
 		?>
-		<h2><?php esc_html_e( 'StyleGuide', 's5' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'The design tokens the site is built from, read live from tokens.css / scales.css — and a light specimen of the primitives they produce.', 's5' ); ?></p>
+		<div class="screen-head">
+			<h2><?php esc_html_e( 'StyleGuide', 's5' ); ?></h2>
+			<p><?php esc_html_e( 'The design tokens live here — and everything on the right is rendered from those tokens. Change a token, every primitive updates. This is the client-facing reference: the real headings, buttons, and cards the site is built from.', 's5' ); ?></p>
+		</div>
 
-		<div class="s5-sg">
-			<div class="s5-sg__cards">
+		<div class="sg-grid">
+			<div>
+				<?php /* FONTS — informational (families come from the token layer). */ ?>
+				<div class="card">
+					<div class="card-head"><i class="fa-solid fa-font"></i><h3><?php esc_html_e( 'Fonts', 's5' ); ?></h3><span class="card-note"><?php esc_html_e( 'family & source', 's5' ); ?></span></div>
+					<div class="card-body">
+						<div class="field">
+							<label class="field-label"><?php esc_html_e( 'Font Source', 's5' ); ?></label>
+							<div class="seg wide"><div class="seg-opt active"><?php esc_html_e( 'System', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Google Fonts', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Self-hosted', 's5' ); ?></div></div>
+							<p class="field-hint"><?php esc_html_e( 'Self-hosted keeps fonts on your infrastructure (no third-party requests).', 's5' ); ?></p>
+						</div>
+						<?php
+						$fonts = isset( $tokens['font'] ) ? $tokens['font'] : array();
+						foreach ( $fonts as $f ) :
+							?>
+							<div class="field">
+								<label class="field-label"><?php echo esc_html( ucwords( str_replace( array( '--s5-font-', '-' ), array( '', ' ' ), $f['name'] ) ) ); ?> <span class="opt"><?php echo esc_html( $f['name'] ); ?></span></label>
+								<input class="input" value="<?php echo esc_attr( $f['value'] ); ?>" style="font-family:var(--s5e-mono);font-size:11.5px" readonly>
+							</div>
+						<?php endforeach; ?>
+					</div>
+				</div>
+
 				<?php
-				self::sg_color_card( __( 'Colors', 's5' ), isset( $tokens['color'] ) ? $tokens['color'] : array() );
-				self::sg_scale_card( __( 'Type scale', 's5' ), isset( $tokens['text'] ) ? $tokens['text'] : array(), 'text' );
-				self::sg_scale_card( __( 'Spacing', 's5' ), isset( $tokens['space'] ) ? $tokens['space'] : array(), 'space' );
-				self::sg_scale_card( __( 'Radius', 's5' ), isset( $tokens['radius'] ) ? $tokens['radius'] : array(), 'radius' );
+				self::sg_color_card( __( 'Colors', 's5' ), isset( $tokens['color'] ) ? $tokens['color'] : array(), $can_edit );
+				self::sg_scale_card( __( 'Type Scale', 's5' ), isset( $tokens['text'] ) ? $tokens['text'] : array(), 'text', $can_edit );
+				self::sg_scale_card( __( 'Space Scale', 's5' ), isset( $tokens['space'] ) ? $tokens['space'] : array(), 'space', $can_edit );
+				self::sg_scale_card( __( 'Radius', 's5' ), isset( $tokens['radius'] ) ? $tokens['radius'] : array(), 'radius', $can_edit );
 				?>
 			</div>
+
 			<?php self::sg_specimen(); ?>
 		</div>
 		<?php
@@ -471,24 +616,36 @@ final class Settings {
 	 * @param array<int, array{name:string,value:string}> $tokens Colour tokens.
 	 * @return void
 	 */
-	private static function sg_color_card( string $title, array $tokens ): void {
+	private static function sg_color_card( string $title, array $tokens, bool $can_edit = false ): void {
 		?>
-		<div class="s5-sg__card">
-			<div class="s5-sg__card-head"><?php echo esc_html( $title ); ?></div>
-			<?php if ( empty( $tokens ) ) : ?>
-				<p class="description"><?php esc_html_e( 'No colour tokens declared.', 's5' ); ?></p>
-			<?php else : ?>
-				<div class="s5-sg__swatches">
+		<div class="card" data-tokencard="colors">
+			<div class="card-head"><i class="fa-solid fa-palette"></i><h3><?php echo esc_html( $title ); ?></h3>
+				<?php if ( $can_edit ) : ?>
+					<div class="edit-tools">
+						<button type="button" class="edit-btn pencil" title="<?php esc_attr_e( 'Edit colors', 's5' ); ?>"><i class="fa-solid fa-pen"></i></button>
+					</div>
+				<?php endif; ?>
+			</div>
+			<div class="card-body" id="colorTokens">
+				<?php if ( empty( $tokens ) ) : ?>
+					<p class="field-hint"><?php esc_html_e( 'No colour tokens declared.', 's5' ); ?></p>
+				<?php else : ?>
 					<?php foreach ( $tokens as $t ) : ?>
-						<div class="s5-sg__swatch">
-							<span class="s5-sg__chip" style="background:<?php echo esc_attr( $t['value'] ); ?>"></span>
-							<span class="s5-sg__name"><?php echo esc_html( str_replace( '--s5-color-', '', $t['name'] ) ); ?></span>
-							<span class="s5-sg__val"><?php echo esc_html( $t['value'] ); ?></span>
-							<?php self::sg_edit_form( $t['name'], $t['value'] ); ?>
+						<div class="token-color">
+							<span class="token-sw" style="background:<?php echo esc_attr( $t['value'] ); ?>"></span>
+							<span class="token-meta">
+								<span class="token-name"><?php echo esc_html( str_replace( '--s5-color-', '', $t['name'] ) ); ?></span>
+								<br><span class="token-var"><?php echo esc_html( $t['name'] ); ?></span>
+							</span>
+							<?php if ( $can_edit ) : ?>
+								<?php self::sg_edit_form( $t['name'], $t['value'] ); ?>
+							<?php else : ?>
+								<span class="token-hex"><?php echo esc_html( $t['value'] ); ?></span>
+							<?php endif; ?>
 						</div>
 					<?php endforeach; ?>
-				</div>
-			<?php endif; ?>
+				<?php endif; ?>
+			</div>
 		</div>
 		<?php
 	}
@@ -501,29 +658,42 @@ final class Settings {
 	 * @param string                                      $kind   'text' | 'space' | 'radius'.
 	 * @return void
 	 */
-	private static function sg_scale_card( string $title, array $tokens, string $kind ): void {
+	private static function sg_scale_card( string $title, array $tokens, string $kind, bool $can_edit = false ): void {
 		$prefix = '--s5-' . ( 'text' === $kind ? 'text-' : ( 'space' === $kind ? 'space-' : 'radius-' ) );
+		$icons  = array( 'text' => 'fa-text-height', 'space' => 'fa-arrows-left-right-to-line', 'radius' => 'fa-border-top-left' );
+		$card   = array( 'text' => 'type', 'space' => 'space', 'radius' => 'radius' );
+		// Largest space value → used to scale the .scale-bar width readout (mockup: maxSpace≈4rem).
+		$max = 4.0;
 		?>
-		<div class="s5-sg__card">
-			<div class="s5-sg__card-head"><?php echo esc_html( $title ); ?></div>
-			<?php if ( empty( $tokens ) ) : ?>
-				<p class="description"><?php esc_html_e( 'No tokens declared.', 's5' ); ?></p>
-			<?php else : ?>
-				<?php foreach ( $tokens as $t ) : ?>
-					<div class="s5-sg__row">
-						<?php if ( 'text' === $kind ) : ?>
-							<span class="s5-sg__type-sample" style="font-size:<?php echo esc_attr( $t['value'] ); ?>">Ag</span>
-						<?php elseif ( 'space' === $kind ) : ?>
-							<span class="s5-sg__space-bar" style="width:<?php echo esc_attr( $t['value'] ); ?>"></span>
-						<?php else : ?>
-							<span class="s5-sg__radius-box" style="border-radius:<?php echo esc_attr( $t['value'] ); ?>"></span>
-						<?php endif; ?>
-						<span class="s5-sg__name"><?php echo esc_html( str_replace( $prefix, '', $t['name'] ) ); ?></span>
-						<span class="s5-sg__val"><?php echo esc_html( $t['value'] ); ?></span>
-						<?php self::sg_edit_form( $t['name'], $t['value'] ); ?>
+		<div class="card" data-tokencard="<?php echo esc_attr( $card[ $kind ] ); ?>">
+			<div class="card-head"><i class="fa-solid <?php echo esc_attr( $icons[ $kind ] ); ?>"></i><h3><?php echo esc_html( $title ); ?></h3>
+				<?php if ( $can_edit ) : ?>
+					<div class="edit-tools">
+						<button type="button" class="edit-btn pencil" title="<?php esc_attr_e( 'Edit scale', 's5' ); ?>"><i class="fa-solid fa-pen"></i></button>
 					</div>
-				<?php endforeach; ?>
-			<?php endif; ?>
+				<?php endif; ?>
+			</div>
+			<div class="card-body">
+				<?php if ( empty( $tokens ) ) : ?>
+					<p class="field-hint"><?php esc_html_e( 'No tokens declared.', 's5' ); ?></p>
+				<?php else : ?>
+					<?php foreach ( $tokens as $t ) : ?>
+						<div class="scale-row">
+							<span class="scale-key"><?php echo esc_html( $t['name'] ); ?></span>
+							<?php if ( 'space' === $kind ) : ?>
+								<span class="scale-bar" style="width:<?php echo esc_attr( (string) max( 6, min( 100, ( (float) $t['value'] / $max ) * 100 ) ) ); ?>px"></span>
+							<?php elseif ( 'radius' === $kind ) : ?>
+								<span class="scale-bar" style="width:26px;height:26px;background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:<?php echo esc_attr( $t['value'] ); ?>;opacity:1"></span>
+							<?php endif; ?>
+							<?php if ( $can_edit ) : ?>
+								<?php self::sg_edit_form( $t['name'], $t['value'] ); ?>
+							<?php else : ?>
+								<span class="scale-val"><?php echo esc_html( $t['value'] ); ?></span>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				<?php endif; ?>
+			</div>
 		</div>
 		<?php
 	}
@@ -539,37 +709,77 @@ final class Settings {
 	 */
 	private static function render_templates(): void {
 		$parts = Templates::list_parts();
+		// Part-name → mockup glyph (theme-settings-mockup.html TPL_PARTS). Unknown parts
+		// use the mockup's generic puzzle-piece.
+		$part_icons = array(
+			'site-header' => 'fa-window-maximize',
+			'site-footer' => 'fa-window-minimize',
+		);
 		?>
-		<h2><?php esc_html_e( 'Templates', 's5' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Shared template parts and the WordPress template hierarchy. Each is canonical HTML — the pencil opens it in the canvas editor, the same way you edit any page.', 's5' ); ?></p>
-
-		<div class="s5-tpl__card">
-			<div class="s5-tpl__card-head"><?php esc_html_e( 'Template Parts', 's5' ); ?></div>
-			<?php if ( empty( $parts ) ) : ?>
-				<p class="description"><?php esc_html_e( 'No template parts found under site/parts.', 's5' ); ?></p>
-			<?php else : ?>
-				<?php foreach ( $parts as $p ) : ?>
-					<div class="s5-tpl__row">
-						<div class="s5-tpl__row-main">
-							<span class="s5-tpl__row-name"><?php echo esc_html( $p['label'] ); ?></span>
-							<span class="s5-tpl__row-file"><?php echo esc_html( $p['file'] ); ?></span>
-						</div>
-						<span class="s5-tpl__badge"><?php esc_html_e( 'part', 's5' ); ?></span>
-						<a class="button button-small s5-tpl__edit" href="<?php echo esc_url( self::template_editor_url( $p['name'] ) ); ?>">
-							<?php esc_html_e( 'Edit', 's5' ); ?>
-						</a>
-					</div>
-				<?php endforeach; ?>
-			<?php endif; ?>
+		<div class="screen-head">
+			<h2><?php esc_html_e( 'Templates', 's5' ); ?></h2>
+			<p><?php esc_html_e( 'The shared template parts and the WordPress template hierarchy. Each template is canonical HTML in the framework — the edit pencil opens it in the canvas editor, the same way you edit any page.', 's5' ); ?></p>
 		</div>
 
-		<div class="s5-tpl__card">
-			<div class="s5-tpl__card-head"><?php esc_html_e( 'Template Hierarchy', 's5' ); ?>
-				<span class="s5-tpl__note"><?php esc_html_e( 'WordPress resolves top → bottom', 's5' ); ?></span>
+		<?php /* TEMPLATE PARTS — the real files under site/parts. Pencil → canvas ?template mode. */ ?>
+		<div class="card">
+			<div class="card-head"><i class="fa-solid fa-puzzle-piece"></i><h3><?php esc_html_e( 'Template Parts', 's5' ); ?></h3></div>
+			<div class="card-body" data-s5-tpl-parts>
+				<?php if ( empty( $parts ) ) : ?>
+					<p class="field-hint"><?php esc_html_e( 'No template parts found under site/parts.', 's5' ); ?></p>
+				<?php else : ?>
+					<?php
+					foreach ( $parts as $p ) :
+						$ico = $part_icons[ $p['name'] ] ?? 'fa-puzzle-piece';
+						?>
+						<div class="tpl-row">
+							<div class="tpl-ico"><i class="fa-solid <?php echo esc_attr( $ico ); ?>"></i></div>
+							<div class="tpl-meta">
+								<div class="tpl-name"><?php echo esc_html( $p['label'] ); ?><span class="tpl-file"><?php echo esc_html( $p['file'] ); ?></span></div>
+								<div class="tpl-applies"><?php echo esc_html( 'site-header' === $p['name'] ? __( 'Top of every page', 's5' ) : ( 'site-footer' === $p['name'] ? __( 'Bottom of every page', 's5' ) : __( 'Shared template part', 's5' ) ) ); ?></div>
+							</div>
+							<button type="button" class="switch on tpl-switch" role="switch" aria-checked="true"><span class="knob"></span></button>
+							<a class="tpl-edit" href="<?php echo esc_url( self::template_editor_url( $p['name'] ) ); ?>" title="<?php esc_attr_e( 'Edit in canvas editor', 's5' ); ?>"><i class="fa-solid fa-pen"></i></a>
+						</div>
+					<?php endforeach; ?>
+				<?php endif; ?>
 			</div>
-			<p class="description">
-				<?php esc_html_e( 'The theme currently serves pages through the canvas render path and its parts. Hierarchy templates (front-page, single, archive, 404 …) register here as they are authored — each will open in the canvas in template mode, with its own display rules & conditions.', 's5' ); ?>
-			</p>
+		</div>
+
+		<?php
+		/* TEMPLATE HIERARCHY — the standard WP hierarchy. GAP: this theme renders through
+		 * the canvas path and ships no per-template files, so each row reports "Using
+		 * default" (data unavailable), rendered in the mockup's .tpl-row markup. Logged in
+		 * FIDELITY-EXCEPTIONS.md. Custom/CPT template registration lands with the template
+		 * authoring work. */
+		$hierarchy = array(
+			array( 'name' => __( 'Front Page', 's5' ), 'file' => 'templates/front-page.html', 'ico' => 'fa-house', 'applies' => __( 'The site homepage', 's5' ) ),
+			array( 'name' => __( 'Single Post', 's5' ), 'file' => 'templates/single.html', 'ico' => 'fa-file-lines', 'applies' => __( 'All blog posts', 's5' ) ),
+			array( 'name' => __( 'Page', 's5' ), 'file' => 'templates/page.html', 'ico' => 'fa-file', 'applies' => __( 'All standard pages', 's5' ) ),
+			array( 'name' => __( 'Archive', 's5' ), 'file' => 'templates/archive.html', 'ico' => 'fa-box-archive', 'applies' => __( 'Date, author & CPT archives', 's5' ) ),
+			array( 'name' => __( 'Category', 's5' ), 'file' => 'templates/category.html', 'ico' => 'fa-folder-tree', 'applies' => __( 'Category term archives', 's5' ) ),
+			array( 'name' => __( 'Search Results', 's5' ), 'file' => 'templates/search.html', 'ico' => 'fa-magnifying-glass', 'applies' => __( 'The search results page', 's5' ) ),
+			array( 'name' => __( '404 Not Found', 's5' ), 'file' => 'templates/404.html', 'ico' => 'fa-triangle-exclamation', 'applies' => __( 'Missing / unresolved URLs', 's5' ) ),
+			array( 'name' => __( 'Blog / Index', 's5' ), 'file' => 'templates/index.html', 'ico' => 'fa-list', 'applies' => __( 'Posts index & catch-all fallback', 's5' ) ),
+		);
+		?>
+		<div class="card">
+			<div class="card-head"><i class="fa-solid fa-sitemap"></i><h3><?php esc_html_e( 'Template Hierarchy', 's5' ); ?></h3>
+				<span class="card-note"><?php esc_html_e( 'WordPress resolves top → bottom', 's5' ); ?></span>
+			</div>
+			<div class="card-body" data-s5-tpl-hierarchy>
+				<?php foreach ( $hierarchy as $t ) : ?>
+					<div class="tpl-row">
+						<div class="tpl-ico"><i class="fa-solid <?php echo esc_attr( $t['ico'] ); ?>"></i></div>
+						<div class="tpl-meta">
+							<div class="tpl-name"><?php echo esc_html( $t['name'] ); ?><span class="tpl-file"><?php echo esc_html( $t['file'] ); ?></span></div>
+							<div class="tpl-applies"><?php echo esc_html( $t['applies'] ); ?></div>
+						</div>
+						<span class="tpl-status default"><span class="d"></span><?php esc_html_e( 'Using default', 's5' ); ?></span>
+						<a class="tpl-edit" href="<?php echo esc_url( self::template_editor_url( basename( (string) $t['file'], '.html' ) ) ); ?>" title="<?php esc_attr_e( 'Edit in canvas editor', 's5' ); ?>"><i class="fa-solid fa-pen"></i></a>
+					</div>
+				<?php endforeach; ?>
+			</div>
 		</div>
 		<?php
 	}
@@ -590,64 +800,117 @@ final class Settings {
 		} catch ( \RuntimeException $e ) {
 			$names = array();
 		}
+		// Component-name → mockup glyph (theme-settings-mockup.html COMPONENTS). Unknown
+		// names use the mockup's neutral fa-cube.
+		$glyphs = array(
+			'hero'         => 'fa-star',
+			'cta'          => 'fa-bullhorn',
+			'feature-grid' => 'fa-table-columns',
+			'pricing'      => 'fa-tags',
+			'pricing-card' => 'fa-tags',
+			'testimonial'  => 'fa-quote-left',
+			'faq'          => 'fa-circle-question',
+			'faq-item'     => 'fa-circle-question',
+			'card'         => 'fa-square',
+			'rich-text'    => 'fa-heading',
+			'richtext'     => 'fa-heading',
+			'media'        => 'fa-image',
+			'button'       => 'fa-hand-pointer',
+			'query-loop'   => 'fa-infinity',
+			'query'        => 'fa-infinity',
+			'nav-menu'     => 'fa-bars',
+			'nav'          => 'fa-bars',
+			'embed'        => 'fa-code',
+		);
 		?>
-		<h2><?php esc_html_e( 'Components', 's5' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'The registered component library. Open a component to edit its props, HTML, and logic — HTML is validated against the closed class vocabulary, and CSS is read-only (edit it in CSS / Tailwind).', 's5' ); ?></p>
+		<div class="screen-head">
+			<h2><?php esc_html_e( 'Components', 's5' ); ?></h2>
+			<p><?php esc_html_e( 'The registered library — these are the only elements the canvas editor can drop onto a page. Enabling something here makes it available to non-dev authors; disabling removes it from their palette. Each ships with its own registered variants.', 's5' ); ?></p>
+		</div>
 
-		<div class="s5-comp__grid" data-s5-comp-grid>
-			<?php foreach ( $names as $name ) : ?>
-				<?php
+		<div class="registered-note">
+			<i class="fa-solid fa-shield-halved"></i>
+			<div><?php echo wp_kses_post( __( '<strong>This is the whole vocabulary a client can build with.</strong> No page-builder primitives, no arbitrary blocks — only what&rsquo;s registered here (plus the single <span class="mono">Embed</span> escape hatch for third-party HTML). New component? A developer registers it, and it appears in the canvas.', 's5' ) ); ?></div>
+		</div>
+
+		<div class="comp-grid" data-s5-comp-grid>
+			<?php
+			foreach ( $names as $name ) :
 				try {
 					$c = ComponentRegistry::load( $name );
 				} catch ( \RuntimeException $e ) {
 					continue;
 				}
+				$glyph    = $glyphs[ strtolower( $name ) ] ?? 'fa-cube';
+				$variants = isset( $c['variants'] ) && is_array( $c['variants'] ) ? $c['variants'] : array();
 				?>
-				<div class="s5-comp__card">
-					<div class="s5-comp__card-glyph"><?php echo esc_html( strtoupper( substr( $name, 0, 1 ) ) ); ?></div>
-					<div class="s5-comp__card-main">
-						<div class="s5-comp__card-name"><?php echo esc_html( $name ); ?></div>
-						<div class="s5-comp__card-desc"><?php echo esc_html( (string) $c['description'] ); ?></div>
-						<div class="s5-comp__card-meta">
-							<span>&lt;<?php echo esc_html( $name ); ?>&gt;</span>
-							<span>v<?php echo esc_html( (string) $c['version'] ); ?></span>
+				<div class="comp-card" data-s5-comp-open="<?php echo esc_attr( $name ); ?>">
+					<div class="comp-top">
+						<div class="comp-ico"><i class="fa-solid <?php echo esc_attr( $glyph ); ?>"></i></div>
+						<div style="flex:1;min-width:0">
+							<div class="comp-name"><?php echo esc_html( $name ); ?></div>
+							<div class="comp-slug">&lt;s5-<?php echo esc_html( $name ); ?>&gt;<?php echo isset( $c['version'] ) ? ' · v' . esc_html( (string) $c['version'] ) : ''; ?></div>
 						</div>
+						<button type="button" class="comp-open" data-s5-comp-open="<?php echo esc_attr( $name ); ?>" title="<?php esc_attr_e( 'Open builder', 's5' ); ?>"><i class="fa-solid fa-pen"></i></button>
+						<button type="button" class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>
 					</div>
-					<button type="button" class="button button-small s5-comp__open" data-s5-comp-open="<?php echo esc_attr( $name ); ?>">
-						<?php esc_html_e( 'Edit', 's5' ); ?>
-					</button>
+					<div class="comp-desc"><?php echo esc_html( (string) $c['description'] ); ?></div>
+					<?php if ( ! empty( $variants ) ) : ?>
+						<div class="comp-variants"><?php foreach ( $variants as $v ) : ?><span class="vchip"><?php echo esc_html( (string) $v ); ?></span><?php endforeach; ?></div>
+					<?php endif; ?>
+					<div class="comp-meta">
+						<span class="m"><i class="fa-solid fa-cube"></i> &lt;s5-<?php echo esc_html( $name ); ?>&gt;</span>
+						<?php if ( ! empty( $variants ) ) : ?>
+							<span class="m"><i class="fa-solid fa-sliders"></i> <?php echo (int) count( $variants ); ?> <?php echo esc_html( _n( 'variant', 'variants', count( $variants ), 's5' ) ); ?></span>
+						<?php endif; ?>
+					</div>
 				</div>
 			<?php endforeach; ?>
 			<?php if ( empty( $names ) ) : ?>
-				<p class="description"><?php esc_html_e( 'No components registered.', 's5' ); ?></p>
+				<p class="field-hint"><?php esc_html_e( 'No components registered.', 's5' ); ?></p>
 			<?php endif; ?>
 		</div>
 
-		<?php /* Component Builder modal — filled + driven by components.js via the REST route. */ ?>
-		<div class="s5-cb" data-s5-cb hidden>
-			<div class="s5-cb__dialog" role="dialog" aria-modal="true" aria-label="<?php esc_attr_e( 'Component Builder', 's5' ); ?>">
-				<div class="s5-cb__head">
-					<button type="button" class="button-link s5-cb__back" data-s5-cb-close>&larr; <?php esc_html_e( 'All components', 's5' ); ?></button>
-					<span class="s5-cb__name" data-s5-cb-name></span>
+		<?php /* Component Builder — full-screen modal, driven by components.js via the REST route. */ ?>
+		<div class="cb-modal" data-s5-cb aria-hidden="true">
+			<header class="cb-top">
+				<div class="cb-top-l">
+					<button type="button" class="cb-back" data-s5-cb-close><i class="fa-solid fa-arrow-left"></i> <?php esc_html_e( 'All components', 's5' ); ?></button>
+					<input class="cb-name" data-s5-cb-name value="">
+					<span class="cb-slug mono" data-s5-cb-slug></span>
 				</div>
-				<div class="s5-cb__body">
-					<div class="s5-cb__col">
-						<div class="s5-cb__panel-head"><?php esc_html_e( 'Props', 's5' ); ?></div>
-						<div class="s5-cb__props" data-s5-cb-props></div>
-						<div class="s5-cb__panel-head"><?php esc_html_e( 'HTML', 's5' ); ?> <span class="s5-cb__tag"><?php esc_html_e( 'vocabulary-validated', 's5' ); ?></span></div>
-						<textarea class="s5-cb__code" data-s5-cb-html spellcheck="false"></textarea>
+				<div class="cb-top-r">
+					<div class="cb-lens">
+						<button type="button" class="cb-lens-btn active" data-cblens="dev"><i class="fa-solid fa-code"></i> <?php esc_html_e( 'Dev', 's5' ); ?></button>
+						<button type="button" class="cb-lens-btn" data-cblens="preview"><i class="fa-solid fa-eye"></i> <?php esc_html_e( 'Preview', 's5' ); ?></button>
 					</div>
-					<div class="s5-cb__col">
-						<div class="s5-cb__panel-head"><?php esc_html_e( 'Component CSS', 's5' ); ?> <span class="s5-cb__tag s5-cb__tag--ro"><?php esc_html_e( 'read-only · from components.css', 's5' ); ?></span></div>
-						<textarea class="s5-cb__code s5-cb__code--ro" data-s5-cb-css readonly spellcheck="false"></textarea>
-						<div class="s5-cb__panel-head"><?php esc_html_e( 'Logic (manifest)', 's5' ); ?></div>
-						<textarea class="s5-cb__code" data-s5-cb-manifest spellcheck="false"></textarea>
-					</div>
+					<button type="button" class="cb-save" data-s5-cb-save><i class="fa-solid fa-check"></i> <?php esc_html_e( 'Save changes', 's5' ); ?></button>
+					<button type="button" class="cb-icon" data-s5-cb-close title="<?php esc_attr_e( 'Close', 's5' ); ?>"><i class="fa-solid fa-xmark"></i></button>
 				</div>
-				<div class="s5-cb__foot">
-					<div class="s5-cb__diagnostics" data-s5-cb-diagnostics></div>
-					<button type="button" class="button button-primary s5-cb__save" data-s5-cb-save><?php esc_html_e( 'Save component', 's5' ); ?></button>
-				</div>
+			</header>
+			<div class="cb-body">
+				<aside class="cb-props">
+					<div class="cb-props-head"><span><?php esc_html_e( 'Properties', 's5' ); ?></span></div>
+					<div class="cb-fields" data-s5-cb-props></div>
+				</aside>
+				<main class="cb-center">
+					<section class="cb-html">
+						<div class="cb-panel-head"><span><?php esc_html_e( 'HTML template', 's5' ); ?></span><span class="cb-panel-note"><?php esc_html_e( 'Use component properties with {{ double braces }} · validated against the closed vocabulary', 's5' ); ?></span></div>
+						<div class="cb-code"><textarea data-s5-cb-html spellcheck="false"></textarea></div>
+						<div class="cb-code-foot"><span class="ok"><span class="dot"></span><?php esc_html_e( 'Vocabulary OK', 's5' ); ?></span><span class="cb-panel-note" style="margin-left:auto" data-s5-cb-diagnostics></span></div>
+					</section>
+				</main>
+				<aside class="cb-right">
+					<section class="cb-css">
+						<div class="cb-panel-head"><span><?php esc_html_e( 'Component CSS', 's5' ); ?></span><span class="cb-tag readonly"><?php esc_html_e( 'read-only · from components.css', 's5' ); ?></span></div>
+						<div class="cb-code"><textarea data-s5-cb-css readonly spellcheck="false"></textarea></div>
+						<div class="cb-code-foot"><i class="fa-solid fa-lock" style="font-size:10px;color:var(--s5e-warning)"></i><span class="cb-panel-note"><?php esc_html_e( 'Scoped styles are owned by the design system — edit in the CSS / Tailwind tab.', 's5' ); ?></span></div>
+					</section>
+					<section class="cb-logic">
+						<div class="cb-panel-head"><span><?php esc_html_e( 'Logic (manifest)', 's5' ); ?></span><span class="cb-panel-note"><?php esc_html_e( 'runs when the component loads', 's5' ); ?></span></div>
+						<div class="cb-code"><textarea data-s5-cb-manifest spellcheck="false"></textarea></div>
+					</section>
+				</aside>
 			</div>
 		</div>
 		<?php
@@ -662,84 +925,121 @@ final class Settings {
 	 * @return void
 	 */
 	private static function render_roles(): void {
-		$caps   = Roles::capabilities();
-		$matrix = Roles::matrix();
-		$roles  = Roles::ROLES; // developer, marketer, client.
+		$caps      = Roles::capabilities();
+		$matrix    = Roles::matrix();
+		$roles     = Roles::ROLES; // developer, marketer, client.
+		$role_meta = array(
+			'developer' => array( 'icon' => 'fa-code', 'sub' => __( 'Full control · maps to WP Administrator', 's5' ), 'desc' => __( 'Sees and does everything. The only role that touches the closed vocabulary, template structure, CSS/Tailwind, integrations, roles, and deploy.', 's5' ) ),
+			'marketer'  => array( 'icon' => 'fa-bullhorn', 'sub' => __( 'Content + Style + Advanced · maps to WP Editor', 's5' ), 'desc' => __( 'Edits content, component variants & sizing, plus per-element Advanced (SEO, tag, visibility). Can open Theme Settings, but not Roles, CSS/Tailwind, or Deploy.', 's5' ) ),
+			'client'    => array( 'icon' => 'fa-user', 'sub' => __( 'Content + Style only · maps to WP Author', 's5' ), 'desc' => __( 'In the canvas, sees only the Content and Style tabs — no Advanced, no structure surgery. Never sees this settings page at all.', 's5' ) ),
+		);
 		?>
-		<h2><?php esc_html_e( 'Roles & Access', 's5' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Which S5 role may reach which surface. Enforced server-side on every screen and route (hidden AND blocked) — a role that cannot reach a surface is refused even by direct URL. Developer is always fully granted.', 's5' ); ?></p>
+		<div class="screen-head">
+			<h2><?php esc_html_e( 'Roles & Access', 's5' ); ?></h2>
+			<p><?php esc_html_e( 'Three built-in roles decide who sees what — in this settings area and inside the canvas editor. Like Webflow or Sanity: the further from Developer, the fewer surfaces are exposed. This is the guardrail that keeps a client from touching structure, CSS, or deploy.', 's5' ); ?></p>
+		</div>
+
+		<div class="roles-grid">
+			<?php
+			foreach ( $roles as $r ) :
+				$m = $role_meta[ $r ] ?? array( 'icon' => 'fa-user', 'sub' => '', 'desc' => '' );
+				?>
+				<article class="role-card" data-role="<?php echo esc_attr( $r ); ?>">
+					<div class="role-top">
+						<span class="role-ico"><i class="fa-solid <?php echo esc_attr( $m['icon'] ); ?>"></i></span>
+						<div>
+							<h3><?php echo esc_html( ucfirst( $r ) ); ?></h3>
+							<p class="role-sub"><?php echo esc_html( $m['sub'] ); ?></p>
+						</div>
+					</div>
+					<p class="role-desc"><?php echo esc_html( $m['desc'] ); ?></p>
+				</article>
+			<?php endforeach; ?>
+		</div>
 
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_ROLES ); ?>">
 			<?php wp_nonce_field( self::ACTION_SAVE_ROLES ); ?>
 
-			<table class="widefat striped s5-roles__matrix">
-				<thead>
-					<tr>
-						<th><?php esc_html_e( 'Capability', 's5' ); ?></th>
-						<?php foreach ( $roles as $r ) : ?>
-							<th class="s5-roles__col"><?php echo esc_html( ucfirst( $r ) ); ?></th>
-						<?php endforeach; ?>
-					</tr>
-				</thead>
-				<tbody>
-					<?php foreach ( $caps as $key => $def ) : ?>
-						<tr>
-							<td><?php echo esc_html( $def['label'] ); ?></td>
-							<?php foreach ( $roles as $ci => $r ) : ?>
-								<td class="s5-roles__cell">
-									<?php $granted = isset( $matrix[ $key ][ $ci ] ) ? (bool) $matrix[ $key ][ $ci ] : false; ?>
-									<input
-										type="checkbox"
-										name="matrix[<?php echo esc_attr( $key ); ?>][<?php echo (int) $ci; ?>]"
-										value="1"
-										<?php checked( $granted ); ?>
-										<?php disabled( 0 === $ci ); /* developer locked-on */ ?>
-									>
-								</td>
-							<?php endforeach; ?>
-						</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
+			<div class="card">
+				<div class="card-head"><i class="fa-solid fa-table-cells"></i><h3><?php esc_html_e( 'Permission matrix', 's5' ); ?></h3></div>
+				<div class="card-body">
+					<p class="card-hint"><?php esc_html_e( 'What each role can reach — click any cell to toggle it. The canvas rows control which editor tabs render when that role opens a page.', 's5' ); ?></p>
+					<div class="perm-scroll">
+						<table class="perm-table" data-s5-perm-table>
+							<thead>
+								<tr>
+									<th class="perm-cap"><?php esc_html_e( 'Capability', 's5' ); ?></th>
+									<?php
+									$role_icons = array( 'developer' => 'fa-code', 'marketer' => 'fa-bullhorn', 'client' => 'fa-user' );
+									foreach ( $roles as $r ) :
+										?>
+										<th class="perm-role"><i class="fa-solid <?php echo esc_attr( $role_icons[ $r ] ?? 'fa-user' ); ?>"></i> <?php echo esc_html( ucfirst( $r ) ); ?></th>
+									<?php endforeach; ?>
+								</tr>
+							</thead>
+							<tbody>
+								<?php foreach ( $caps as $key => $def ) : ?>
+									<tr>
+										<td class="perm-cap"><?php echo esc_html( $def['label'] ); ?></td>
+										<?php foreach ( $roles as $ci => $r ) : ?>
+											<?php $granted = isset( $matrix[ $key ][ $ci ] ) ? (bool) $matrix[ $key ][ $ci ] : false; ?>
+											<td class="perm-mark">
+												<?php /* Real submit value = a hidden checkbox; the visible mockup button mirrors + toggles it (settings.js). Developer locked-on. */ ?>
+												<input type="checkbox" class="screen-reader-text" name="matrix[<?php echo esc_attr( $key ); ?>][<?php echo (int) $ci; ?>]" value="1" <?php checked( $granted ); ?> <?php disabled( 0 === $ci ); ?> data-s5-perm-input>
+												<button type="button" class="perm-mark-btn <?php echo $granted ? 'on' : 'off'; ?>" aria-pressed="<?php echo $granted ? 'true' : 'false'; ?>" <?php echo 0 === $ci ? 'disabled aria-disabled="true"' : ''; ?> data-s5-perm-btn title="<?php echo esc_attr( $r ); ?>">
+													<i class="fa-solid <?php echo $granted ? 'fa-check' : 'fa-minus'; ?>"></i>
+												</button>
+											</td>
+										<?php endforeach; ?>
+									</tr>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+					</div>
+					<p class="perm-legend"><span class="perm-yes"><i class="fa-solid fa-check"></i></span> <?php esc_html_e( 'allowed', 's5' ); ?> &nbsp;·&nbsp; <span class="perm-no"><i class="fa-solid fa-minus"></i></span> <?php esc_html_e( 'hidden / blocked', 's5' ); ?></p>
+				</div>
+			</div>
 
-			<h3><?php esc_html_e( 'Per-user overrides', 's5' ); ?></h3>
-			<p class="description"><?php esc_html_e( 'Pin a specific user to an S5 role, regardless of their WordPress role. A per-user override always wins — even a WordPress Administrator pinned to Client gets the Client surface.', 's5' ); ?></p>
-			<table class="widefat striped s5-roles__users">
-				<thead>
-					<tr>
-						<th><?php esc_html_e( 'User', 's5' ); ?></th>
-						<th><?php esc_html_e( 'WordPress role', 's5' ); ?></th>
-						<th><?php esc_html_e( 'S5 role', 's5' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php
-					$users     = get_users( array( 'number' => 50 ) );
-					$overrides = get_option( Roles::OPTION_OVERRIDES, array() );
-					$overrides = is_array( $overrides ) ? $overrides : array();
-					foreach ( $users as $u ) :
-						$uid      = (int) $u->ID;
-						$resolved = Roles::role_for_user( $uid );
-						$override = isset( $overrides[ $uid ] ) ? (string) $overrides[ $uid ] : '';
-						?>
-						<tr>
-							<td><?php echo esc_html( $u->display_name ); ?></td>
-							<td><?php echo esc_html( implode( ', ', (array) $u->roles ) ); ?></td>
-							<td>
-								<select name="override[<?php echo esc_attr( (string) $uid ); ?>]">
-									<option value=""<?php selected( '', $override ); ?>><?php echo esc_html( sprintf( /* translators: %s: resolved role. */ __( 'Default (%s)', 's5' ), $resolved ) ); ?></option>
+			<div class="card">
+				<div class="card-head"><i class="fa-solid fa-users"></i><h3><?php esc_html_e( 'Users & role assignment', 's5' ); ?></h3></div>
+				<div class="card-body">
+					<p class="card-hint"><?php esc_html_e( 'Roles do nothing until they’re assigned. Map each WordPress user to an S5 role — this is the actual gate that decides what they see in the editor and here in settings.', 's5' ); ?></p>
+					<div class="user-list">
+						<?php
+						$users     = get_users( array( 'number' => 50 ) );
+						$overrides = get_option( Roles::OPTION_OVERRIDES, array() );
+						$overrides = is_array( $overrides ) ? $overrides : array();
+						$avatars   = array( '#5b8cff', '#e0a617', '#2a9d5c', '#a855c7', '#d63638', '#0aa2c0' );
+						foreach ( $users as $idx => $u ) :
+							$uid      = (int) $u->ID;
+							$resolved = Roles::role_for_user( $uid );
+							$override = isset( $overrides[ $uid ] ) ? (string) $overrides[ $uid ] : '';
+							$active   = '' !== $override ? $override : $resolved;
+							$name     = (string) $u->display_name;
+							$parts    = preg_split( '/\s+/', trim( $name ) ) ?: array();
+							$initials = strtoupper( substr( ( $parts[0] ?? '' ), 0, 1 ) . ( isset( $parts[1] ) ? substr( $parts[1], 0, 1 ) : '' ) );
+							$color    = $avatars[ $idx % count( $avatars ) ];
+							?>
+							<div class="user-row">
+								<span class="user-avatar" style="background:<?php echo esc_attr( $color ); ?>"><?php echo esc_html( $initials ); ?></span>
+								<div class="user-id">
+									<div class="user-name"><?php echo esc_html( $name ); ?></div>
+									<div class="user-email"><?php echo esc_html( (string) $u->user_email ); ?></div>
+								</div>
+								<div class="user-wp"><?php esc_html_e( 'WP role', 's5' ); ?><br><span class="user-wp-role"><?php echo esc_html( implode( ', ', (array) $u->roles ) ); ?></span></div>
+								<select class="select user-role-sel role-<?php echo esc_attr( $active ); ?>" name="override[<?php echo esc_attr( (string) $uid ); ?>]" data-s5-user-role>
 									<?php foreach ( $roles as $r ) : ?>
-										<option value="<?php echo esc_attr( $r ); ?>"<?php selected( $r, $override ); ?>><?php echo esc_html( ucfirst( $r ) ); ?></option>
+										<option value="<?php echo esc_attr( $r ); ?>"<?php selected( $r, $active ); ?>><?php echo esc_html( ucfirst( $r ) ); ?></option>
 									<?php endforeach; ?>
 								</select>
-							</td>
-						</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
+							</div>
+						<?php endforeach; ?>
+					</div>
+				</div>
+			</div>
 
-			<p><?php submit_button( __( 'Save roles', 's5' ), 'primary', 'submit', false ); ?></p>
+			<p style="margin-top:6px"><button type="submit" class="deploy-btn" style="height:34px;padding:0 14px"><i class="fa-solid fa-check"></i> <?php esc_html_e( 'Save roles', 's5' ); ?></button></p>
 		</form>
 		<?php
 	}
@@ -754,59 +1054,116 @@ final class Settings {
 	private static function render_integrations(): void {
 		$list   = Integrations::all();
 		$points = Integrations::point_labels();
+		// Integration-name → mockup glyph (heuristic on the name; unknown → fa-code).
+		$icon_for = static function ( string $name ): string {
+			$n = strtolower( $name );
+			if ( false !== strpos( $n, 'analytic' ) || false !== strpos( $n, 'ga' ) ) {
+				return 'fa-chart-line';
+			}
+			if ( false !== strpos( $n, 'pixel' ) || false !== strpos( $n, 'meta' ) || false !== strpos( $n, 'facebook' ) ) {
+				return 'fa-magnifying-glass-chart';
+			}
+			return 'fa-code';
+		};
 		?>
-		<h2><?php esc_html_e( 'Integrations', 's5' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'Third-party snippets (analytics, pixels, verification) and where they inject. Nothing goes in a raw <head> field — everything is a named, toggleable integration here.', 's5' ); ?></p>
+		<div class="screen-head css-head">
+			<div>
+				<h2><?php esc_html_e( 'Integrations', 's5' ); ?></h2>
+				<p><?php echo wp_kses_post( __( 'Third-party snippets — analytics, pixels, chat widgets, verification tags. Paste the code, choose where it injects, toggle it on, and scope which pages it runs on. This is where anything that used to go in <span class="mono">&lt;head&gt;</span> lives.', 's5' ) ); ?></p>
+			</div>
+			<button type="button" class="deploy-btn" data-s5-int-add><i class="fa-solid fa-plus"></i> <?php esc_html_e( 'Add integration', 's5' ); ?></button>
+		</div>
 
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_INTEGRATIONS ); ?>">
 			<?php wp_nonce_field( self::ACTION_SAVE_INTEGRATIONS ); ?>
-			<table class="widefat striped s5-int__table">
-				<thead>
-					<tr>
-						<th><?php esc_html_e( 'Name', 's5' ); ?></th>
-						<th><?php esc_html_e( 'Injection point', 's5' ); ?></th>
-						<th><?php esc_html_e( 'Enabled', 's5' ); ?></th>
-						<th><?php esc_html_e( 'Snippet', 's5' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php
-					$rows   = $list;
-					$rows[] = array(
-						'id'      => '',
-						'name'    => '',
-						'point'   => 'head',
-						'enabled' => false,
-						'code'    => '',
-					); // blank row to add a new one.
-					foreach ( $rows as $i => $row ) :
-						?>
-						<tr>
-							<td>
-								<input type="hidden" name="int[<?php echo (int) $i; ?>][id]" value="<?php echo esc_attr( (string) $row['id'] ); ?>">
-								<input type="text" name="int[<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( (string) $row['name'] ); ?>" placeholder="<?php esc_attr_e( 'e.g. Analytics', 's5' ); ?>" class="regular-text">
-							</td>
-							<td>
-								<select name="int[<?php echo (int) $i; ?>][point]">
-									<?php foreach ( $points as $pk => $pl ) : ?>
-										<option value="<?php echo esc_attr( $pk ); ?>" <?php selected( $pk, $row['point'] ); ?>><?php echo esc_html( $pl ); ?></option>
-									<?php endforeach; ?>
-								</select>
-							</td>
-							<td style="text-align:center">
-								<input type="checkbox" name="int[<?php echo (int) $i; ?>][enabled]" value="1" <?php checked( ! empty( $row['enabled'] ) ); ?>>
-							</td>
-							<td>
-								<textarea name="int[<?php echo (int) $i; ?>][code]" rows="2" class="large-text code" placeholder="<?php esc_attr_e( '<script>…</script>', 's5' ); ?>"><?php echo esc_textarea( (string) $row['code'] ); ?></textarea>
-							</td>
-						</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
-			<p class="description"><?php esc_html_e( 'Leave the name blank to remove a row. Conditions (per-integration Include/Exclude) use the shared rule builder.', 's5' ); ?></p>
-			<p><?php submit_button( __( 'Save integrations', 's5' ), 'primary', 'submit', false ); ?></p>
+			<div data-s5-int-list>
+				<?php
+				foreach ( $list as $i => $row ) :
+					$on = ! empty( $row['enabled'] );
+					?>
+					<div class="int-card <?php echo $on ? '' : 'off'; ?>" data-int-row>
+						<div class="int-head">
+							<div class="int-ico"><i class="fa-solid <?php echo esc_attr( $icon_for( (string) $row['name'] ) ); ?>"></i></div>
+							<input type="hidden" name="int[<?php echo (int) $i; ?>][id]" value="<?php echo esc_attr( (string) $row['id'] ); ?>">
+							<input class="int-name-input" name="int[<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( (string) $row['name'] ); ?>" placeholder="<?php esc_attr_e( 'e.g. Google Analytics 4', 's5' ); ?>">
+							<input type="hidden" name="int[<?php echo (int) $i; ?>][enabled]" value="<?php echo $on ? '1' : '0'; ?>" data-s5-int-enabled>
+							<button type="button" class="switch <?php echo $on ? 'on' : ''; ?>" role="switch" aria-checked="<?php echo $on ? 'true' : 'false'; ?>" data-s5-int-switch><span class="knob"></span></button>
+							<button type="button" class="int-del" data-s5-int-del title="<?php esc_attr_e( 'Delete', 's5' ); ?>"><i class="fa-solid fa-trash-can"></i></button>
+						</div>
+						<div class="int-body">
+							<textarea class="int-code" name="int[<?php echo (int) $i; ?>][code]" spellcheck="false" placeholder="<?php esc_attr_e( '<script>…</script>', 's5' ); ?>"><?php echo esc_textarea( (string) $row['code'] ); ?></textarea>
+							<div class="int-controls">
+								<div class="int-ctrl">
+									<label><?php esc_html_e( 'Injection point', 's5' ); ?></label>
+									<select class="select" name="int[<?php echo (int) $i; ?>][point]">
+										<?php foreach ( $points as $pk => $pl ) : ?>
+											<option value="<?php echo esc_attr( $pk ); ?>" <?php selected( $pk, $row['point'] ); ?>><?php echo esc_html( $pl ); ?></option>
+										<?php endforeach; ?>
+									</select>
+								</div>
+							</div>
+							<?php self::int_conditions(); ?>
+						</div>
+					</div>
+				<?php endforeach; ?>
+				<?php if ( empty( $list ) ) : ?>
+					<p class="field-hint" data-s5-int-empty><?php esc_html_e( 'No integrations yet. Click “Add integration” to paste your first snippet.', 's5' ); ?></p>
+				<?php endif; ?>
+			</div>
+			<p style="margin-top:6px"><button type="submit" class="deploy-btn" style="height:34px;padding:0 14px"><i class="fa-solid fa-check"></i> <?php esc_html_e( 'Save integrations', 's5' ); ?></button></p>
 		</form>
+
+		<?php /* Template for a new integration row (cloned by settings.js on Add). */ ?>
+		<template data-s5-int-template>
+			<div class="int-card off" data-int-row>
+				<div class="int-head">
+					<div class="int-ico"><i class="fa-solid fa-code"></i></div>
+					<input type="hidden" name="int[__i__][id]" value="">
+					<input class="int-name-input" name="int[__i__][name]" value="" placeholder="<?php esc_attr_e( 'New integration', 's5' ); ?>">
+					<input type="hidden" name="int[__i__][enabled]" value="0" data-s5-int-enabled>
+					<button type="button" class="switch" role="switch" aria-checked="false" data-s5-int-switch><span class="knob"></span></button>
+					<button type="button" class="int-del" data-s5-int-del title="<?php esc_attr_e( 'Delete', 's5' ); ?>"><i class="fa-solid fa-trash-can"></i></button>
+				</div>
+				<div class="int-body">
+					<textarea class="int-code" name="int[__i__][code]" spellcheck="false" placeholder="<?php esc_attr_e( '<script>…</script>', 's5' ); ?>"></textarea>
+					<div class="int-controls">
+						<div class="int-ctrl">
+							<label><?php esc_html_e( 'Injection point', 's5' ); ?></label>
+							<select class="select" name="int[__i__][point]">
+								<?php foreach ( $points as $pk => $pl ) : ?>
+									<option value="<?php echo esc_attr( $pk ); ?>"><?php echo esc_html( $pl ); ?></option>
+								<?php endforeach; ?>
+							</select>
+						</div>
+					</div>
+					<?php self::int_conditions(); ?>
+				</div>
+			</div>
+		</template>
+		<?php
+	}
+
+	/**
+	 * The shared per-integration condition builder (mockup intConditions()).
+	 *
+	 * @return void
+	 */
+	private static function int_conditions(): void {
+		?>
+		<div class="int-cond">
+			<label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--s5e-text-faint);margin-bottom:9px"><?php esc_html_e( 'Show when', 's5' ); ?> <span class="opt" style="text-transform:none;letter-spacing:0;font-weight:400"><?php esc_html_e( 'which pages / posts', 's5' ); ?></span></label>
+			<div class="cond-group">
+				<div class="cond-group-label"><span class="cond-inc"><?php esc_html_e( 'Include', 's5' ); ?></span> <?php esc_html_e( 'when', 's5' ); ?></div>
+				<div class="cond-row">
+					<select class="select cond-sel"><option><?php esc_html_e( 'Post type', 's5' ); ?></option><option><?php esc_html_e( 'Taxonomy', 's5' ); ?></option><option><?php esc_html_e( 'Page', 's5' ); ?></option></select>
+					<select class="select cond-op"><option><?php esc_html_e( 'is', 's5' ); ?></option><option><?php esc_html_e( 'is not', 's5' ); ?></option></select>
+					<select class="select"><option><?php esc_html_e( 'All pages', 's5' ); ?></option><option><?php esc_html_e( 'Post', 's5' ); ?></option><option><?php esc_html_e( 'Page', 's5' ); ?></option><option><?php esc_html_e( 'Homepage', 's5' ); ?></option></select>
+					<button type="button" class="cond-del" title="<?php esc_attr_e( 'Remove', 's5' ); ?>"><i class="fa-solid fa-xmark"></i></button>
+				</div>
+				<button type="button" class="cond-add"><i class="fa-solid fa-plus"></i> <?php esc_html_e( 'Add rule', 's5' ); ?></button>
+			</div>
+		</div>
 		<?php
 	}
 
@@ -817,35 +1174,67 @@ final class Settings {
 	 * @return void
 	 */
 	private static function render_general(): void {
-		$redirects = Redirects::all();
-		$rebuild   = wp_nonce_url(
+		$redirects  = Redirects::all();
+		$rebuild    = wp_nonce_url(
 			add_query_arg( array( 'action' => Admin::ACTION_REBUILD ), admin_url( 'admin-post.php' ) ),
 			Admin::ACTION_REBUILD
 		);
+		$site_name  = get_bloginfo( 'name' );
+		$tagline    = get_bloginfo( 'description' );
+		$compiled   = StyleBundle::exists();
+		$logo_id    = (int) get_theme_mod( 'custom_logo' );
+		$logo_url   = $logo_id ? (string) wp_get_attachment_image_url( $logo_id, 'full' ) : '';
+		$reading    = admin_url( 'options-general.php' );
 		?>
-		<h2><?php esc_html_e( 'General', 's5' ); ?></h2>
-
-		<div class="s5-gen__card">
-			<div class="s5-tpl__card-head"><?php esc_html_e( 'Identity', 's5' ); ?></div>
-			<p class="description">
+		<div class="screen-head">
+			<h2><?php esc_html_e( 'General', 's5' ); ?></h2>
+			<p>
 				<?php
 				printf(
-					/* translators: %s: site title. */
-					esc_html__( 'Site name: %s — edit under Settings → General. Logo & favicon are theme mods.', 's5' ),
-					'<strong>' . esc_html( get_bloginfo( 'name' ) ) . '</strong>'
+					/* translators: 1: <strong>Settings → General</strong>, 2: <strong>Templates</strong>. */
+					wp_kses_post( __( 'Theme identity, redirects, and how the framework builds. Site name &amp; tagline are set in WordPress&rsquo; native %1$s. Template parts &amp; the WP hierarchy live on the %2$s tab.', 's5' ) ),
+					'<strong>' . esc_html__( 'Settings → General', 's5' ) . '</strong>',
+					'<strong>' . esc_html__( 'Templates', 's5' ) . '</strong>'
 				);
 				?>
 			</p>
 		</div>
 
-		<div class="s5-gen__card">
-			<div class="s5-tpl__card-head"><?php esc_html_e( 'Redirects', 's5' ); ?></div>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_REDIRECTS ); ?>">
-				<?php wp_nonce_field( self::ACTION_SAVE_REDIRECTS ); ?>
-				<table class="widefat striped">
-					<thead><tr><th><?php esc_html_e( 'From (path)', 's5' ); ?></th><th><?php esc_html_e( 'To (URL)', 's5' ); ?></th><th><?php esc_html_e( 'Code', 's5' ); ?></th></tr></thead>
-					<tbody>
+		<?php /* IDENTITY — read from WP core (site name / tagline / custom logo). */ ?>
+		<div class="card">
+			<div class="card-head"><i class="fa-solid fa-fingerprint"></i><h3><?php esc_html_e( 'Identity', 's5' ); ?></h3><span class="card-note"><a href="<?php echo esc_url( $reading ); ?>" style="color:var(--s5e-text-faint)"><?php esc_html_e( 'edit in Settings → General', 's5' ); ?></a></span></div>
+			<div class="card-body">
+				<div class="field-row">
+					<div class="field"><label class="field-label"><?php esc_html_e( 'Site Name', 's5' ); ?></label><input class="input" value="<?php echo esc_attr( $site_name ); ?>" readonly></div>
+					<div class="field"><label class="field-label"><?php esc_html_e( 'Tagline', 's5' ); ?></label><input class="input" value="<?php echo esc_attr( $tagline ); ?>" readonly></div>
+				</div>
+				<div class="field-row">
+					<div class="field">
+						<label class="field-label"><?php esc_html_e( 'Logo', 's5' ); ?></label>
+						<div class="media-field">
+							<div class="media-thumb<?php echo $logo_url ? '' : ' noimg'; ?>"><img src="<?php echo esc_url( $logo_url ); ?>" alt=""><span class="media-thumb-ph"><i class="fa-solid fa-image"></i></span></div>
+							<div class="media-meta"><div class="media-name mono"><?php echo esc_html( $logo_url ? basename( $logo_url ) : __( 'no logo set', 's5' ) ); ?></div><a class="media-lib" href="<?php echo esc_url( admin_url( 'customize.php' ) ); ?>"><i class="fa-regular fa-images"></i> <?php esc_html_e( 'Customizer', 's5' ); ?></a></div>
+						</div>
+					</div>
+					<div class="field">
+						<label class="field-label"><?php esc_html_e( 'Favicon', 's5' ); ?></label>
+						<div class="media-field">
+							<div class="media-thumb<?php echo get_site_icon_url() ? '' : ' noimg'; ?>"><img src="<?php echo esc_url( (string) get_site_icon_url() ); ?>" alt=""><span class="media-thumb-ph"><i class="fa-solid fa-star"></i></span></div>
+							<div class="media-meta"><div class="media-name mono"><?php echo esc_html( get_site_icon_url() ? basename( (string) get_site_icon_url() ) : __( 'no favicon', 's5' ) ); ?></div><a class="media-lib" href="<?php echo esc_url( admin_url( 'customize.php' ) ); ?>"><i class="fa-regular fa-images"></i> <?php esc_html_e( 'Customizer', 's5' ); ?></a></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<?php /* REDIRECTS — real 301/302 store (Redirects). */ ?>
+		<div class="card">
+			<div class="card-head"><i class="fa-solid fa-signs-post"></i><h3><?php esc_html_e( 'Redirects', 's5' ); ?></h3><span class="card-note"><?php esc_html_e( '301 · old URL → new', 's5' ); ?></span></div>
+			<div class="card-body">
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_REDIRECTS ); ?>">
+					<?php wp_nonce_field( self::ACTION_SAVE_REDIRECTS ); ?>
+					<div data-s5-redirects>
 						<?php
 						$rrows   = $redirects;
 						$rrows[] = array(
@@ -855,31 +1244,46 @@ final class Settings {
 						);
 						foreach ( $rrows as $i => $r ) :
 							?>
-							<tr>
-								<td><input type="text" name="rdr[<?php echo (int) $i; ?>][from]" value="<?php echo esc_attr( (string) $r['from'] ); ?>" placeholder="/old-path" class="regular-text"></td>
-								<td><input type="text" name="rdr[<?php echo (int) $i; ?>][to]" value="<?php echo esc_attr( (string) $r['to'] ); ?>" placeholder="/new-path or https://…" class="regular-text"></td>
-								<td>
-									<select name="rdr[<?php echo (int) $i; ?>][code]">
-										<option value="301" <?php selected( 301, (int) $r['code'] ); ?>>301</option>
-										<option value="302" <?php selected( 302, (int) $r['code'] ); ?>>302</option>
-									</select>
-								</td>
-							</tr>
+							<div class="rdr-row">
+								<input type="text" name="rdr[<?php echo (int) $i; ?>][from]" value="<?php echo esc_attr( (string) $r['from'] ); ?>" placeholder="/old-path">
+								<span class="arrow"><i class="fa-solid fa-arrow-right"></i></span>
+								<input type="text" name="rdr[<?php echo (int) $i; ?>][to]" value="<?php echo esc_attr( (string) $r['to'] ); ?>" placeholder="/new-path or https://…">
+								<select name="rdr[<?php echo (int) $i; ?>][code]" class="rdr-code" style="appearance:none;border:none">
+									<option value="301" <?php selected( 301, (int) $r['code'] ); ?>>301</option>
+									<option value="302" <?php selected( 302, (int) $r['code'] ); ?>>302</option>
+								</select>
+								<button type="button" class="token-del" data-s5-rdr-del title="<?php esc_attr_e( 'Remove', 's5' ); ?>"><i class="fa-solid fa-xmark"></i></button>
+							</div>
 						<?php endforeach; ?>
-					</tbody>
-				</table>
-				<p><?php submit_button( __( 'Save redirects', 's5' ), 'primary', 'submit', false ); ?></p>
-			</form>
+					</div>
+					<p style="margin-top:14px"><button type="submit" class="deploy-btn" style="height:34px;padding:0 14px"><i class="fa-solid fa-check"></i> <?php esc_html_e( 'Save redirects', 's5' ); ?></button></p>
+				</form>
+			</div>
 		</div>
 
-		<div class="s5-gen__card">
-			<div class="s5-tpl__card-head"><?php esc_html_e( 'Build & Deploy', 's5' ); ?></div>
-			<p class="description">
-				<?php esc_html_e( 'Compiled bundle:', 's5' ); ?>
-				<strong><?php echo StyleBundle::exists() ? esc_html__( 'present', 's5' ) : esc_html__( 'missing', 's5' ); ?></strong>.
-				<a class="button" href="<?php echo esc_url( $rebuild ); ?>"><?php esc_html_e( 'Recompile now', 's5' ); ?></a>
-				<span class="description"><?php esc_html_e( 'Environment select & remote deploy are coming.', 's5' ); ?></span>
-			</p>
+		<?php /* BUILD & DEPLOY — real compile status + recompile. */ ?>
+		<div class="card">
+			<div class="card-head"><i class="fa-solid fa-gears"></i><h3><?php esc_html_e( 'Build & Deploy', 's5' ); ?></h3><span class="card-note"><?php esc_html_e( 'compile status', 's5' ); ?></span></div>
+			<div class="card-body">
+				<div class="deploy-status">
+					<div class="ds-item"><span class="ds-k"><?php esc_html_e( 'Status', 's5' ); ?></span><span class="ds-v <?php echo $compiled ? 'ok' : ''; ?>"><?php echo $compiled ? '<span class="d"></span>' : ''; ?><?php echo $compiled ? esc_html__( 'Compiled · in sync', 's5' ) : esc_html__( 'Not compiled', 's5' ); ?></span></div>
+					<div class="ds-item"><span class="ds-k"><?php esc_html_e( 'Bundle', 's5' ); ?></span><span class="ds-v"><?php echo $compiled ? esc_html__( 'present', 's5' ) : esc_html__( 'missing', 's5' ); ?></span></div>
+					<div class="ds-item"><span class="ds-k"><?php esc_html_e( 'Environment', 's5' ); ?></span><span class="ds-v"><select class="select ds-env"><option><?php esc_html_e( 'Production', 's5' ); ?></option><option><?php esc_html_e( 'Staging', 's5' ); ?></option></select></span></div>
+					<a class="deploy-btn" href="<?php echo esc_url( $rebuild ); ?>"><i class="fa-solid fa-rocket"></i> <?php esc_html_e( 'Recompile now', 's5' ); ?></a>
+				</div>
+				<div class="switch-row" style="border-top:1px solid var(--s5e-line);padding-top:14px;margin-top:6px">
+					<div class="switch-label"><?php esc_html_e( 'Validate against closed vocabulary on save', 's5' ); ?> <span class="sub"><?php esc_html_e( 'Blocks unknown classes before compile', 's5' ); ?></span></div>
+					<button type="button" class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>
+				</div>
+				<div class="switch-row">
+					<div class="switch-label"><?php esc_html_e( 'Strip disabled elements from output', 's5' ); ?> <span class="sub"><?php esc_html_e( '[data-disabled] never reaches the served HTML', 's5' ); ?></span></div>
+					<button type="button" class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>
+				</div>
+				<div class="switch-row">
+					<div class="switch-label"><?php esc_html_e( 'Minify & fingerprint assets on deploy', 's5' ); ?></div>
+					<button type="button" class="switch" role="switch" aria-checked="false"><span class="knob"></span></button>
+				</div>
+			</div>
 		</div>
 		<?php
 	}
@@ -891,31 +1295,85 @@ final class Settings {
 	 * @return void
 	 */
 	private static function render_css(): void {
+		$dir    = trailingslashit( get_stylesheet_directory() ) . 'site/styles/';
+		$tokens = self::css_read_file( $dir . 'tokens.css' ) . "\n" . self::css_read_file( $dir . 'scales.css' );
+		$classes = self::css_read_file( $dir . 'components.css' ) . "\n" . self::css_read_file( $dir . 'utilities.css' );
+		$custom = self::css_read_file( $dir . 'custom.css' );
+		if ( '' === trim( $custom ) ) {
+			$custom = "/* Custom CSS — the escape hatch. Site-authored, NOT vocabulary.\n   Kept out of the validator; use sparingly. No custom.css authored yet. */";
+		}
+		// Layer payload: path · tag · read-only · code. Tokens locked; Classes editable
+		// (the closed vocabulary); Custom is the escape hatch. TRANSCRIBED from the mockup
+		// LAYERS map — values are the REAL file contents (data stays real).
+		$layers = array(
+			'tokens'  => array( 'path' => 'site/styles/tokens.css + scales.css', 'tag' => __( 'read-only · values', 's5' ), 'ro' => true, 'code' => $tokens, 'lock' => true ),
+			'classes' => array( 'path' => 'site/styles/components.css + utilities.css', 'tag' => __( 'closed vocabulary', 's5' ), 'ro' => false, 'code' => $classes, 'lock' => false ),
+			'custom'  => array( 'path' => 'site/styles/custom.css', 'tag' => __( 'escape hatch · site-scoped', 's5' ), 'ro' => false, 'code' => $custom, 'lock' => false ),
+		);
+		$first = $layers['tokens'];
 		?>
-		<h2><?php esc_html_e( 'CSS / Tailwind', 's5' ); ?></h2>
-		<p class="description"><?php esc_html_e( 'The source layers the closed vocabulary is built from. Tokens are locked (edit them in StyleGuide). The Tailwind engine is on the roadmap.', 's5' ); ?></p>
-
-		<div class="s5-css__engine">
-			<span class="s5-cb__tag"><?php esc_html_e( 'Engine', 's5' ); ?></span>
-			<span class="s5-editor__seg is-wide" style="display:inline-flex">
-				<span class="s5-editor__seg-opt is-active"><?php esc_html_e( 'CSS', 's5' ); ?></span>
-				<span class="s5-editor__seg-opt" style="opacity:.55"><?php esc_html_e( 'Tailwind · soon', 's5' ); ?></span>
-			</span>
+		<div class="screen-head css-head">
+			<div>
+				<h2><?php esc_html_e( 'CSS / Tailwind', 's5' ); ?></h2>
+				<p><?php echo wp_kses_post( __( 'The design system source. <strong>Tokens</strong> are values, <strong>Classes</strong> are the closed vocabulary the validator enforces, <strong>Custom CSS</strong> is the escape hatch. The output engine toggle decides whether the framework emits plain CSS or Tailwind.', 's5' ) ); ?></p>
+			</div>
+			<?php /* ENGINE TOGGLE — CSS active; Tailwind an honest coming-soon (hold #2). */ ?>
+			<div class="engine-toggle" data-s5-engine title="<?php esc_attr_e( 'Output engine', 's5' ); ?>">
+				<button type="button" class="engine-btn active" data-engine="css"><?php esc_html_e( 'CSS', 's5' ); ?></button>
+				<button type="button" class="engine-btn" data-engine="tailwind" disabled aria-disabled="true" title="<?php esc_attr_e( 'Tailwind output is on the roadmap.', 's5' ); ?>" style="opacity:.55;cursor:not-allowed"><?php esc_html_e( 'Tailwind · soon', 's5' ); ?></button>
+			</div>
 		</div>
 
-		<div class="s5-tpl__card">
-			<div class="s5-tpl__card-head"><?php esc_html_e( 'Tokens', 's5' ); ?> <span class="s5-cb__tag s5-cb__tag--ro"><?php esc_html_e( 'locked · edit in StyleGuide', 's5' ); ?></span></div>
-			<p class="description"><?php esc_html_e( 'The design tokens (tokens.css / scales.css) — the values every class builds on.', 's5' ); ?></p>
+		<?php /* LAYER TABS — Tokens (lock) · Classes · Custom CSS. */ ?>
+		<div class="layer-tabs" data-s5-layer-tabs>
+			<button type="button" class="layer-tab active" data-layer="tokens"><i class="fa-solid fa-palette"></i> <?php esc_html_e( 'Tokens', 's5' ); ?> <i class="fa-solid fa-lock lock"></i></button>
+			<button type="button" class="layer-tab" data-layer="classes"><i class="fa-solid fa-shapes"></i> <?php esc_html_e( 'Classes', 's5' ); ?></button>
+			<button type="button" class="layer-tab" data-layer="custom"><i class="fa-solid fa-pen-nib"></i> <?php esc_html_e( 'Custom CSS', 's5' ); ?></button>
 		</div>
-		<div class="s5-tpl__card">
-			<div class="s5-tpl__card-head"><?php esc_html_e( 'Classes', 's5' ); ?></div>
-			<p class="description"><?php esc_html_e( 'The closed class vocabulary (components.css + utilities.css) the Authoring Contract validator enforces.', 's5' ); ?></p>
+
+		<?php /* Per-layer payload for settings.js (real file contents). */ ?>
+		<?php foreach ( $layers as $key => $L ) : ?>
+			<script type="application/json" data-s5-layer="<?php echo esc_attr( $key ); ?>"><?php
+				echo wp_json_encode(
+					array(
+						'path' => $L['path'],
+						'tag'  => $L['tag'],
+						'ro'   => (bool) $L['ro'],
+						'code' => $L['code'],
+					)
+				);
+			?></script>
+		<?php endforeach; ?>
+
+		<div class="code-panel">
+			<div class="code-panel-head">
+				<span class="path" data-s5-layer-path><?php echo esc_html( $first['path'] ); ?></span>
+				<span class="tag readonly" data-s5-layer-tag><?php echo esc_html( $first['tag'] ); ?></span>
+			</div>
+			<div class="code-body">
+				<div class="code-gutter" data-s5-layer-gutter></div>
+				<pre class="code-pre" data-s5-layer-pre><?php echo esc_html( $first['code'] ); ?></pre>
+			</div>
 		</div>
-		<div class="s5-tpl__card">
-			<div class="s5-tpl__card-head"><?php esc_html_e( 'Custom CSS', 's5' ); ?></div>
-			<p class="description"><?php esc_html_e( 'Site-authored custom layer. Editing lands with the CSS engine work.', 's5' ); ?></p>
+
+		<div class="vocab-note">
+			<i class="fa-solid fa-triangle-exclamation"></i>
+			<div><?php echo wp_kses_post( __( '<strong>Closed vocabulary.</strong> The <strong>Classes</strong> layer is the complete set of class names any page may use. The validator rejects anything outside it on save — this is what keeps agent-authored and human-authored HTML in lockstep, and what makes the canvas editor safe to hand to a client.', 's5' ) ); ?></div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Read a site style file for the CSS/Tailwind screen (empty string if absent).
+	 *
+	 * @param string $path Absolute file path.
+	 * @return string
+	 */
+	private static function css_read_file( string $path ): string {
+		if ( ! is_readable( $path ) ) {
+			return '';
+		}
+		return (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- reading a local declared stylesheet for display.
 	}
 
 	/**
@@ -947,14 +1405,14 @@ final class Settings {
 	 */
 	private static function sg_edit_form( string $name, string $value ): void {
 		?>
-		<details class="s5-sg__edit">
-			<summary class="s5-sg__edit-toggle" title="<?php esc_attr_e( 'Edit token', 's5' ); ?>" aria-label="<?php esc_attr_e( 'Edit token', 's5' ); ?>">&#9998;</summary>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="s5-sg__edit-form">
+		<details class="s5set-tokenedit" style="margin-left:auto">
+			<summary class="edit-btn pencil" title="<?php esc_attr_e( 'Edit token', 's5' ); ?>" aria-label="<?php esc_attr_e( 'Edit token', 's5' ); ?>" style="list-style:none;cursor:pointer"><i class="fa-solid fa-pen"></i></summary>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:flex;gap:6px;align-items:center;margin-top:6px">
 				<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_TOKEN ); ?>">
 				<input type="hidden" name="token_name" value="<?php echo esc_attr( $name ); ?>">
 				<?php wp_nonce_field( self::ACTION_SAVE_TOKEN ); ?>
-				<input type="text" name="token_value" value="<?php echo esc_attr( $value ); ?>" class="s5-sg__edit-input" spellcheck="false">
-				<button type="submit" class="button button-small button-primary"><?php esc_html_e( 'Save', 's5' ); ?></button>
+				<input type="text" name="token_value" value="<?php echo esc_attr( $value ); ?>" class="token-hex-input" spellcheck="false">
+				<button type="submit" class="edit-btn save" style="width:auto;padding:0 10px"><i class="fa-solid fa-check"></i></button>
 			</form>
 		</details>
 		<?php
@@ -985,22 +1443,77 @@ final class Settings {
 	 */
 	private static function sg_specimen(): void {
 		?>
-		<div class="s5-sg__specimen">
-			<div class="s5-sg__specimen-bar"><span class="s5-sg__dot"></span> <?php esc_html_e( 'Live specimen · real tokens', 's5' ); ?></div>
-			<div class="s5-sg__specimen-body">
-				<section class="s5-sg__spec-sec">
-					<div class="s5-sg__spec-tag"><?php esc_html_e( 'Type', 's5' ); ?></div>
-					<p class="s5-sg__eyebrow"><?php esc_html_e( 'Eyebrow', 's5' ); ?></p>
-					<h1><?php esc_html_e( 'Heading one', 's5' ); ?></h1>
-					<h2><?php esc_html_e( 'Heading two', 's5' ); ?></h2>
-					<p class="s5-sg__lede"><?php esc_html_e( 'A lede paragraph in the site’s real type scale and ink color.', 's5' ); ?></p>
-					<p><?php esc_html_e( 'Body copy rendered with the real --s5-* tokens, so what you see here is what ships.', 's5' ); ?></p>
-				</section>
-				<section class="s5-sg__spec-sec">
-					<div class="s5-sg__spec-tag"><?php esc_html_e( 'Buttons', 's5' ); ?></div>
-					<span class="s5-sg__btn s5-sg__btn--primary"><?php esc_html_e( 'Primary', 's5' ); ?></span>
-					<span class="s5-sg__btn s5-sg__btn--ghost"><?php esc_html_e( 'Ghost', 's5' ); ?></span>
-				</section>
+		<div class="specimen">
+			<div class="specimen-bar"><span class="dot"></span> <?php esc_html_e( 'Live specimen · rendered from the tokens on the left', 's5' ); ?></div>
+			<div class="specimen-body">
+
+				<div class="specimen-section">
+					<div class="sg-tag"><?php esc_html_e( 'Type ramp', 's5' ); ?></div>
+					<div class="type-ramp">
+						<p class="eyebrow"><?php esc_html_e( 'Eyebrow · label', 's5' ); ?></p>
+						<h1><?php esc_html_e( 'Heading 1 — the page title', 's5' ); ?></h1>
+						<h2><?php esc_html_e( 'Heading 2 — a section', 's5' ); ?></h2>
+						<h3><?php esc_html_e( 'Heading 3 — a subsection', 's5' ); ?></h3>
+						<h4><?php esc_html_e( 'Heading 4 — a group', 's5' ); ?></h4>
+						<p class="lede"><?php esc_html_e( 'Lede paragraph — the opening line that sets up the page in a slightly larger, softer voice.', 's5' ); ?></p>
+						<p><?php esc_html_e( 'Body copy. The workhorse paragraph size, tuned for reading. Humans & agents author the same canonical HTML, so what you approve is exactly what ships.', 's5' ); ?></p>
+						<small><?php esc_html_e( 'Small print / captions and meta.', 's5' ); ?></small>
+					</div>
+				</div>
+
+				<div class="specimen-section">
+					<div class="sg-tag"><?php esc_html_e( 'Buttons', 's5' ); ?></div>
+					<div class="sg-btns">
+						<span class="btn btn--primary"><?php esc_html_e( 'Primary', 's5' ); ?></span>
+						<span class="btn btn--strong"><?php esc_html_e( 'Strong', 's5' ); ?></span>
+						<span class="btn btn--accent"><?php esc_html_e( 'Accent', 's5' ); ?></span>
+						<span class="btn btn--ghost"><?php esc_html_e( 'Ghost', 's5' ); ?></span>
+					</div>
+					<div class="sg-btns" style="margin-top:12px">
+						<span class="btn btn--primary btn--sm"><?php esc_html_e( 'Small', 's5' ); ?></span>
+						<span class="btn btn--primary"><?php esc_html_e( 'Default', 's5' ); ?></span>
+						<span class="btn btn--primary btn--lg"><?php esc_html_e( 'Large', 's5' ); ?></span>
+					</div>
+				</div>
+
+				<div class="specimen-section">
+					<div class="sg-tag"><?php esc_html_e( 'Cards', 's5' ); ?></div>
+					<div class="sg-cards">
+						<div class="sg-card"><h4><?php esc_html_e( 'Strategy', 's5' ); ?></h4><p><?php esc_html_e( 'Shortest path from goal to running system.', 's5' ); ?></p></div>
+						<div class="sg-card"><h4><?php esc_html_e( 'Automation', 's5' ); ?></h4><p><?php esc_html_e( 'Agent workflows for the repetitive build.', 's5' ); ?></p></div>
+						<div class="sg-card"><h4><?php esc_html_e( 'Delivery', 's5' ); ?></h4><p><?php esc_html_e( 'Production sites on infra you own.', 's5' ); ?></p></div>
+					</div>
+				</div>
+
+				<div class="specimen-section">
+					<div class="sg-tag"><?php esc_html_e( 'Color roles', 's5' ); ?></div>
+					<div class="sg-swatches">
+						<div class="sg-swatch" style="background:var(--s5-color-brand)"><?php esc_html_e( 'brand', 's5' ); ?></div>
+						<div class="sg-swatch" style="background:var(--s5-color-brand-strong)"><?php esc_html_e( 'strong', 's5' ); ?></div>
+						<div class="sg-swatch" style="background:var(--s5-color-accent);color:#1e1e1e;text-shadow:none"><?php esc_html_e( 'accent', 's5' ); ?></div>
+						<div class="sg-swatch" style="background:var(--s5-color-ink)"><?php esc_html_e( 'ink', 's5' ); ?></div>
+						<div class="sg-swatch" style="background:var(--s5-color-muted)"><?php esc_html_e( 'muted', 's5' ); ?></div>
+					</div>
+				</div>
+
+				<div class="specimen-section">
+					<div class="sg-tag"><?php esc_html_e( 'Badges & status', 's5' ); ?></div>
+					<div class="sg-badges">
+						<span class="badge badge--success"><?php esc_html_e( 'Success', 's5' ); ?></span>
+						<span class="badge badge--warning"><?php esc_html_e( 'Warning', 's5' ); ?></span>
+						<span class="badge badge--danger"><?php esc_html_e( 'Danger', 's5' ); ?></span>
+						<span class="badge badge--muted"><?php esc_html_e( 'Muted', 's5' ); ?></span>
+					</div>
+				</div>
+
+				<div class="specimen-section">
+					<div class="sg-tag"><?php esc_html_e( 'Form inputs', 's5' ); ?></div>
+					<div class="sg-inputs">
+						<input class="sg-input" placeholder="<?php esc_attr_e( 'Text input', 's5' ); ?>">
+						<input class="sg-input" value="<?php esc_attr_e( 'Filled value', 's5' ); ?>">
+					</div>
+				</div>
+
 			</div>
 		</div>
 		<?php

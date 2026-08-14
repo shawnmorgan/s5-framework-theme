@@ -131,7 +131,27 @@ real browser and watched the served page change.
         new text. (2) DISABLE → tree row red-lined + text DROPPED from served render. (3) CODE-LENS
         save → edit persisted after reload. GAPs logged in FIDELITY-EXCEPTIONS.md at the moment.
       Corpus restored via `wp s5 import <pages-dir>` (bare form fails — that's Item 5b).
-- [ ] Item 3: settings rebuilt to mockup  ← /compact before, /compact after
+- [x] Item 3: settings rebuilt to theme-settings-mockup.html — COMPLETE, browser-verified.
+      SCREENS order fixed → mockup order (general·templates·styleguide·components·css·integrations·roles).
+      settings.css: mockup CSS ported VERBATIM, scoped under `.s5set` (dropped the mocked WP admin
+      bar/menu — WP provides the real ones; `.s5set-page` fills the wp-admin content area). FA bundled +
+      enqueued. Settings.php render_screen → mockup `.page-head`/`.subnav`(.snav)/`.screen-wrap`(.screen);
+      each screen rebuilt to mockup markup wired to REAL data: General (identity read-only→WP core,
+      redirects, build/deploy), Templates (real parts + hierarchy GAP "Using default"), StyleGuide
+      (real tokens + inline real-token style so specimen never drifts + one-door token save), Components
+      (registry cards + mockup glyphs + REST-driven `.cb-*` builder), CSS (layer tabs+lock+engine toggle,
+      REAL file contents, Tailwind honest coming-soon), Integrations (real save form in mockup `.int-card`
+      + add-clone template), Roles (role cards + `.perm-mark-btn` mirroring hidden checkboxes + users).
+      settings.js: subnav toggle, switches, redirects, css layers, integrations add/del/switch/conditions,
+      perm toggles, user-role colouring. components.js aligned to `.cb-modal`.open + input name + slug.
+      DRIFT FOUND+FIXED in-flight: 3 PHP `?>`-leak defects (Components $glyphs, Roles $role_meta,
+      Integrations $icon_for arrays emitted as text); wp-admin heading-color bleed neutralized under .s5set;
+      cb-modal z-index raised above wp chrome. BROWSER-VERIFIED (docs/ui-fidelity/_shots/s3-*): all 7 screens
+      render to the mockup; INTERACTIONS pass — add-integration clones a .int-card, int switch mirrors hidden
+      enabled, Tailwind engine disabled (coming-soon), css layer switch, roles perm toggle flips hidden
+      checkbox, component builder opens with real REST data, token-edit save round-trips (install token file
+      changed then restored from clean repo source). GAPs logged in FIDELITY-EXCEPTIONS.md; D35 in DECISIONS.
+      [/compact AFTER item 3, before item 5 — user-ordered.]
 - [ ] Item 4: Appearance cleanup + rendered-menu gate
 - [ ] Item 5a–e: carry-over fixes
 - [ ] Acceptance A: fidelity matrix + exceptions

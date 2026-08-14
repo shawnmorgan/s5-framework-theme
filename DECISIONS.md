@@ -751,3 +751,38 @@ restored to "Fix My Store" through the one door afterward.
 
 **Note.** This is a corpus/render/storage-adjacent change (seed content), so it must ride a full
 clean gate + full dist suite before ship (per the cost-lever ruling).
+
+---
+
+**D35 — Settings UI rebuilt to theme-settings-mockup.html verbatim; plumbing adapts to the mockup.**
+Fidelity-repair Item 3. The seven Theme-Settings screens were re-skinned to the mockup's OWN
+class vocabulary + `--s5e-*` tokens + FontAwesome glyphs (CSS ported verbatim into settings.css,
+scoped under `.s5set`), and the real Phase-C data sources were wired INTO that transcribed markup.
+Per the standing order, where the existing plumbing fought the mockup's structure, the mockup won
+and the wiring adapted:
+
+- **Screen order corrected** to the mockup's sub-nav order (general · templates · styleguide ·
+  components · css · integrations · roles). The old SCREENS constant was reordered; every
+  `screen_url`/router/role-gate still resolves by key.
+- **All screens render at once; the sub-nav toggles client-side** (settings.js) like the mockup,
+  instead of one-screen-per-URL. Server-side role gating is unchanged — a screen the role cannot
+  view is neither emitted into the DOM nor reachable by `?screen=` (still 403s server-side); the
+  `?screen=` param is kept in sync via history.replaceState for deep-links.
+- **Roles matrix**: the mockup's interactive `.perm-mark-btn` cells mirror a hidden real checkbox
+  (`matrix[cap][roleIndex]`), so the visible toggle is the mockup's and the POST submit is the
+  real one. Developer column stays locked-on.
+- **StyleGuide specimen renders from the REAL `--s5-*` tokens**: an inline `<style>` sets the live
+  token values on `.s5set` (read from tokens.css/scales.css), so swatches/primitives never drift —
+  and a token edit shows immediately. Token edit keeps the existing one-door POST save
+  (`ACTION_SAVE_TOKEN` → `Styles::update_token` → `StyleBundle::build`).
+- **CSS/Tailwind**: layer tabs (Tokens+lock · Classes · Custom CSS) + engine toggle render exactly
+  as mocked, fed the REAL layer file contents; Tailwind is a visible, disabled coming-soon (never
+  removed, never faked live).
+
+GAPs (mockup drew what the data can't yet back) logged in FIDELITY-EXCEPTIONS.md: template
+hierarchy rows ("Using default", no per-template files ship); component used-count omitted (registry
+has no usage index); the WP admin bar/menu are the REAL ones (mockup mocks them). Browser-verified
+on s5-audit (docs/ui-fidelity/_shots/s3-*): all 7 screens + component-builder modal + add-integration
+clone + css layer/engine + perm toggle + token-edit save round-trip. Two PHP `?>`-leak defects found
+in-flight (Components `$glyphs`, Roles `$role_meta`, Integrations `$icon_for` arrays emitted as text)
+and fixed; a wp-admin heading-color bleed neutralized under `.s5set`.

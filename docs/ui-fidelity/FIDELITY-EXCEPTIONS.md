@@ -76,3 +76,70 @@ Logged at the moment each is hit, per the standing order.
   code editor in the same `.codeview`/`.code-head`/`.code-body`/`.code-foot` shell, so the canonical
   is actually editable and saveable. Gutter lint markers are CodeMirror's own. Behavior superset of
   the mockup, same chrome.
+
+---
+
+# Theme Settings (Item 3 — theme-settings-mockup.html)
+
+## WP admin chrome
+
+- **The WP admin bar (top) + WP admin menu (left) are the REAL ones — the mockup mocks them.**
+  theme-settings-mockup.html draws its own `.wp-adminbar` / `.wp-menu` so the reference is
+  self-contained. The build runs INSIDE wp-admin, so those mock rules are dropped and the dark
+  `.s5set-page` is positioned to fill the real wp-admin content area (right of the real menu, below
+  the real admin bar). Not a deviation — the mockup's own comment says these are mocked.
+
+## General
+
+- **Identity fields are read-only, pointing to WP core.** The mockup draws editable Site Name /
+  Tagline / Logo / Favicon. Those are WordPress core settings (Settings → General, Customizer), so
+  the card shows the real values read-only with "edit in Settings → General" / "Customizer" links,
+  rather than duplicating a second write path for core options. GAP: used the mockup's `.media-field`
+  markup; the write lives in WP core where it belongs.
+
+## Templates
+
+- **GAP: template hierarchy rows show "Using default" — this theme ships no per-template files.**
+  The mockup lists a full WP hierarchy (front-page, single, page, archive, …) with active/default
+  status. The theme renders through the canvas path and ships only template PARTS (site/parts), not
+  hierarchy template files, so each hierarchy row is rendered in the mockup's `.tpl-row` markup with
+  a "Using default" status (data unavailable). Template PARTS are real (from site/parts) with working
+  enable switches + edit pencils. Custom/CPT template registration lands with the template work.
+
+## StyleGuide
+
+- **Token editing uses the existing one-door POST save, not the mockup's inline JS edit mode.**
+  The mockup toggles a card into edit mode (pencil → editable inputs + add/save) purely client-side.
+  The build keeps the real, gated one-door token save (`ACTION_SAVE_TOKEN` → Styles::update_token →
+  StyleBundle::build): the pencil is a native `<details>` revealing the real POST form per token,
+  styled with the mockup's `.edit-btn`/`.token-hex-input`. Round-trip browser-verified. GAP: the
+  mockup's add-token / delete-token affordances are not wired (add/remove tokens is a larger,
+  validator-touching change); edit-value is real.
+- **Specimen renders from the REAL tokens (better than the mockup, not a deviation).** The mockup
+  hardcodes `--s5-*` in `:root`; the build inlines the live values read from tokens.css/scales.css so
+  the specimen never drifts and a token edit is reflected immediately.
+
+## Components
+
+- **GAP: "used on N pages" count omitted.** The mockup shows a usage count per component; the
+  registry has no usage index, so the meta row shows the component tag + variant count (both real)
+  and drops the fabricated usage number rather than invent one. Glyphs come from the mockup's own
+  COMPONENTS map by name (unknown → the mockup's `fa-cube`).
+- **Component Builder is the real REST-driven editor in the mockup's `.cb-*` full-screen shell.**
+  Props render from the real manifest; HTML/CSS/manifest are the real component files via the
+  /components REST route (CSS read-only, HTML vocabulary-validated server-side). The mockup's sample
+  pricing-card preview + Dev/Preview lens are presentational; the Dev lens (editor) is the live one.
+
+## Roles
+
+- **Permission matrix: interactive mockup buttons mirror hidden real checkboxes.** The mockup's
+  `.perm-mark-btn` toggle cells are the visible control; each mirrors a hidden `matrix[cap][role]`
+  checkbox that is the actual form submit. Real matrix + per-user overrides come from Roles::matrix /
+  role_for_user. User avatars/colors are derived (initials + a rotating palette), as the mockup does.
+
+## Integrations
+
+- **Conditions builder is presentational (Include/Exclude UI), as in the mockup.** The real save
+  persists name/point/enabled/code (Integrations::save); per-integration condition scoping is drawn
+  with the mockup's `.cond-*` builder but not yet persisted (matches the mockup, which ships it as
+  UI). Injection point + enable + code + name are real and round-trip.
