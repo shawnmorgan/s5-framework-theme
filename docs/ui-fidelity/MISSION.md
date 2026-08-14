@@ -168,7 +168,18 @@ real browser and watched the served page change.
       utilities.css → axes AVAILABLE. (d) slots zero-effective-writes → 400 s5_no_effective_slots +
       diagnostics; anchor-less insert splices before </main> not after footer, no-main → 400 s5_no_main.
       (e) style.css 0.9.0 + installed-audience description, no repo refs. D37.
-- [ ] Acceptance A: fidelity matrix + exceptions
-- [ ] Acceptance B: clicked walkthrough
-- [ ] Acceptance C: full gate + dist suite green from clean
-- [ ] Acceptance D: rebuilt zip
+- [x] Acceptance A: fidelity matrix — 18 side-by-side composites (10 canvas + 8 settings) at
+      docs/ui-fidelity/<surface>.png + FIDELITY-MATRIX.html; FIDELITY-EXCEPTIONS.md finalized.
+      Caught + fixed a specimen heading-color bleed while composing. Committed 5de5a2b.
+- [x] Acceptance B: clicked DEMO.md walkthrough — docs/demo-walkthrough/real-browser/, 10/10 real
+      Playwright clicks (incl. Save round-trip to served + disable-drops-from-served) + RESULTS.md.
+      Committed 65b7121. ACCEPTANCE.md summary written.
+- [~] Acceptance C: full clean wp-env gate + dist suite (destroy→start→all, no SKIP_DESTROY).
+      Run 1: 3 red = 2 stale assertions my intentional changes invalidated (Phase A subnav attr,
+      Style axis-absent) + 1 pre-existing test bug the clean run exposed (Disable never set a user →
+      the Phase-C-4b structure role gate refused it). All three fixed + verified on the real install
+      (D38). Run 2: 1 red = my own $NAVCOUNT-in-pass-message typo (set -u). Run 3: after moving the
+      Phase A §7 Appearance assertions into a standalone eval-file probe (multi-statement eval strings
+      were fragile under set -euo pipefail), Phase A passes ALL 9 sections in isolation; full clean
+      run in progress. Commits 31252fc, 426b891.
+- [ ] Acceptance D: rebuild dist/s5-theme.zip (the verified artifact) — after the gate is green.
