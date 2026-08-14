@@ -48,8 +48,8 @@
 	}
 
 	function section( title ) {
-		var s = el( 'div', 's5-editor__style-section' );
-		s.appendChild( el( 'div', 's5-editor__field-label', title ) );
+		var s = el( 'div', 's5e-style-section' );
+		s.appendChild( el( 'div', 'field-label', title ) );
 		return s;
 	}
 
@@ -58,14 +58,14 @@
 			return;
 		}
 		var s = section( 'Color' );
-		var grid = el( 'div', 's5-editor__swatches' );
+		var grid = el( 'div', 's5e-swatches' );
 		list.forEach( function ( t ) {
-			var sw = el( 'div', 's5-editor__swatch' );
-			var chip = el( 'span', 's5-editor__chip' );
+			var sw = el( 'div', 's5e-swatch-card' );
+			var chip = el( 'span', 's5e-chip' );
 			chip.style.background = t.value;
 			sw.appendChild( chip );
-			sw.appendChild( el( 'span', 's5-editor__swatch-name', t.name.replace( '--s5-color-', '' ) ) );
-			sw.appendChild( el( 'span', 's5-editor__swatch-val', t.value ) );
+			sw.appendChild( el( 'span', 's5e-swatch-name', t.name.replace( '--s5-color-', '' ) ) );
+			sw.appendChild( el( 'span', 's5e-swatch-val', t.value ) );
 			grid.appendChild( sw );
 		} );
 		s.appendChild( grid );
@@ -78,12 +78,12 @@
 		}
 		var s = section( 'Type scale' );
 		list.forEach( function ( t ) {
-			var row = el( 'div', 's5-editor__ramp-row' );
-			var sample = el( 'span', 's5-editor__ramp-sample', 'Ag' );
+			var row = el( 'div', 's5e-ramp-row' );
+			var sample = el( 'span', 's5e-ramp-sample', 'Ag' );
 			sample.style.fontSize = t.value;
 			row.appendChild( sample );
-			row.appendChild( el( 'span', 's5-editor__swatch-name', t.name.replace( '--s5-text-', '' ) ) );
-			row.appendChild( el( 'span', 's5-editor__swatch-val', t.value ) );
+			row.appendChild( el( 'span', 's5e-swatch-name', t.name.replace( '--s5-text-', '' ) ) );
+			row.appendChild( el( 'span', 's5e-swatch-val', t.value ) );
 			s.appendChild( row );
 		} );
 		host.appendChild( s );
@@ -95,12 +95,12 @@
 		}
 		var s = section( 'Spacing' );
 		list.forEach( function ( t ) {
-			var row = el( 'div', 's5-editor__ramp-row' );
-			var bar = el( 'span', 's5-editor__space-bar' );
+			var row = el( 'div', 's5e-ramp-row' );
+			var bar = el( 'span', 's5e-space-bar' );
 			bar.style.width = t.value;
 			row.appendChild( bar );
-			row.appendChild( el( 'span', 's5-editor__swatch-name', t.name.replace( '--s5-space-', '' ) ) );
-			row.appendChild( el( 'span', 's5-editor__swatch-val', t.value ) );
+			row.appendChild( el( 'span', 's5e-swatch-name', t.name.replace( '--s5-space-', '' ) ) );
+			row.appendChild( el( 'span', 's5e-swatch-val', t.value ) );
 			s.appendChild( row );
 		} );
 		host.appendChild( s );
@@ -111,14 +111,14 @@
 			return;
 		}
 		var s = section( 'Radius' );
-		var grid = el( 'div', 's5-editor__swatches' );
+		var grid = el( 'div', 's5e-swatches' );
 		list.forEach( function ( t ) {
-			var sw = el( 'div', 's5-editor__swatch' );
-			var box = el( 'span', 's5-editor__radius-box' );
+			var sw = el( 'div', 's5e-swatch-card' );
+			var box = el( 'span', 's5e-radius-box' );
 			box.style.borderRadius = t.value;
 			sw.appendChild( box );
-			sw.appendChild( el( 'span', 's5-editor__swatch-name', t.name.replace( '--s5-radius-', '' ) ) );
-			sw.appendChild( el( 'span', 's5-editor__swatch-val', t.value ) );
+			sw.appendChild( el( 'span', 's5e-swatch-name', t.name.replace( '--s5-radius-', '' ) ) );
+			sw.appendChild( el( 'span', 's5e-swatch-val', t.value ) );
 			grid.appendChild( sw );
 		} );
 		s.appendChild( grid );
@@ -131,9 +131,9 @@
 		}
 		var s = section( title );
 		list.forEach( function ( t ) {
-			var row = el( 'div', 's5-editor__ramp-row' );
-			row.appendChild( el( 'span', 's5-editor__swatch-name', t.name ) );
-			row.appendChild( el( 'span', 's5-editor__swatch-val', t.value ) );
+			var row = el( 'div', 's5e-ramp-row' );
+			row.appendChild( el( 'span', 's5e-swatch-name', t.name ) );
+			row.appendChild( el( 'span', 's5e-swatch-val', t.value ) );
 			s.appendChild( row );
 		} );
 		host.appendChild( s );
@@ -150,7 +150,7 @@
 
 		styleHost.innerHTML = '';
 		if ( ! total ) {
-			styleHost.appendChild( el( 'p', 's5-editor__hint', 'No design tokens declared. Add files under styles.designTokens in s5.config.json.' ) );
+			styleHost.appendChild( el( 'p', 's5e-hint', 'No design tokens declared. Add files under styles.designTokens in s5.config.json.' ) );
 			return;
 		}
 

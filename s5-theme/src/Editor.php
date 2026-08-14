@@ -337,10 +337,16 @@ final class Editor {
 
 		$base = constant( 'S5\\S5_PLUGIN_URL' ) . 'assets/editor/';
 
+		// FontAwesome 6.5.1 (Free), bundled locally under assets/vendor/fontawesome
+		// (never the CDN). The mockups' entire icon system is FontAwesome; editor.css
+		// depends on it so glyphs are present the moment the chrome paints.
+		$fa_url = constant( 'S5\\S5_PLUGIN_URL' ) . 'assets/vendor/fontawesome/css/all.min.css';
+		wp_enqueue_style( 's5-fontawesome', $fa_url, array(), '6.5.1' );
+
 		wp_enqueue_style(
 			's5-editor',
 			$base . 'editor.css',
-			array(),
+			array( 's5-fontawesome' ),
 			self::asset_ver( 'editor.css' )
 		);
 
@@ -458,6 +464,9 @@ final class Editor {
 				'components' => self::components_for_palette(),
 				'bundleUrl'  => StyleBundle::url(),
 				'styleAxes'  => ControlsManifest::ui_axes(),
+				// FontAwesome URL so overlay.js can load the glyph font INTO the preview
+				// iframe (same-origin), matching the mockup's selection-chrome icons.
+				'faUrl'      => constant( 'S5\\S5_PLUGIN_URL' ) . 'assets/vendor/fontawesome/css/all.min.css',
 			)
 		);
 	}
@@ -667,6 +676,7 @@ final class Editor {
 					'components'   => self::components_for_palette(),
 					'bundleUrl'    => StyleBundle::url(),
 					'styleAxes'    => ControlsManifest::ui_axes(),
+					'faUrl'        => constant( 'S5\\S5_PLUGIN_URL' ) . 'assets/vendor/fontawesome/css/all.min.css',
 				)
 			);
 		} else {

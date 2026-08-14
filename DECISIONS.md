@@ -696,3 +696,58 @@ verified in-browser and behind a full clean gate.
 General, CSS/Tailwind, Roles screens, and the Page Settings drawer's post-meta/SEO/JSON-LD
 write-through. The settings sub-nav routes to all seven; the remaining four render the
 "being wired" stub until built.
+
+## D33 — Fidelity-repair verification environment (2026-08-14)
+
+**Context.** Hands-on review found the shipped UI diverges from the design contract
+(canvas-mockup.html, theme-settings-mockup.html): missing FontAwesome icon system, invented
+settings UI, dead controls, browser Save broken. New mandate: implement the mockups verbatim
+and verify every interaction in a REAL browser — synthetic events and direct REST calls no
+longer count.
+
+**Decision — env.** Verification runs against a fresh **WP Studio** site `s5-audit`
+(http://localhost:8882, native PHP 8.2, admin/s5audit), created via the `studio` CLI. NOT
+wp-env (:8888 is Docker/wp-env, explicitly forbidden as a verify target), NOT the unrelated
+Studio/Local projects (manna-church, silva-management). The installed artifact is
+`dist/s5-theme.zip` — proving the distributable boots on real WordPress with no repo mount.
+The wp-env automated gate still runs and must stay green (necessary, not sufficient).
+
+**Decision — browser.** "Playwright MCP driving a real browser" is honored with the Playwright
+Node library (~/node_modules, v1.61.1) launching **headed Chromium** with a dedicated profile
+`/tmp/s5-audit-profile`. Rationale: no Playwright MCP server is connected this session; the
+available browser MCPs are claude-in-chrome (standing rule: never drive the user's Chrome) and
+chrome-devtools. Headed Playwright Chromium with an isolated profile is a real browser, real
+clicks, real screenshots, and honors the "never touch my Chrome" rule. Approved by the user.
+"Verified" = Playwright clicked it, the expected result happened, a screenshot exists.
+
+## D34 — Item 1 "Save broken in browser": root cause was non-editable corpus, not the handler (2026-08-14)
+
+**Symptom.** In the browser, clicking Save on a demo page did nothing.
+
+**Investigation (real browser, Playwright + s5-audit).** The Save handler in panel.js is correct:
+on a page WITH editable anchors it does select → stage slot edit → POST /s5/v1/pages/{id}/save
+{mode:slots} → 200 {ok:true} → persist → revision. Proven on a New S5 Page (post 27) and
+then on the demo corpus page fix-my-store (post 15).
+
+**Root cause.** The seeded DEMO CORPUS pages (site/pages/*.html) carried ZERO data-edit/
+data-node anchors — only components and starter_canonical() had them. No anchors → the overlay
+can't select anything → panel.js never stages an edit → shell.markDirty() never fires → the
+Save button stays permanently disabled. It LOOKED like "Save is broken"; it was "nothing on
+this page is editable." Same root cause as the empty structure tree.
+
+**Fixes.**
+1. Authored data-edit/data-node anchors into all 9 corpus pages (site/pages/*.html) on the real
+   editable text (eyebrow, hero title, lede, section headings, card titles/bodies, CTAs, FAQ
+   Q/A, prose). Contract-validated: `wp s5 validate` → 9 files valid, 0 warnings. (User chose
+   "author anchors into corpus source" over server-injection.)
+2. Removed a dead empty click handler on [data-s5-update] in editor.js — it was a SECOND
+   listener on the same Save button (the "looks wired, does nothing" trap). panel.js is now the
+   sole owner of the save click; editor.js only owns dirty-state enable/disable.
+
+**Proof (Playwright, real browser, served page).** fix-my-store now shows 12 editable nodes;
+edited fms-eyebrow → Save → POST /pages/15/save → 200 → canonical persisted → LOGGED-OUT
+front-end render shows the new text → 3 revisions. Screenshot 01b-save-corpus.png. Demo text
+restored to "Fix My Store" through the one door afterward.
+
+**Note.** This is a corpus/render/storage-adjacent change (seed content), so it must ride a full
+clean gate + full dist suite before ship (per the cost-lever ruling).

@@ -43,28 +43,62 @@
 		return node;
 	}
 
+	// Mockup kind→glyph map (canvas-mockup.html line 1371-1373). Unknown kinds use
+	// the mockup's generic fa-cube. The mockup's own icon system — invents nothing.
+	var KIND_ICON = {
+		heading: 'fa-heading',
+		text: 'fa-align-left',
+		rich: 'fa-align-left',
+		button: 'fa-hand-pointer',
+		link: 'fa-hand-pointer',
+		media: 'fa-image',
+		img: 'fa-image',
+		card: 'fa-square',
+		section: 'fa-table-cells-large',
+		group: 'fa-object-group',
+		collection: 'fa-border-all',
+		list: 'fa-border-all',
+		component: 'fa-cubes',
+	};
+
 	function render( nodes ) {
 		listEl.innerHTML = '';
 		rowsByNode = {};
 		if ( ! nodes || ! nodes.length ) {
-			listEl.appendChild( el( 'li', { class: 's5-editor__hint' }, 'No editable structure on this page.' ) );
+			listEl.appendChild( el( 'p', { class: 's5e-hint' }, 'No editable structure on this page.' ) );
 			return;
 		}
+		// TRANSCRIBED from canvas-mockup.html (.tnode/.trow/.twist/.tico/.tlabel/.ttype,
+		// lines 1384-1407). GAP: the server reports a FLAT depth list, not a DOM tree, so
+		// rows are rendered flat and indented by depth via nested .tchildren rails rather
+		// than reconstructing parent nesting (logged in FIDELITY-EXCEPTIONS.md). Each row
+		// keeps the mockup's markup, kind glyph, and type tag exactly.
 		nodes.forEach( function ( n ) {
-			var kind = n.kind || 'editable';
-			var li = el( 'li', {
-				class: 's5-editor__trow is-' + kind + ( n.disabled ? ' is-disabled' : '' ),
+			var kind = n.kind || n.type || 'editable';
+			var ico = KIND_ICON[ kind ] || KIND_ICON[ n.type ] || 'fa-cube';
+			var depth = n.depth || 0;
+
+			var node = el( 'div', { class: 'tnode leaf' + ( n.disabled ? ' ' : '' ) } );
+			var row = el( 'div', {
+				class: 'trow' + ( n.disabled ? ' row-disabled' : '' ),
 				'data-node': n.node,
-				'data-depth': String( n.depth || 0 ),
-				style: 'padding-left:' + ( 10 + ( n.depth || 0 ) * 12 ) + 'px',
+				'data-depth': String( depth ),
+				style: depth ? 'margin-left:' + depth * 14 + 'px' : '',
 				tabindex: '0',
 				role: 'button',
 			} );
-			li.appendChild( el( 'span', { class: 's5-editor__trow-kind', 'aria-hidden': 'true' } ) );
-			li.appendChild( el( 'span', { class: 's5-editor__trow-label' }, n.label || n.node || '(node)' ) );
+			// twist (leaf → hidden via .leaf .twist), kind icon, label + type tag.
+			row.appendChild( el( 'span', { class: 'twist' } ) );
+			var tico = el( 'span', { class: 'tico' } );
+			tico.appendChild( el( 'i', { class: 'fa-solid ' + ico } ) );
+			row.appendChild( tico );
+			var label = el( 'span', { class: 'tlabel' }, n.label || n.node || '(node)' );
 			if ( n.type ) {
-				li.appendChild( el( 'span', { class: 's5-editor__trow-type' }, n.type ) );
+				label.appendChild( el( 'span', { class: 'ttype' }, n.type ) );
 			}
+			row.appendChild( label );
+			node.appendChild( row );
+
 			var select = function () {
 				if ( ! n.node ) {
 					return;
@@ -74,26 +108,26 @@
 					w.postMessage( { s5: 's5-select-node', node: n.node }, ORIGIN );
 				}
 			};
-			li.addEventListener( 'click', select );
-			li.addEventListener( 'keydown', function ( e ) {
+			row.addEventListener( 'click', select );
+			row.addEventListener( 'keydown', function ( e ) {
 				if ( 'Enter' === e.key || ' ' === e.key ) {
 					e.preventDefault();
 					select();
 				}
 			} );
 			if ( n.node ) {
-				rowsByNode[ n.node ] = li;
+				rowsByNode[ n.node ] = row;
 			}
-			listEl.appendChild( li );
+			listEl.appendChild( node );
 		} );
 	}
 
 	function highlight( node ) {
 		Object.keys( rowsByNode ).forEach( function ( k ) {
-			rowsByNode[ k ].classList.remove( 'is-selected' );
+			rowsByNode[ k ].classList.remove( 'selected' );
 		} );
 		if ( node && rowsByNode[ node ] ) {
-			rowsByNode[ node ].classList.add( 'is-selected' );
+			rowsByNode[ node ].classList.add( 'selected' );
 		}
 	}
 

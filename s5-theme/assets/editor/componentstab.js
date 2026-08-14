@@ -61,19 +61,19 @@
 		var comps = cfg.components || [];
 		grid.innerHTML = '';
 		if ( ! comps.length ) {
-			grid.appendChild( el( 'p', { class: 's5-editor__hint' }, 'No components registered.' ) );
+			grid.appendChild( el( 'p', { class: 's5e-hint' }, 'No components registered.' ) );
 			return;
 		}
 		comps.forEach( function ( c ) {
-			var card = el( 'button', { type: 'button', class: 's5-editor__comp-card', title: c.description || c.name } );
-			var thumb = el( 'span', { class: 's5-editor__palette-thumb' } );
+			var card = el( 'button', { type: 'button', class: 'pal-item', title: c.description || c.name } );
+			var thumb = el( 'span', { class: 'media-thumb' } );
 			if ( c.preview ) {
 				thumb.appendChild( el( 'img', { src: c.preview, alt: '' } ) );
 			} else {
-				thumb.appendChild( el( 'span', { class: 's5-editor__palette-glyph' }, ( c.name || '?' ).charAt( 0 ).toUpperCase() ) );
+				thumb.appendChild( el( 'span', { class: 'pal-glyph' }, ( c.name || '?' ).charAt( 0 ).toUpperCase() ) );
 			}
 			card.appendChild( thumb );
-			card.appendChild( el( 'span', { class: 's5-editor__palette-name' }, c.name ) );
+			card.appendChild( el( 'span', { class: 'media-name' }, c.name ) );
 			card.addEventListener( 'click', function () {
 				open( c.name );
 			} );
@@ -112,7 +112,7 @@
 	function setFileButtons() {
 		root.querySelectorAll( '[data-s5-comp-file]' ).forEach( function ( b ) {
 			var f = b.getAttribute( 'data-s5-comp-file' );
-			b.classList.toggle( 'is-active', f === activeFile );
+			b.classList.toggle( 'active', f === activeFile );
 			b.onclick = function () {
 				files[ activeFile ] = readCode();
 				activeFile = f;
@@ -212,12 +212,12 @@
 	function showDiag( body ) {
 		diag.innerHTML = '';
 		if ( body && body.ok ) {
-			diag.appendChild( el( 'p', { class: 's5-editor__diag is-ok' }, 'Saved. Styles rebuilt; existing inserted instances are unchanged.' ) );
+			diag.appendChild( el( 'p', { class: 's5e-diag is-ok' }, 'Saved. Styles rebuilt; existing inserted instances are unchanged.' ) );
 			return;
 		}
 		var diags = ( body && body.diagnostics ) || [ { message: 'Save rejected.' } ];
 		diags.forEach( function ( d ) {
-			diag.appendChild( el( 'p', { class: 's5-editor__diag' }, d.message || 'Error' ) );
+			diag.appendChild( el( 'p', { class: 's5e-diag' }, d.message || 'Error' ) );
 		} );
 	}
 

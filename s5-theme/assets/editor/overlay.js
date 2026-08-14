@@ -19,18 +19,42 @@
 	var lensActive = true;
 	var hoverEl = null;
 
+	// The editor accent, brought into the preview iframe so the selection chrome
+	// matches the tool (canvas-mockup.html --s5e-accent #5b8cff).
+	var ACCENT = '#5b8cff';
+
+	// Load the bundled FontAwesome INTO the preview iframe so the selection-chrome
+	// .sel-act buttons show the mockup's exact glyphs (fa-pen/fa-copy/fa-eye-slash).
+	// Same-origin, local vendor file — passed in from the parent as cfg.faUrl.
+	( function loadFA() {
+		try {
+			var faUrl = ( parent && parent.S5Editor && parent.S5Editor.faUrl ) || '';
+			if ( faUrl && ! document.querySelector( 'link[data-s5-fa]' ) ) {
+				var lnk = document.createElement( 'link' );
+				lnk.rel = 'stylesheet';
+				lnk.href = faUrl;
+				lnk.setAttribute( 'data-s5-fa', '' );
+				document.head.appendChild( lnk );
+			}
+		} catch ( e ) { /* cross-origin parent — skip; glyphs degrade to boxes, geometry holds */ }
+	}() );
+
+	// Selection chrome TRANSCRIBED from canvas-mockup.html (.sel-outline / .sel-tag /
+	// .sel-name / .sel-tools / .sel-act, CSS lines 389-403). Injected into the iframe.
 	var style = document.createElement( 'style' );
 	style.textContent =
-		'[data-s5-hover]{outline:2px dashed #2271b1 !important;outline-offset:2px;cursor:pointer;}' +
-		'[data-s5-selected]{outline:2px solid #2271b1 !important;outline-offset:2px;}' +
+		'[data-s5-hover]{outline:2px dashed ' + ACCENT + ' !important;outline-offset:2px;cursor:pointer;}' +
+		'[data-s5-selected]{outline:2px solid ' + ACCENT + ' !important;outline-offset:2px;border-radius:3px;}' +
 		'[data-s5-dynamic]{outline:2px solid #f0c33c !important;outline-offset:2px;}' +
-		'.s5-seltag{position:absolute;z-index:2147483000;display:flex;align-items:center;gap:2px;' +
-		'background:#1b1e26;border:1px solid #2b2f3a;border-radius:6px;padding:3px;' +
-		'box-shadow:0 6px 20px rgba(0,0,0,.4);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}' +
-		'.s5-seltag button{width:26px;height:24px;border:none;background:transparent;color:#9aa0ad;' +
-		'border-radius:4px;cursor:pointer;font-size:12px;line-height:1;}' +
-		'.s5-seltag button:hover{background:#232733;color:#e6e8ee;}' +
-		'.s5-seltag .s5-seltag-name{color:#e6e8ee;font-size:11px;padding:0 6px;white-space:nowrap;}' +
+		'.s5-seltag{position:absolute;z-index:2147483000;display:flex;align-items:stretch;white-space:nowrap;' +
+		'background:' + ACCENT + ';color:#fff;border-radius:4px 4px 0 0;font-size:11px;font-weight:600;' +
+		'box-shadow:0 2px 8px rgba(0,0,0,.3);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}' +
+		'.s5-seltag .s5-seltag-name{display:flex;align-items:center;padding:3px 9px;}' +
+		'.s5-seltag .s5-seltag-tools{display:flex;align-items:stretch;border-left:1px solid rgba(255,255,255,.28);}' +
+		'.s5-seltag button{display:flex;align-items:center;justify-content:center;width:26px;background:transparent;' +
+		'border:none;color:#fff;font-size:11px;cursor:pointer;transition:.1s;}' +
+		'.s5-seltag button:hover{background:rgba(255,255,255,.18);}' +
+		'.s5-seltag button:last-child{border-radius:0 4px 0 0;}' +
 		'[data-disabled="true"]{outline:2px dashed #ff5c5c !important;outline-offset:2px;opacity:.45 !important;position:relative;}';
 	document.head.appendChild( style );
 
@@ -50,13 +74,17 @@
 		selTag = document.createElement( 'div' );
 		selTag.className = 's5-seltag';
 		selTag.setAttribute( 'data-s5-seltag', '' );
+		// Mockup .sel-tag: .sel-name + .sel-tools( edit · duplicate · disable ), FA glyphs
+		// (fa-pen / fa-copy / fa-eye-slash / fa-eye). NO trash (R7).
 		selTag.innerHTML =
 			'<span class="s5-seltag-name"></span>' +
-			'<button type="button" data-act="edit" title="Edit">✎</button>' +
-			'<button type="button" data-act="duplicate" title="Duplicate">⧉</button>' +
+			'<span class="s5-seltag-tools">' +
+			'<button type="button" data-act="edit" title="Edit"><i class="fa-solid fa-pen"></i></button>' +
+			'<button type="button" data-act="duplicate" title="Duplicate"><i class="fa-regular fa-copy"></i></button>' +
 			( isDisabled
-				? '<button type="button" data-act="enable" title="Re-enable (include in output)">✓</button>'
-				: '<button type="button" data-act="disable" title="Disable (drop from output)">⊘</button>' );
+				? '<button type="button" data-act="enable" title="Re-enable (include in output)"><i class="fa-solid fa-eye"></i></button>'
+				: '<button type="button" data-act="disable" title="Disable (drop from output)"><i class="fa-solid fa-eye-slash"></i></button>' ) +
+			'</span>';
 		selTag.querySelector( '.s5-seltag-name' ).textContent = name;
 		document.body.appendChild( selTag );
 

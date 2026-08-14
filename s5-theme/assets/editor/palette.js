@@ -58,29 +58,63 @@
 		}
 	}
 
-	/* --- render the palette --------------------------------------------- */
+	/* --- render the palette (mockup .palette-group / .palette-grid / .pal-item) ---
+	 * TRANSCRIBED from canvas-mockup.html (lines 838-877). Tiles carry a FontAwesome
+	 * glyph (the mockup's icon system) chosen from the mockup's own set by component
+	 * name; unknown names fall back to the mockup's generic cube. */
 
-	// Build one palette tile (registered component). An Embed primitive tile is
-	// added separately with insertsRaw=true so it reads as the single raw primitive.
+	// Map a component name to the FA glyph the mockup uses for it (mockup lines
+	// 844-874). Names not drawn in the mockup use fa-cube (the neutral component
+	// glyph) — a GAP handled with an existing mockup icon, never an invented one.
+	var GLYPHS = {
+		hero: 'fa-solid fa-star',
+		cta: 'fa-solid fa-bullhorn',
+		'feature grid': 'fa-solid fa-table-columns',
+		features: 'fa-solid fa-table-columns',
+		pricing: 'fa-solid fa-tags',
+		'pricing-card': 'fa-solid fa-tags',
+		'pricing card': 'fa-solid fa-tags',
+		testimonial: 'fa-solid fa-quote-left',
+		faq: 'fa-regular fa-circle-question',
+		'faq-item': 'fa-regular fa-circle-question',
+		'faq item': 'fa-regular fa-circle-question',
+		card: 'fa-regular fa-square',
+		'rich text': 'fa-solid fa-heading',
+		heading: 'fa-solid fa-heading',
+		media: 'fa-regular fa-image',
+		image: 'fa-regular fa-image',
+		button: 'fa-solid fa-hand-pointer',
+		'query loop': 'fa-solid fa-infinity',
+		'nav menu': 'fa-solid fa-bars',
+		nav: 'fa-solid fa-bars',
+		embed: 'fa-solid fa-code',
+	};
+	function glyphFor( name ) {
+		return GLYPHS[ ( name || '' ).toLowerCase() ] || 'fa-solid fa-cube';
+	}
+
+	// Build one palette tile (registered component), mockup .pal-item. The Embed
+	// primitive tile is added separately with isEmbed=true (dashed + raw badge).
 	function tile( name, description, preview, isEmbed ) {
 		var card = el( 'button', {
 			type: 'button',
-			class: 's5-editor__palette-item' + ( isEmbed ? ' is-embed' : '' ),
+			class: 'pal-item' + ( isEmbed ? ' embed' : '' ),
 			'data-s5-component': name,
 			draggable: 'true',
 			title: description || name,
 		} );
 
-		var thumb = el( 'span', { class: 's5-editor__palette-thumb' } );
+		// Prefer a registered preview thumbnail; otherwise the mockup's FA glyph.
 		if ( preview ) {
+			var thumb = el( 'span', { class: 'media-thumb' } );
 			thumb.appendChild( el( 'img', { src: preview, alt: '' } ) );
+			card.appendChild( thumb );
 		} else {
-			thumb.appendChild( el( 'span', { class: 's5-editor__palette-glyph' }, ( name || '?' ).charAt( 0 ).toUpperCase() ) );
+			card.appendChild( el( 'i', { class: glyphFor( name ) } ) );
 		}
-		card.appendChild( thumb );
-		card.appendChild( el( 'span', { class: 's5-editor__palette-name' }, name ) );
+		card.appendChild( el( 'span', {}, name ) );
 		if ( isEmbed ) {
-			card.appendChild( el( 'span', { class: 's5-editor__prim-badge' }, 'raw' ) );
+			card.appendChild( el( 'span', { class: 'prim-badge' }, 'raw' ) );
 		}
 
 		card.addEventListener( 'click', function () {
@@ -97,11 +131,11 @@
 		return card;
 	}
 
-	// A labelled group holding a grid of tiles.
+	// A labelled group holding a grid of tiles (mockup .palette-group).
 	function group( label ) {
-		var g = el( 'div', { class: 's5-editor__palette-group' } );
-		g.appendChild( el( 'div', { class: 's5-editor__palette-label' }, label ) );
-		var grid = el( 'div', { class: 's5-editor__palette-grid' } );
+		var g = el( 'div', { class: 'palette-group' } );
+		g.appendChild( el( 'div', { class: 'palette-label' }, label ) );
+		var grid = el( 'div', { class: 'palette-grid' } );
 		g.appendChild( grid );
 		g._grid = grid;
 		return g;
@@ -112,7 +146,7 @@
 		palette.innerHTML = '';
 
 		// Intro: only registered components + Embed are insertable (HANDOFF §0.2/§2.2).
-		palette.appendChild( el( 'p', { class: 's5-editor__palette-intro' },
+		palette.appendChild( el( 'p', { class: 'palette-intro' },
 			'These are the only elements you can add — every one is a registered, contract-valid component. Need something new? Ask us to register it.' ) );
 
 		// Registered components. The registry is flat, so one honest "Components"
@@ -135,7 +169,7 @@
 			} );
 			palette.appendChild( cg );
 		} else if ( ! embedComp ) {
-			palette.appendChild( el( 'p', { class: 's5-editor__hint' }, 'No components registered.' ) );
+			palette.appendChild( el( 'p', { class: 's5e-hint' }, 'No components registered.' ) );
 		}
 
 		// The single raw primitive — Embed (HANDOFF §0.2). Inserts third-party
@@ -149,8 +183,12 @@
 			true
 		) );
 		palette.appendChild( pg );
-		palette.appendChild( el( 'p', { class: 's5-editor__palette-note' },
-			'Embed is the only raw primitive — for third-party HTML/scripts we can’t wrap in a component.' ) );
+		// Mockup .palette-note carries a leading info icon.
+		var note = el( 'p', { class: 'palette-note' } );
+		note.appendChild( el( 'i', { class: 'fa-solid fa-circle-info' } ) );
+		note.appendChild( document.createTextNode(
+			' Embed is the only raw primitive — for third-party HTML/scripts we can’t wrap in a component.' ) );
+		palette.appendChild( note );
 
 		if ( hint ) {
 			hint.hidden = false;
@@ -199,7 +237,7 @@
 	function showError( body ) {
 		var diags = ( body && body.diagnostics ) || [];
 		var msg = diags.length ? ( diags[ 0 ].message || 'Insert rejected.' ) : ( body && body.message ) || 'Insert rejected.';
-		var note = el( 'p', { class: 's5-editor__diag' }, msg );
+		var note = el( 'p', { class: 's5e-diag' }, msg );
 		palette.insertBefore( note, palette.firstChild );
 		setTimeout( function () {
 			if ( note.parentNode ) {

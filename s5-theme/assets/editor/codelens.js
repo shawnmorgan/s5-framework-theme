@@ -126,14 +126,14 @@
 			return;
 		}
 		var box = document.createElement( 'div' );
-		box.className = 's5-editor__diagnostics';
+		box.className = 's5e-diagnostics';
 		var title = document.createElement( 'div' );
-		title.className = 's5-editor__field-label';
+		title.className = 'field-label';
 		title.textContent = 'Validation errors — canonical unchanged';
 		box.appendChild( title );
 		diags.forEach( function ( d ) {
 			var p = document.createElement( 'p' );
-			p.className = 's5-editor__diag';
+			p.className = 's5e-diag';
 			var permitted = d.permitted ? ' — permitted: ' + ( Array.isArray( d.permitted ) ? d.permitted.join( ', ' ) : d.permitted ) : '';
 			p.textContent = ( d.rule ? '[' + d.rule + '] ' : '' ) +
 				( d.line ? 'line ' + d.line + ': ' : '' ) +
@@ -180,14 +180,14 @@
 		var key = seg.getAttribute( 'data-s5-head-seg' );
 		var val = ( cfg.head && ( key in cfg.head ) ) ? cfg.head[ key ] : true;
 		var on = ( true === val || 1 === val || '1' === val || 'true' === val );
-		seg.querySelectorAll( '.s5-editor__seg-opt' ).forEach( function ( opt ) {
+		seg.querySelectorAll( '.seg-opt' ).forEach( function ( opt ) {
 			var isOn = ( '1' === opt.getAttribute( 'data-val' ) );
-			opt.classList.toggle( 'is-active', isOn === on );
+			opt.classList.toggle( 'active', isOn === on );
 			opt.addEventListener( 'click', function () {
-				seg.querySelectorAll( '.s5-editor__seg-opt' ).forEach( function ( o ) {
-					o.classList.remove( 'is-active' );
+				seg.querySelectorAll( '.seg-opt' ).forEach( function ( o ) {
+					o.classList.remove( 'active' );
 				} );
-				opt.classList.add( 'is-active' );
+				opt.classList.add( 'active' );
 				enableHeadSave();
 			} );
 		} );
@@ -198,7 +198,7 @@
 		if ( ! seg ) {
 			return '1';
 		}
-		var active = seg.querySelector( '.s5-editor__seg-opt.is-active' );
+		var active = seg.querySelector( '.seg-opt.active' );
 		return active ? active.getAttribute( 'data-val' ) : '1';
 	}
 

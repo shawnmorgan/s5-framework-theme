@@ -36,8 +36,9 @@
 
 	function markDirty() {
 		state.dirty = true;
+		// The dirty-dot is the mockup's .dirty-dot (inline display toggle).
 		if ( dirtyEl ) {
-			dirtyEl.hidden = false;
+			dirtyEl.style.display = 'inline-block';
 		}
 		if ( updateBtn ) {
 			updateBtn.disabled = false;
@@ -47,7 +48,7 @@
 	function markClean() {
 		state.dirty = false;
 		if ( dirtyEl ) {
-			dirtyEl.hidden = true;
+			dirtyEl.style.display = 'none';
 		}
 		if ( updateBtn ) {
 			updateBtn.disabled = true;
@@ -56,16 +57,17 @@
 
 	/* --- viewport toggle ------------------------------------------------- */
 
-	root.querySelectorAll( '.s5-editor__vp' ).forEach( function ( btn ) {
+	root.querySelectorAll( '[data-s5-viewport]' ).forEach( function ( btn ) {
 		btn.addEventListener( 'click', function () {
 			var vp = btn.getAttribute( 'data-s5-viewport' );
 			state.viewport = vp;
 			if ( stage ) {
 				stage.setAttribute( 'data-s5-viewport', vp );
 			}
-			root.querySelectorAll( '.s5-editor__vp' ).forEach( function ( b ) {
+			root.querySelectorAll( '[data-s5-viewport]' ).forEach( function ( b ) {
 				var on = b === btn;
-				b.classList.toggle( 'is-active', on );
+				// Mockup segmented-control active class is `active` (.vp-btn.active).
+				b.classList.toggle( 'active', on );
 				b.setAttribute( 'aria-pressed', on ? 'true' : 'false' );
 			} );
 		} );
@@ -78,9 +80,10 @@
 
 	function applyLens( lens ) {
 		state.lens = lens;
-		root.querySelectorAll( '.s5-editor__lens-btn' ).forEach( function ( b ) {
+		root.querySelectorAll( '[data-s5-lens]' ).forEach( function ( b ) {
 			var on = b.getAttribute( 'data-s5-lens' ) === lens;
-			b.classList.toggle( 'is-active', on );
+			// Mockup lens toggle active class is `active` (.lens-btn.active).
+			b.classList.toggle( 'active', on );
 			b.setAttribute( 'aria-pressed', on ? 'true' : 'false' );
 		} );
 		root.querySelectorAll( '[data-s5-lens-edit]' ).forEach( function ( el ) {
@@ -110,11 +113,16 @@
 			var name = btn.getAttribute( 'data-s5-ptab' );
 			root.querySelectorAll( '[data-s5-ptab]' ).forEach( function ( b ) {
 				var on = b === btn;
-				b.classList.toggle( 'is-active', on );
+				// Mockup prop-tab active class is `active` (.prop-tab.active).
+				b.classList.toggle( 'active', on );
 				b.setAttribute( 'aria-selected', on ? 'true' : 'false' );
 			} );
 			root.querySelectorAll( '[data-s5-ppanel]' ).forEach( function ( p ) {
-				p.hidden = ( p.getAttribute( 'data-s5-ppanel' ) !== name );
+				var on = ( p.getAttribute( 'data-s5-ppanel' ) === name );
+				// Mockup panel visibility is `.ptab-panel.active` — keep the `hidden`
+				// attribute in sync too so nothing is announced when off-screen.
+				p.classList.toggle( 'active', on );
+				p.hidden = ! on;
 			} );
 		} );
 	} );
@@ -126,12 +134,13 @@
 	if ( toolsBtn && toolsMenu ) {
 		toolsBtn.addEventListener( 'click', function ( e ) {
 			e.stopPropagation();
-			var open = toolsMenu.hidden;
-			toolsMenu.hidden = ! open;
-			toolsBtn.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+			// Mockup dropdown opens via the `.open` class (.tools-menu.open{display:block}).
+			var willOpen = ! toolsMenu.classList.contains( 'open' );
+			toolsMenu.classList.toggle( 'open', willOpen );
+			toolsBtn.setAttribute( 'aria-expanded', willOpen ? 'true' : 'false' );
 		} );
 		document.addEventListener( 'click', function () {
-			toolsMenu.hidden = true;
+			toolsMenu.classList.remove( 'open' );
 			toolsBtn.setAttribute( 'aria-expanded', 'false' );
 		} );
 		toolsMenu.addEventListener( 'click', function ( e ) {
@@ -147,20 +156,24 @@
 		isTemplate ? '[data-s5-drawer="template"]' : '[data-s5-drawer="page"]'
 	);
 
+	// Mockup drawer opens via `.open` (.drawer.open{transform:translateX(0)}) and the
+	// scrim via `.scrim.open` — matches canvas-mockup.html exactly.
 	function openDrawer() {
 		if ( ! activeDrawer ) {
 			return;
 		}
-		activeDrawer.classList.add( 'is-open' );
+		activeDrawer.classList.add( 'open' );
 		if ( scrim ) {
 			scrim.hidden = false;
+			scrim.classList.add( 'open' );
 		}
 	}
 	function closeDrawer() {
 		root.querySelectorAll( '[data-s5-drawer]' ).forEach( function ( d ) {
-			d.classList.remove( 'is-open' );
+			d.classList.remove( 'open' );
 		} );
 		if ( scrim ) {
+			scrim.classList.remove( 'open' );
 			scrim.hidden = true;
 		}
 	}
@@ -176,14 +189,13 @@
 		scrim.addEventListener( 'click', closeDrawer );
 	}
 
-	/* --- Update button (save pipeline wires in B2) ----------------------- */
-
-	if ( updateBtn ) {
-		updateBtn.addEventListener( 'click', function () {
-			// Phase B2 attaches the REST save here. In the shell, Update is inert
-			// and stays disabled until a real edit marks the state dirty.
-		} );
-	}
+	/* --- Update/Save button ---------------------------------------------
+	 * The click handler that flushes staged slot edits through the ONE save
+	 * door lives in panel.js (it owns the slotEdits buffer). editor.js only
+	 * owns the button's dirty-state enable/disable via markDirty/markClean.
+	 * Do NOT bind a click handler here — a second listener on the same button
+	 * is exactly the "looks wired but does nothing" trap. panel.js is the
+	 * sole owner of the save click. */
 
 	/* --- expose a tiny controller for later items ------------------------ */
 
@@ -194,12 +206,17 @@
 	var leftTitle = root.querySelector( '[data-s5-left-title]' );
 	var leftSub = root.querySelector( '[data-s5-left-sub]' );
 
+	// Mockup left-panel swap: palette hides via `.hidden`, props shows via `.active`
+	// (.props{display:none} / .props.active{display:flex}). Match it exactly so the
+	// transcribed CSS resolves without the `hidden` attribute fighting the classes.
 	function showProps( name, tag ) {
 		if ( palette ) {
 			palette.hidden = true;
+			palette.classList.add( 'hidden' );
 		}
 		if ( props ) {
 			props.hidden = false;
+			props.classList.add( 'active' );
 		}
 		if ( leftTitle ) {
 			leftTitle.textContent = cfg.i18nProperties || 'Properties';
@@ -219,9 +236,11 @@
 	function showPalette() {
 		if ( props ) {
 			props.hidden = true;
+			props.classList.remove( 'active' );
 		}
 		if ( palette ) {
 			palette.hidden = false;
+			palette.classList.remove( 'hidden' );
 		}
 		if ( leftTitle ) {
 			leftTitle.textContent = cfg.i18nAdd || 'Add';

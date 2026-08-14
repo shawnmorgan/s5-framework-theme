@@ -80,7 +80,7 @@
 	}
 
 	function note( msg ) {
-		var n = el( 'p', 's5-editor__diag', msg );
+		var n = el( 'p', 's5e-diag', msg );
 		host.insertBefore( n, host.firstChild );
 		setTimeout( function () {
 			if ( n.parentNode ) {
@@ -93,30 +93,30 @@
 	function render( currentClasses ) {
 		host.innerHTML = '';
 		if ( ! selectedNode ) {
-			host.appendChild( el( 'p', 's5-editor__hint', 'Select an element to adjust its variant, size, spacing and role color.' ) );
+			host.appendChild( el( 'p', 's5e-hint', 'Select an element to adjust its variant, size, spacing and role color.' ) );
 			return;
 		}
 		var present = ( currentClasses || '' ).split( /\s+/ );
 
 		axes.forEach( function ( axis ) {
-			var field = el( 'div', 's5-editor__field' );
-			field.appendChild( el( 'label', 's5-editor__field-label', axis.label ) );
+			var field = el( 'div', 'field' );
+			field.appendChild( el( 'label', 'field-label', axis.label ) );
 
 			if ( ! axis.available ) {
 				// Honest: no sanctioned classes for this axis in the theme's vocabulary.
-				var seg = el( 'div', 's5-editor__seg is-wide' );
-				var opt = el( 'div', 's5-editor__seg-opt is-active', '—' );
+				var seg = el( 'div', 'seg wide' );
+				var opt = el( 'div', 'seg-opt active', '—' );
 				opt.style.opacity = '0.5';
 				seg.appendChild( opt );
 				field.appendChild( seg );
-				field.appendChild( el( 'p', 's5-editor__field-hint',
+				field.appendChild( el( 'p', 'field-hint',
 					'This theme’s design system has no ' + axis.label.toLowerCase() + ' scale yet. Add one in Styleguide to enable this control.' ) );
 				host.appendChild( field );
 				return;
 			}
 
 			// Segmented control over the axis's sanctioned set (+ a "None" option).
-			var segEl = el( 'div', 's5-editor__seg is-wide' );
+			var segEl = el( 'div', 'seg wide' );
 			var chosen = '';
 			axis.classes.forEach( function ( cls ) {
 				if ( present.indexOf( cls ) !== -1 ) {
@@ -124,14 +124,14 @@
 				}
 			} );
 
-			var none = el( 'div', 's5-editor__seg-opt' + ( '' === chosen ? ' is-active' : '' ), 'None' );
+			var none = el( 'div', 'seg-opt' + ( '' === chosen ? ' is-active' : '' ), 'None' );
 			none.addEventListener( 'click', function () {
 				postSwap( axis.key, '' );
 			} );
 			segEl.appendChild( none );
 
 			axis.classes.forEach( function ( cls ) {
-				var o = el( 'div', 's5-editor__seg-opt' + ( cls === chosen ? ' is-active' : '' ), shortLabel( cls, axis.key ) );
+				var o = el( 'div', 'seg-opt' + ( cls === chosen ? ' is-active' : '' ), shortLabel( cls, axis.key ) );
 				o.title = cls;
 				o.addEventListener( 'click', function () {
 					postSwap( axis.key, cls );
@@ -144,7 +144,7 @@
 		} );
 
 		if ( ! axes.length ) {
-			host.appendChild( el( 'p', 's5-editor__hint', 'No style axes are defined for this theme yet.' ) );
+			host.appendChild( el( 'p', 's5e-hint', 'No style axes are defined for this theme yet.' ) );
 		}
 	}
 

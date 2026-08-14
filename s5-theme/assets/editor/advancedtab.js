@@ -40,8 +40,8 @@
 	}
 
 	function field( label, valueEl ) {
-		var f = el( 'div', 's5-editor__field' );
-		f.appendChild( el( 'label', 's5-editor__field-label', label ) );
+		var f = el( 'div', 'field' );
+		f.appendChild( el( 'label', 'field-label', label ) );
 		f.appendChild( valueEl );
 		return f;
 	}
@@ -56,13 +56,13 @@
 	function render( sel ) {
 		host.innerHTML = '';
 		if ( ! sel || ! sel.node ) {
-			host.appendChild( el( 'p', 's5-editor__hint', 'Select an element to see its tag, anchor, and visibility.' ) );
+			host.appendChild( el( 'p', 's5e-hint', 'Select an element to see its tag, anchor, and visibility.' ) );
 			return;
 		}
 
 		// Tag (read-only display; a validated tag-swap is a later one-door op).
 		var tag = ( sel.tag || sel.type || '' ).toString();
-		host.appendChild( field( 'HTML tag', el( 'div', 's5-editor__badge', tag || '—' ) ) );
+		host.appendChild( field( 'HTML tag', el( 'div', 's5e-badge', tag || '—' ) ) );
 
 		// Stable selection anchor.
 		var nodeVal = el( 'div' );
@@ -74,15 +74,15 @@
 
 		// Responsive visibility.
 		var vAxes = visibilityAxes();
-		var vf = el( 'div', 's5-editor__field' );
-		vf.appendChild( el( 'label', 's5-editor__field-label', 'Responsive visibility' ) );
+		var vf = el( 'div', 'field' );
+		vf.appendChild( el( 'label', 'field-label', 'Responsive visibility' ) );
 		if ( ! vAxes.length ) {
-			var seg = el( 'div', 's5-editor__seg is-wide' );
-			var opt = el( 'div', 's5-editor__seg-opt is-active', 'Always visible' );
+			var seg = el( 'div', 'seg wide' );
+			var opt = el( 'div', 'seg-opt active', 'Always visible' );
 			opt.style.opacity = '0.6';
 			seg.appendChild( opt );
 			vf.appendChild( seg );
-			vf.appendChild( el( 'p', 's5-editor__field-hint',
+			vf.appendChild( el( 'p', 'field-hint',
 				'This theme’s design system has no breakpoint-hide classes yet. Add them in Styleguide to hide elements per breakpoint (they SHIP in the DOM — distinct from Disable).' ) );
 		}
 		host.appendChild( vf );
