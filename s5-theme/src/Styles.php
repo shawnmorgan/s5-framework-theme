@@ -56,6 +56,71 @@ final class Styles {
 	}
 
 	/**
+	 * Update ONE design token's value in whichever declared token file defines it.
+	 *
+	 * Surgical: rewrites only the `--name: value;` declaration for an EXISTING token
+	 * (a token the reader already sees), leaving every other byte untouched. Refuses
+	 * an unknown token name and refuses a value carrying CSS-structural characters
+	 * (`; { } <`) so a value edit can never inject a selector, close the rule, or smuggle
+	 * markup. The token file holds custom properties only (no class selectors), so this
+	 * never affects the closed class vocabulary — only the raw values components build on.
+	 *
+	 * The caller is responsible for recompiling the bundle afterwards.
+	 *
+	 * @param string $name  Token name, e.g. `--s5-color-brand`.
+	 * @param string $value New value.
+	 * @return true|\WP_Error True on write, WP_Error on refusal/failure.
+	 */
+	public static function update_token( string $name, string $value ) {
+		$name  = trim( $name );
+		$value = trim( $value );
+
+		if ( ! preg_match( '/^--[a-z0-9-]+$/i', $name ) ) {
+			return new \WP_Error( 's5_token_name', __( 'Invalid token name.', 's5' ), array( 'status' => 400 ) );
+		}
+		if ( '' === $value || preg_match( '/[;{}<]/', $value ) ) {
+			return new \WP_Error( 's5_token_value', __( 'Invalid token value.', 's5' ), array( 'status' => 400 ) );
+		}
+
+		// The token must already exist (we only EDIT declared tokens, never add here).
+		$known = false;
+		foreach ( self::read_tokens() as $group ) {
+			foreach ( $group as $prop ) {
+				if ( $prop['name'] === $name ) {
+					$known = true;
+					break 2;
+				}
+			}
+		}
+		if ( ! $known ) {
+			return new \WP_Error( 's5_token_unknown', __( 'Unknown token — only declared tokens can be edited here.', 's5' ), array( 'status' => 404 ) );
+		}
+
+		// Find the file that declares it and rewrite just that line.
+		$pattern = '/(' . preg_quote( $name, '/' ) . '\s*:\s*)([^;]+)(;)/i';
+		foreach ( self::token_files() as $file ) {
+			if ( ! is_readable( $file ) || ! is_writable( $file ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- theme-local declared stylesheet, not an upload.
+				continue;
+			}
+			$css = (string) file_get_contents( $file ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local declared stylesheet.
+			if ( ! preg_match( $pattern, $css ) ) {
+				continue;
+			}
+			$updated = preg_replace( $pattern, '${1}' . $value . '${3}', $css, 1 );
+			if ( null === $updated || $updated === $css ) {
+				return new \WP_Error( 's5_token_noop', __( 'Token value unchanged.', 's5' ), array( 'status' => 409 ) );
+			}
+			$written = file_put_contents( $file, $updated ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- writing a local declared stylesheet.
+			if ( false === $written ) {
+				return new \WP_Error( 's5_token_write', __( 'Could not write the token file.', 's5' ), array( 'status' => 500 ) );
+			}
+			return true;
+		}
+
+		return new \WP_Error( 's5_token_file', __( 'No writable token file declares that token.', 's5' ), array( 'status' => 409 ) );
+	}
+
+	/**
 	 * Resolve the absolute paths of the declared design-token stylesheets.
 	 *
 	 * @return array<int, string>

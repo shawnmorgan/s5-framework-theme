@@ -121,3 +121,10 @@
 .s5-sg__btn--ghost { background: transparent; color: var(--s5-color-brand); box-shadow: inset 0 0 0 1px var(--s5-color-brand); }
 
 @media screen and (max-width: 960px) { .s5-sg { grid-template-columns: 1fr; } .s5-sg__specimen { position: static; } }
+
+/* StyleGuide token editor (native <details> pencil) */
+.s5-sg__edit { display: inline; }
+.s5-sg__edit-toggle { display: inline-block; cursor: pointer; color: #2271b1; font-size: 12px; list-style: none; user-select: none; }
+.s5-sg__edit-toggle::-webkit-details-marker { display: none; }
+.s5-sg__edit-form { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+.s5-sg__edit-input { width: 100%; max-width: 140px; font-family: Menlo, Consolas, monospace; font-size: 12px; }

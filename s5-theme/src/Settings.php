@@ -60,14 +60,68 @@ final class Settings {
 	);
 
 	/**
+	 * Admin-post action: save one edited design token + recompile the bundle.
+	 */
+	public const ACTION_SAVE_TOKEN = 's5_save_token';
+
+	/**
 	 * Register hooks. The menu entry itself is added by {@see Admin::register_menu}
 	 * (so the S5 menu stays the single owner of its children); this class owns the
-	 * render + asset enqueue for the settings screen only.
+	 * render + asset enqueue + token-save handler for the settings screen only.
 	 *
 	 * @return void
 	 */
 	public static function register(): void {
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
+		add_action( 'admin_post_' . self::ACTION_SAVE_TOKEN, array( self::class, 'handle_save_token' ) );
+	}
+
+	/**
+	 * Handle a token edit: update the value in the token file, then recompile the
+	 * design-system bundle so the specimen + every framework page reflect it. One door
+	 * for the write (Styles::update_token) + one compile (StyleBundle::build).
+	 *
+	 * @return void
+	 */
+	public static function handle_save_token(): void {
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_die( esc_html__( 'You do not have permission to edit tokens.', 's5' ) );
+		}
+		check_admin_referer( self::ACTION_SAVE_TOKEN );
+
+		$name  = isset( $_POST['token_name'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['token_name'] ) ) : '';
+		$value = isset( $_POST['token_value'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['token_value'] ) ) : '';
+
+		$res = Styles::update_token( $name, $value );
+		if ( is_wp_error( $res ) ) {
+			self::redirect_styleguide( 'error', $res->get_error_message() );
+		}
+
+		try {
+			StyleBundle::build();
+			self::redirect_styleguide( 'success', __( 'Token updated and design system recompiled.', 's5' ) );
+		} catch ( \Throwable $e ) {
+			self::redirect_styleguide( 'warning', __( 'Token saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Redirect back to the StyleGuide screen with a one-shot notice.
+	 *
+	 * @param string $type    'success' | 'error' | 'warning'.
+	 * @param string $message Human-readable message.
+	 * @return void
+	 */
+	private static function redirect_styleguide( string $type, string $message ): void {
+		$url = add_query_arg(
+			array(
+				's5_notice'      => rawurlencode( $type ),
+				's5_notice_text' => rawurlencode( $message ),
+			),
+			self::screen_url( 'styleguide' )
+		);
+		wp_safe_redirect( $url );
+		exit;
 	}
 
 	/**
@@ -138,6 +192,7 @@ final class Settings {
 		?>
 		<div class="wrap s5-settings" data-s5-settings>
 			<h1><?php esc_html_e( 'S5 — Theme Settings', 's5' ); ?></h1>
+			<?php self::maybe_render_oneshot_notice(); ?>
 			<div class="s5-settings__layout">
 				<nav class="s5-settings__nav" aria-label="<?php esc_attr_e( 'Theme settings screens', 's5' ); ?>">
 					<ul>
@@ -226,6 +281,7 @@ final class Settings {
 							<span class="s5-sg__chip" style="background:<?php echo esc_attr( $t['value'] ); ?>"></span>
 							<span class="s5-sg__name"><?php echo esc_html( str_replace( '--s5-color-', '', $t['name'] ) ); ?></span>
 							<span class="s5-sg__val"><?php echo esc_html( $t['value'] ); ?></span>
+							<?php self::sg_edit_form( $t['name'], $t['value'] ); ?>
 						</div>
 					<?php endforeach; ?>
 				</div>
@@ -261,11 +317,50 @@ final class Settings {
 						<?php endif; ?>
 						<span class="s5-sg__name"><?php echo esc_html( str_replace( $prefix, '', $t['name'] ) ); ?></span>
 						<span class="s5-sg__val"><?php echo esc_html( $t['value'] ); ?></span>
+						<?php self::sg_edit_form( $t['name'], $t['value'] ); ?>
 					</div>
 				<?php endforeach; ?>
 			<?php endif; ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * A per-token inline editor: a native <details> "pencil" that reveals a real POST
+	 * form to the one-door token save. No JS — the disclosure is the browser's own.
+	 *
+	 * @param string $name  Token name.
+	 * @param string $value Current value.
+	 * @return void
+	 */
+	private static function sg_edit_form( string $name, string $value ): void {
+		?>
+		<details class="s5-sg__edit">
+			<summary class="s5-sg__edit-toggle" title="<?php esc_attr_e( 'Edit token', 's5' ); ?>" aria-label="<?php esc_attr_e( 'Edit token', 's5' ); ?>">&#9998;</summary>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="s5-sg__edit-form">
+				<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_TOKEN ); ?>">
+				<input type="hidden" name="token_name" value="<?php echo esc_attr( $name ); ?>">
+				<?php wp_nonce_field( self::ACTION_SAVE_TOKEN ); ?>
+				<input type="text" name="token_value" value="<?php echo esc_attr( $value ); ?>" class="s5-sg__edit-input" spellcheck="false">
+				<button type="submit" class="button button-small button-primary"><?php esc_html_e( 'Save', 's5' ); ?></button>
+			</form>
+		</details>
+		<?php
+	}
+
+	/**
+	 * Render a one-shot success/error notice passed back via redirect query args.
+	 *
+	 * @return void
+	 */
+	private static function maybe_render_oneshot_notice(): void {
+		if ( ! isset( $_GET['s5_notice'], $_GET['s5_notice_text'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only.
+			return;
+		}
+		$type  = sanitize_key( wp_unslash( (string) $_GET['s5_notice'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only.
+		$text  = sanitize_text_field( wp_unslash( (string) $_GET['s5_notice_text'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only.
+		$class = 'success' === $type ? 'notice-success' : ( 'warning' === $type ? 'notice-warning' : 'notice-error' );
+		printf( '<div class="notice %s is-dismissible"><p>%s</p></div>', esc_attr( $class ), esc_html( $text ) );
 	}
 
 	/**
