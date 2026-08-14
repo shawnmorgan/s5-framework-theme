@@ -61,6 +61,7 @@ SUITES=(
 	"tests/acceptance-editor.sh|Step 12 — Editor MVP (WordCamp cut)"
 	"tests/acceptance-dist.sh|Distribution — the uploadable zip works with zero mounts"
 	"tests/acceptance-phase-a.sh|Phase A — WordPress integration (takeover · badge · menu · Appearance)"
+	"tests/acceptance-disable.sh|Phase B — Disable (R4): disabled ≠ hidden, dropped from render + mirror"
 )
 
 fail_count=0

@@ -24,11 +24,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 $s5_post_id = get_queried_object_id();
-// Step 5: serve the DERIVED render artifact. Fall back to canonical for pages
-// authored before the canonical/render split (or not yet compiled).
-$s5_fragment = \S5\Storage::get_render_html( (int) $s5_post_id );
-if ( '' === $s5_fragment ) {
+
+// In-editor PREVIEW (?s5-preview=1, capability-gated): serve CANONICAL, not the
+// derived render. Canonical keeps data-disabled="true" nodes that the render drops
+// (R4), so the editor can still see, outline, and RE-ENABLE a disabled element (its
+// structure-tree row stays; §2.4). The public render path is unchanged — it serves
+// the stripped render, so a disabled node is truly absent from what visitors get.
+$s5_is_preview = \S5\Editor::is_preview_request() && is_user_logged_in() && current_user_can( \S5\Editor::CAPABILITY );
+
+if ( $s5_is_preview ) {
 	$s5_fragment = \S5\Storage::get_canonical_html( (int) $s5_post_id );
+} else {
+	// Step 5: serve the DERIVED render artifact. Fall back to canonical for pages
+	// authored before the canonical/render split (or not yet compiled).
+	$s5_fragment = \S5\Storage::get_render_html( (int) $s5_post_id );
+	if ( '' === $s5_fragment ) {
+		$s5_fragment = \S5\Storage::get_canonical_html( (int) $s5_post_id );
+	}
 }
 
 // Step 8 runtime dynamic passes — ONLY for pages flagged dynamic. This is where

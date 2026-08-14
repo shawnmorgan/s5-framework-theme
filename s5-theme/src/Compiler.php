@@ -67,6 +67,20 @@ final class Compiler {
 				},
 			),
 			array(
+				// Disabled-node removal (R4 / HANDOFF §2.4): a node authored with
+				// data-disabled="true" is DROPPED from the render entirely — it is not
+				// display:none, it is absent. The attribute stays in canonical (the
+				// source of truth) so the editor can re-enable it; only the derived
+				// render (and the mirror, below) exclude it. Runs BEFORE media
+				// resolution so a disabled subtree's media is never resolved either.
+				'id'   => 'disabled-removal',
+				'desc' => 'drop data-disabled="true" subtrees from the render (R4)',
+				'fn'   => static function ( string $html, array $context, array &$map ): string {
+					unset( $context, $map );
+					return self::strip_disabled( $html );
+				},
+			),
+			array(
 				'id'   => 'media-resolution',
 				'desc' => 'resolve logical asset refs to environment attachment markup',
 				'fn'   => static function ( string $html, array $context, array &$map ): string {
@@ -74,9 +88,59 @@ final class Compiler {
 					return MediaResolver::resolve( $html, $post_id, $map );
 				},
 			),
-			// hidden-node removal — seat reserved (no data-hidden until later).
 			// component expansion — joins later.
 		);
+	}
+
+	/**
+	 * Remove every element carrying data-disabled="true" (and its subtree) from an
+	 * HTML fragment. DOM-based so a disabled ancestor takes its descendants with it.
+	 *
+	 * Used by the compile pipeline (render) and the mirror derivation, so a disabled
+	 * node reaches neither the served page nor the search/SEO mirror (R4). Canonical
+	 * is untouched — this only shapes derived output.
+	 *
+	 * @param string $html Fragment HTML.
+	 * @return string Fragment with disabled subtrees removed.
+	 */
+	public static function strip_disabled( string $html ): string {
+		if ( false === stripos( $html, 'data-disabled' ) ) {
+			return $html; // Fast path: nothing to drop, bytes untouched.
+		}
+
+		$prev = libxml_use_internal_errors( true );
+		$dom  = new \DOMDocument();
+		$dom->loadHTML(
+			'<?xml encoding="UTF-8"><html><body>' . $html . '</body></html>',
+			LIBXML_NOERROR | LIBXML_NOWARNING
+		);
+		libxml_clear_errors();
+		libxml_use_internal_errors( $prev );
+
+		$xpath = new \DOMXPath( $dom );
+		$nodes = $xpath->query( '//*[@data-disabled="true"]' );
+		if ( $nodes instanceof \DOMNodeList ) {
+			// Snapshot then remove (live NodeList mutates during removal).
+			$to_remove = array();
+			foreach ( $nodes as $n ) {
+				$to_remove[] = $n;
+			}
+			foreach ( $to_remove as $n ) {
+				if ( $n->parentNode ) {
+					$n->parentNode->removeChild( $n );
+				}
+			}
+		}
+
+		$body = $dom->getElementsByTagName( 'body' )->item( 0 );
+		if ( ! $body ) {
+			return $html;
+		}
+		$out = '';
+		foreach ( $body->childNodes as $child ) {
+			$out .= $dom->saveHTML( $child );
+		}
+		return $out;
 	}
 
 	/**
@@ -132,6 +196,23 @@ final class Compiler {
 		$body = $dom->getElementsByTagName( 'body' )->item( 0 );
 		if ( null === $body ) {
 			return '';
+		}
+
+		// 0. Remove disabled subtrees (R4): a data-disabled="true" node is absent
+		//    from the mirror just as it is from the render — before the data-*
+		//    strip below erases the marker.
+		$xpath_dis = new \DOMXPath( $dom );
+		$dis_nodes = $xpath_dis->query( '//*[@data-disabled="true"]' );
+		if ( $dis_nodes instanceof \DOMNodeList ) {
+			$dis = array();
+			foreach ( $dis_nodes as $n ) {
+				$dis[] = $n;
+			}
+			foreach ( $dis as $n ) {
+				if ( $n->parentNode ) {
+					$n->parentNode->removeChild( $n );
+				}
+			}
 		}
 
 		// 1. Remove <script>, <style>, and <svg> subtrees entirely.

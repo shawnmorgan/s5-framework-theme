@@ -164,8 +164,55 @@
 				shell.showProps( msg.label || msg.type || 'Element', msg.node || '' );
 			}
 			renderFields( msg );
+		} else if ( 's5-focus-props' === msg.s5 ) {
+			// Selection-chrome pencil: make sure the Content tab is shown.
+			var contentTab = root.querySelector( '[data-s5-ptab="content"]' );
+			if ( contentTab ) {
+				contentTab.click();
+			}
+		} else if ( 's5-disable' === msg.s5 && msg.node ) {
+			// Selection-chrome disable (R4): set data-disabled through the ONE door
+			// (mode:disable). The compiler drops the subtree from render + mirror; it
+			// stays in canonical so it can be re-enabled.
+			doDisable( msg.node, true );
+		} else if ( 's5-duplicate' === msg.s5 && msg.node ) {
+			// Duplicate is a re-keying server op (like insert); it lands with the
+			// component/duplicate work. Surface it honestly rather than no-op silently.
+			showDiagnostics( [ { message: 'Duplicate is coming with the component tools — use the palette to insert another, or Code lens to copy the block.' } ] );
 		}
 	} );
+
+	/* --- disable a node through the one door (mode:disable) --------------- */
+
+	function doDisable( node, disabled ) {
+		if ( ! cfg.saveUrl || ! node ) {
+			return;
+		}
+		fetch( cfg.saveUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': cfg.nonce || '',
+			},
+			body: JSON.stringify( { mode: 'disable', node: node, disabled: !! disabled } ),
+		} )
+			.then( function ( r ) {
+				return r.json().then( function ( body ) {
+					return { status: r.status, body: body };
+				} );
+			} )
+			.then( function ( res ) {
+				if ( res.body && res.body.ok ) {
+					reloadPreview();
+				} else {
+					showDiagnostics( res.body && res.body.diagnostics );
+				}
+			} )
+			.catch( function () {
+				showDiagnostics( [ { message: 'Network error disabling the element.' } ] );
+			} );
+	}
 
 	// Keep the overlay's lens state in sync when the user toggles Edit/Code.
 	root.querySelectorAll( '[data-s5-lens]' ).forEach( function ( btn ) {

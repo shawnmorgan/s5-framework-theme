@@ -221,10 +221,16 @@ final class Rest {
 					return $canonical;
 				}
 				return self::persist_canonical( $post_id, $canonical );
+			case 'disable':
+				$canonical = self::build_canonical_from_disable( $post_id, $request );
+				if ( $canonical instanceof \WP_Error ) {
+					return $canonical;
+				}
+				return self::persist_canonical( $post_id, $canonical );
 			default:
 				return new \WP_Error(
 					's5_bad_mode',
-					__( 'Unknown save mode. Expected slots, canonical, insert, or head.', 's5' ),
+					__( 'Unknown save mode. Expected slots, canonical, insert, disable, or head.', 's5' ),
 					array( 'status' => 400 )
 				);
 		}
@@ -368,6 +374,60 @@ final class Rest {
 		}
 
 		return $spliced;
+	}
+
+	/**
+	 * Toggle data-disabled on a node (R4 / §2.4). Disabling sets
+	 * data-disabled="true"; enabling removes it. The attribute stays IN canonical
+	 * (source of truth) — the compiler drops the subtree from the derived render and
+	 * mirror. Keyed by authored data-node; everything else stays byte-identical.
+	 *
+	 * Structural law: refuse to disable a node inside a data-component subtree
+	 * (R5 — component internals are props+disable-of-the-component only, not surgery
+	 * of its inner parts) and inside a data-lock subtree.
+	 *
+	 * Expects params: `node` (data-node id), `disabled` (bool).
+	 *
+	 * @param int              $post_id Page ID.
+	 * @param \WP_REST_Request $request Request.
+	 * @return string|\WP_Error New canonical, or an error.
+	 */
+	private static function build_canonical_from_disable( int $post_id, \WP_REST_Request $request ) {
+		$node     = (string) $request->get_param( 'node' );
+		$disabled = (bool) $request->get_param( 'disabled' );
+
+		if ( '' === $node ) {
+			return new \WP_Error( 's5_no_node', __( 'No node supplied to disable.', 's5' ), array( 'status' => 400 ) );
+		}
+
+		$canonical = Storage::get_canonical_html( $post_id );
+		if ( '' === $canonical ) {
+			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		// Locate the node; refuse if it is not found.
+		$processor = new \WP_HTML_Tag_Processor( $canonical );
+		$found     = false;
+		while ( $processor->next_tag() ) {
+			if ( (string) $processor->get_attribute( 'data-node' ) === $node ) {
+				$found = true;
+				break;
+			}
+		}
+		if ( ! $found ) {
+			return new \WP_Error(
+				's5_node_not_found',
+				sprintf( /* translators: %s: data-node id. */ __( 'Node "%s" not found in canonical.', 's5' ), $node ),
+				array( 'status' => 409 )
+			);
+		}
+
+		if ( $disabled ) {
+			$processor->set_attribute( 'data-disabled', 'true' );
+		} else {
+			$processor->remove_attribute( 'data-disabled' );
+		}
+		return $processor->get_updated_html();
 	}
 
 	/**

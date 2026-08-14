@@ -23,8 +23,75 @@
 	style.textContent =
 		'[data-s5-hover]{outline:2px dashed #2271b1 !important;outline-offset:2px;cursor:pointer;}' +
 		'[data-s5-selected]{outline:2px solid #2271b1 !important;outline-offset:2px;}' +
-		'[data-s5-dynamic]{outline:2px solid #f0c33c !important;outline-offset:2px;}';
+		'[data-s5-dynamic]{outline:2px solid #f0c33c !important;outline-offset:2px;}' +
+		'.s5-seltag{position:absolute;z-index:2147483000;display:flex;align-items:center;gap:2px;' +
+		'background:#1b1e26;border:1px solid #2b2f3a;border-radius:6px;padding:3px;' +
+		'box-shadow:0 6px 20px rgba(0,0,0,.4);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}' +
+		'.s5-seltag button{width:26px;height:24px;border:none;background:transparent;color:#9aa0ad;' +
+		'border-radius:4px;cursor:pointer;font-size:12px;line-height:1;}' +
+		'.s5-seltag button:hover{background:#232733;color:#e6e8ee;}' +
+		'.s5-seltag .s5-seltag-name{color:#e6e8ee;font-size:11px;padding:0 6px;white-space:nowrap;}' +
+		'[data-disabled="true"]{outline:2px dashed #ff5c5c !important;outline-offset:2px;opacity:.45 !important;position:relative;}';
 	document.head.appendChild( style );
+
+	// The floating selection toolbar: edit · duplicate · disable (NO trash — R7).
+	var selTag = null;
+	function removeSelTag() {
+		if ( selTag && selTag.parentNode ) {
+			selTag.parentNode.removeChild( selTag );
+		}
+		selTag = null;
+	}
+	function showSelTag( el ) {
+		removeSelTag();
+		var node = el.getAttribute( 'data-node' ) || '';
+		var name = el.getAttribute( 'data-s5-component' ) || el.getAttribute( 'data-edit' ) || el.tagName.toLowerCase();
+		var isDisabled = 'true' === el.getAttribute( 'data-disabled' );
+		selTag = document.createElement( 'div' );
+		selTag.className = 's5-seltag';
+		selTag.setAttribute( 'data-s5-seltag', '' );
+		selTag.innerHTML =
+			'<span class="s5-seltag-name"></span>' +
+			'<button type="button" data-act="edit" title="Edit">✎</button>' +
+			'<button type="button" data-act="duplicate" title="Duplicate">⧉</button>' +
+			( isDisabled
+				? '<button type="button" data-act="enable" title="Re-enable (include in output)">✓</button>'
+				: '<button type="button" data-act="disable" title="Disable (drop from output)">⊘</button>' );
+		selTag.querySelector( '.s5-seltag-name' ).textContent = name;
+		document.body.appendChild( selTag );
+
+		// Position above the element's top-left, clamped into view.
+		var r = el.getBoundingClientRect();
+		var top = window.scrollY + r.top - 32;
+		if ( top < window.scrollY + 2 ) {
+			top = window.scrollY + r.top + 4;
+		}
+		selTag.style.top = top + 'px';
+		selTag.style.left = ( window.scrollX + r.left ) + 'px';
+
+		selTag.querySelector( '[data-act="edit"]' ).addEventListener( 'click', function ( ev ) {
+			ev.stopPropagation();
+			parent.postMessage( { s5: 's5-focus-props', node: node }, ORIGIN );
+		} );
+		selTag.querySelector( '[data-act="duplicate"]' ).addEventListener( 'click', function ( ev ) {
+			ev.stopPropagation();
+			parent.postMessage( { s5: 's5-duplicate', node: node }, ORIGIN );
+		} );
+		var disBtn = selTag.querySelector( '[data-act="disable"]' );
+		if ( disBtn ) {
+			disBtn.addEventListener( 'click', function ( ev ) {
+				ev.stopPropagation();
+				parent.postMessage( { s5: 's5-disable', node: node, disabled: true }, ORIGIN );
+			} );
+		}
+		var enBtn = selTag.querySelector( '[data-act="enable"]' );
+		if ( enBtn ) {
+			enBtn.addEventListener( 'click', function ( ev ) {
+				ev.stopPropagation();
+				parent.postMessage( { s5: 's5-disable', node: node, disabled: false }, ORIGIN );
+			} );
+		}
+	}
 
 	function editableAncestor( el ) {
 		while ( el && el !== document.body ) {
@@ -88,6 +155,7 @@
 			n.removeAttribute( 'data-s5-selected' );
 		} );
 		el.setAttribute( 'data-s5-selected', '' );
+		showSelTag( el );
 
 		parent.postMessage(
 			{
@@ -115,6 +183,7 @@
 			lensActive = 'edit' === msg.lens;
 			if ( ! lensActive ) {
 				clearHover();
+				removeSelTag();
 			}
 			return;
 		}
@@ -259,6 +328,7 @@
 				kind: kind,
 				label: nodeLabel( el ),
 				depth: depth,
+				disabled: 'true' === el.getAttribute( 'data-disabled' ),
 			};
 		} );
 		parent.postMessage( { s5: 's5-structure', nodes: list }, ORIGIN );
