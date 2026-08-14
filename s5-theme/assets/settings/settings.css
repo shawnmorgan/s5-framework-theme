@@ -48,7 +48,12 @@
 /* wp-admin neutralization — wp-admin colors h2/h3/h4/p/label/a and form controls;
    re-assert the app's own colors inside .s5set so the dark chrome reads correctly.
    Scoped strictly to .s5set, so nothing leaks to the rest of wp-admin. */
+/* The StyleGuide specimen + component-builder preview are intentionally LIGHT
+   (real --s5- tokens); the dark-chrome neutralization must not bleed into them. */
 .s5set h1,.s5set h2,.s5set h3,.s5set h4{color:var(--s5e-text);}
+.s5set .specimen h1,.s5set .specimen h2,.s5set .specimen h3,.s5set .specimen h4,
+.s5set .specimen p,.s5set .specimen small,.s5set .cb-preview-stage *{color:inherit;}
+.s5set .specimen h1,.s5set .specimen h2,.s5set .specimen h3,.s5set .specimen h4{color:var(--s5-color-ink);}
 .s5set p,.s5set label,.s5set span,.s5set div,.s5set td,.s5set th{color:inherit;}
 .s5set a{color:var(--s5e-accent);text-decoration:none;}
 .s5set .card-head h3,.s5set .role-top h3,.s5set .comp-name,.s5set .tpl-name,.s5set .cb-props-head{color:var(--s5e-text);}
