@@ -172,6 +172,27 @@ final class Settings {
 				(string) filemtime( $css )
 			);
 		}
+
+		// Components screen: the Component Builder driver (only on the components screen).
+		$screen = isset( $_GET['screen'] ) ? sanitize_key( wp_unslash( (string) $_GET['screen'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen router.
+		$js     = S5_PLUGIN_DIR . 'assets/settings/components.js';
+		if ( 'components' === $screen && is_readable( $js ) ) {
+			wp_enqueue_script(
+				's5-settings-components',
+				get_stylesheet_directory_uri() . '/assets/settings/components.js',
+				array(),
+				(string) filemtime( $js ),
+				true
+			);
+			wp_localize_script(
+				's5-settings-components',
+				'S5Settings',
+				array(
+					'restBase' => rest_url( Rest::NAMESPACE . '/components/' ),
+					'nonce'    => wp_create_nonce( 'wp_rest' ),
+				)
+			);
+		}
 	}
 
 	/**
@@ -229,6 +250,9 @@ final class Settings {
 				return;
 			case 'templates':
 				self::render_templates();
+				return;
+			case 'components':
+				self::render_components();
 				return;
 			default:
 				printf( '<h2>%s</h2>', esc_html( self::SCREENS[ $screen ] ?? '' ) );
@@ -370,6 +394,85 @@ final class Settings {
 			<p class="description">
 				<?php esc_html_e( 'The theme currently serves pages through the canvas render path and its parts. Hierarchy templates (front-page, single, archive, 404 …) register here as they are authored — each will open in the canvas in template mode, with its own display rules & conditions.', 's5' ); ?>
 			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Components screen (HANDOFF §3.5): a grid of the registered components + a
+	 * Component Builder modal (Props / HTML / Logic editable, HTML vocabulary-validated,
+	 * CSS READ-ONLY). Cards come from the real registry; the builder reads/writes through
+	 * the existing /components REST route (which now enforces CSS-read-only + HTML
+	 * validation server-side).
+	 *
+	 * @return void
+	 */
+	private static function render_components(): void {
+		$names = array();
+		try {
+			$names = ComponentRegistry::list();
+		} catch ( \RuntimeException $e ) {
+			$names = array();
+		}
+		?>
+		<h2><?php esc_html_e( 'Components', 's5' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'The registered component library. Open a component to edit its props, HTML, and logic — HTML is validated against the closed class vocabulary, and CSS is read-only (edit it in CSS / Tailwind).', 's5' ); ?></p>
+
+		<div class="s5-comp__grid" data-s5-comp-grid>
+			<?php foreach ( $names as $name ) : ?>
+				<?php
+				try {
+					$c = ComponentRegistry::load( $name );
+				} catch ( \RuntimeException $e ) {
+					continue;
+				}
+				?>
+				<div class="s5-comp__card">
+					<div class="s5-comp__card-glyph"><?php echo esc_html( strtoupper( substr( $name, 0, 1 ) ) ); ?></div>
+					<div class="s5-comp__card-main">
+						<div class="s5-comp__card-name"><?php echo esc_html( $name ); ?></div>
+						<div class="s5-comp__card-desc"><?php echo esc_html( (string) $c['description'] ); ?></div>
+						<div class="s5-comp__card-meta">
+							<span>&lt;<?php echo esc_html( $name ); ?>&gt;</span>
+							<span>v<?php echo esc_html( (string) $c['version'] ); ?></span>
+						</div>
+					</div>
+					<button type="button" class="button button-small s5-comp__open" data-s5-comp-open="<?php echo esc_attr( $name ); ?>">
+						<?php esc_html_e( 'Edit', 's5' ); ?>
+					</button>
+				</div>
+			<?php endforeach; ?>
+			<?php if ( empty( $names ) ) : ?>
+				<p class="description"><?php esc_html_e( 'No components registered.', 's5' ); ?></p>
+			<?php endif; ?>
+		</div>
+
+		<?php /* Component Builder modal — filled + driven by components.js via the REST route. */ ?>
+		<div class="s5-cb" data-s5-cb hidden>
+			<div class="s5-cb__dialog" role="dialog" aria-modal="true" aria-label="<?php esc_attr_e( 'Component Builder', 's5' ); ?>">
+				<div class="s5-cb__head">
+					<button type="button" class="button-link s5-cb__back" data-s5-cb-close>&larr; <?php esc_html_e( 'All components', 's5' ); ?></button>
+					<span class="s5-cb__name" data-s5-cb-name></span>
+				</div>
+				<div class="s5-cb__body">
+					<div class="s5-cb__col">
+						<div class="s5-cb__panel-head"><?php esc_html_e( 'Props', 's5' ); ?></div>
+						<div class="s5-cb__props" data-s5-cb-props></div>
+						<div class="s5-cb__panel-head"><?php esc_html_e( 'HTML', 's5' ); ?> <span class="s5-cb__tag"><?php esc_html_e( 'vocabulary-validated', 's5' ); ?></span></div>
+						<textarea class="s5-cb__code" data-s5-cb-html spellcheck="false"></textarea>
+					</div>
+					<div class="s5-cb__col">
+						<div class="s5-cb__panel-head"><?php esc_html_e( 'Component CSS', 's5' ); ?> <span class="s5-cb__tag s5-cb__tag--ro"><?php esc_html_e( 'read-only · from components.css', 's5' ); ?></span></div>
+						<textarea class="s5-cb__code s5-cb__code--ro" data-s5-cb-css readonly spellcheck="false"></textarea>
+						<div class="s5-cb__panel-head"><?php esc_html_e( 'Logic (manifest)', 's5' ); ?></div>
+						<textarea class="s5-cb__code" data-s5-cb-manifest spellcheck="false"></textarea>
+					</div>
+				</div>
+				<div class="s5-cb__foot">
+					<div class="s5-cb__diagnostics" data-s5-cb-diagnostics></div>
+					<button type="button" class="button button-primary s5-cb__save" data-s5-cb-save><?php esc_html_e( 'Save component', 's5' ); ?></button>
+				</div>
+			</div>
 		</div>
 		<?php
 	}

@@ -225,14 +225,43 @@ final class Rest {
 		$name = (string) $request['name'];
 		$html = (string) $request->get_param( 'html' );
 		$man  = (string) $request->get_param( 'manifest' );
-		$css  = (string) $request->get_param( 'css' );
 
 		if ( ! ComponentRegistry::is_registered( $name ) ) {
 			return new \WP_Error( 's5_unknown_component', __( 'Unknown component.', 's5' ), array( 'status' => 404 ) );
 		}
 
+		// R5 / HANDOFF §0.5 + §3.5: component CSS is READ-ONLY here. The client cannot
+		// write style.css through this endpoint (it is edited only in CSS/Tailwind, which
+		// edits the vocabulary itself) — hide AND block. We always re-use the CSS already
+		// on disk and ignore any css payload.
 		try {
-			ComponentRegistry::save_component( $name, $html, $man, $css );
+			$existing_css = (string) ( ComponentRegistry::load( $name )['css'] ?? '' );
+		} catch ( \RuntimeException $e ) {
+			return new \WP_Error( 's5_component_load', $e->getMessage(), array( 'status' => 500 ) );
+		}
+
+		// The component HTML is vocabulary-validated exactly like a page's canonical:
+		// an ERROR rejects the save (loud), and the files are left unchanged.
+		try {
+			$repo  = Cli\ValidateCommand::repo_root();
+			$vocab = Stylesheet::load_vocabulary( $repo );
+			$vocab = isset( $vocab['classes'] ) && is_array( $vocab['classes'] ) ? $vocab['classes'] : array();
+		} catch ( \RuntimeException $e ) {
+			return new \WP_Error( 's5_vocab', $e->getMessage(), array( 'status' => 500 ) );
+		}
+		$findings = Validator::validate( $html, $vocab, 'component:' . $name );
+		if ( Validator::has_errors( $findings ) ) {
+			return new \WP_REST_Response(
+				array(
+					'ok'          => false,
+					'diagnostics' => self::shape_diagnostics( $findings ),
+				),
+				422
+			);
+		}
+
+		try {
+			ComponentRegistry::save_component( $name, $html, $man, $existing_css );
 			StyleBundle::build();
 		} catch ( \RuntimeException $e ) {
 			return new \WP_REST_Response(

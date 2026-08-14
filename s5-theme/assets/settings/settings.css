@@ -142,3 +142,36 @@
 .s5-tpl__row-file { font-family: Menlo, Consolas, monospace; font-size: 11px; color: #6c7278; }
 .s5-tpl__badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #50575e; border: 1px solid #dcdcde; border-radius: 999px; padding: 2px 8px; }
 .s5-tpl__card .description { padding: 12px 16px; margin: 0; }
+
+/* ============================================================================
+   Components screen (§3.5) — grid + Component Builder modal
+   ============================================================================ */
+.s5-comp__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 16px; }
+.s5-comp__card { display: flex; align-items: flex-start; gap: 12px; background: #fff; border: 1px solid #dcdcde; border-radius: 6px; padding: 14px; }
+.s5-comp__card-glyph { width: 40px; height: 40px; flex: 0 0 auto; border-radius: 6px; background: #f0f6fc; color: #2271b1; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+.s5-comp__card-main { flex: 1 1 auto; min-width: 0; }
+.s5-comp__card-name { font-weight: 700; color: #1e1e1e; }
+.s5-comp__card-desc { font-size: 12px; color: #50575e; margin: 2px 0 6px; }
+.s5-comp__card-meta { display: flex; gap: 10px; font-family: Menlo, Consolas, monospace; font-size: 11px; color: #6c7278; }
+
+/* Builder modal */
+.s5-cb { position: fixed; inset: 0; z-index: 100000; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.s5-cb[hidden] { display: none; }
+.s5-cb__dialog { background: #1b1e26; color: #e6e8ee; border: 1px solid #2b2f3a; border-radius: 10px; width: min(1100px, 96vw); height: min(760px, 92vh); display: flex; flex-direction: column; overflow: hidden; }
+.s5-cb__head { flex: 0 0 auto; display: flex; align-items: center; gap: 14px; padding: 14px 18px; border-bottom: 1px solid #2b2f3a; }
+.s5-cb__back { color: #9aa0ad !important; text-decoration: none; }
+.s5-cb__name { font-weight: 700; }
+.s5-cb__body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+.s5-cb__col { display: flex; flex-direction: column; min-height: 0; padding: 14px 16px; gap: 8px; overflow: auto; }
+.s5-cb__col:first-child { border-right: 1px solid #2b2f3a; }
+.s5-cb__panel-head { font-size: 12px; font-weight: 700; color: #9aa0ad; display: flex; align-items: center; gap: 8px; }
+.s5-cb__tag { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #6b7180; border: 1px solid #2b2f3a; border-radius: 999px; padding: 1px 8px; }
+.s5-cb__tag--ro { color: #f0c33c; border-color: rgba(240,195,60,0.4); }
+.s5-cb__code { width: 100%; min-height: 120px; flex: 1 1 auto; background: #0e0f13; color: #e6e8ee; border: 1px solid #2b2f3a; border-radius: 6px; font-family: Menlo, Consolas, monospace; font-size: 12px; padding: 10px; resize: vertical; }
+.s5-cb__code--ro { opacity: 0.85; background: #15171d; }
+.s5-cb__props { display: flex; flex-direction: column; gap: 4px; }
+.s5-cb__prop { font-family: Menlo, Consolas, monospace; font-size: 11px; color: #9aa0ad; padding: 4px 8px; background: #15171d; border-radius: 4px; }
+.s5-cb__foot { flex: 0 0 auto; display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-top: 1px solid #2b2f3a; }
+.s5-cb__diagnostics { flex: 1 1 auto; font-size: 12px; }
+.s5-cb__diag { color: #ff5c5c; font-family: Menlo, Consolas, monospace; font-size: 11px; margin: 2px 0; }
+.s5-cb__ok { color: #00d084; }
