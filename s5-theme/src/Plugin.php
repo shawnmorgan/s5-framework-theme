@@ -54,6 +54,8 @@ final class Plugin {
 		Editor::register();
 		PageAdmin::register();
 		Appearance::register();
+		Integrations::register();
+		Redirects::register();
 		Rest::register();
 		self::register_cli_commands();
 	}

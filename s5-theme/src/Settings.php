@@ -70,6 +70,16 @@ final class Settings {
 	public const ACTION_SAVE_ROLES = 's5_save_roles';
 
 	/**
+	 * Admin-post action: save integrations.
+	 */
+	public const ACTION_SAVE_INTEGRATIONS = 's5_save_integrations';
+
+	/**
+	 * Admin-post action: save redirects.
+	 */
+	public const ACTION_SAVE_REDIRECTS = 's5_save_redirects';
+
+	/**
 	 * Register hooks. The menu entry itself is added by {@see Admin::register_menu}
 	 * (so the S5 menu stays the single owner of its children); this class owns the
 	 * render + asset enqueue + token-save handler for the settings screen only.
@@ -80,6 +90,64 @@ final class Settings {
 		add_action( 'admin_enqueue_scripts', array( self::class, 'enqueue_assets' ) );
 		add_action( 'admin_post_' . self::ACTION_SAVE_TOKEN, array( self::class, 'handle_save_token' ) );
 		add_action( 'admin_post_' . self::ACTION_SAVE_ROLES, array( self::class, 'handle_save_roles' ) );
+		add_action( 'admin_post_' . self::ACTION_SAVE_INTEGRATIONS, array( self::class, 'handle_save_integrations' ) );
+		add_action( 'admin_post_' . self::ACTION_SAVE_REDIRECTS, array( self::class, 'handle_save_redirects' ) );
+	}
+
+	/**
+	 * Save integrations (Developer per the matrix).
+	 *
+	 * @return void
+	 */
+	public static function handle_save_integrations(): void {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'settings.integrations' ) ) {
+			wp_die( esc_html__( 'You do not have permission to edit integrations.', 's5' ) );
+		}
+		check_admin_referer( self::ACTION_SAVE_INTEGRATIONS );
+
+		$rows = isset( $_POST['int'] ) && is_array( $_POST['int'] ) ? wp_unslash( $_POST['int'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- shaped in Integrations::save; code is verbatim admin-authored snippet by design.
+		$list = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) || '' === trim( (string) ( $row['name'] ?? '' ) ) ) {
+				continue; // Blank name = drop.
+			}
+			$list[] = array(
+				'id'      => (string) ( $row['id'] ?? '' ),
+				'name'    => (string) ( $row['name'] ?? '' ),
+				'point'   => (string) ( $row['point'] ?? 'head' ),
+				'enabled' => ! empty( $row['enabled'] ),
+				'code'    => (string) ( $row['code'] ?? '' ),
+			);
+		}
+		Integrations::save( $list );
+		self::redirect_screen( 'integrations', 'success', __( 'Integrations saved.', 's5' ) );
+	}
+
+	/**
+	 * Save redirects (Developer/Marketer per the matrix — General screen).
+	 *
+	 * @return void
+	 */
+	public static function handle_save_redirects(): void {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'settings.general' ) ) {
+			wp_die( esc_html__( 'You do not have permission to edit redirects.', 's5' ) );
+		}
+		check_admin_referer( self::ACTION_SAVE_REDIRECTS );
+
+		$rows = isset( $_POST['rdr'] ) && is_array( $_POST['rdr'] ) ? wp_unslash( $_POST['rdr'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- shaped + escaped in Redirects::save.
+		$list = array();
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$list[] = array(
+				'from' => (string) ( $row['from'] ?? '' ),
+				'to'   => (string) ( $row['to'] ?? '' ),
+				'code' => (int) ( $row['code'] ?? 301 ),
+			);
+		}
+		Redirects::save( $list );
+		self::redirect_screen( 'general', 'success', __( 'Redirects saved.', 's5' ) );
 	}
 
 	/**
@@ -352,6 +420,15 @@ final class Settings {
 				return;
 			case 'roles':
 				self::render_roles();
+				return;
+			case 'integrations':
+				self::render_integrations();
+				return;
+			case 'general':
+				self::render_general();
+				return;
+			case 'css':
+				self::render_css();
 				return;
 			default:
 				printf( '<h2>%s</h2>', esc_html( self::SCREENS[ $screen ] ?? '' ) );
@@ -664,6 +741,180 @@ final class Settings {
 
 			<p><?php submit_button( __( 'Save roles', 's5' ), 'primary', 'submit', false ); ?></p>
 		</form>
+		<?php
+	}
+
+	/**
+	 * Integrations screen (§3.6): the snippets list + a raw add/edit form. All
+	 * head/analytics code lives here; the theme injects each enabled snippet at its
+	 * point on matching conditions (S5\Integrations).
+	 *
+	 * @return void
+	 */
+	private static function render_integrations(): void {
+		$list   = Integrations::all();
+		$points = Integrations::point_labels();
+		?>
+		<h2><?php esc_html_e( 'Integrations', 's5' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Third-party snippets (analytics, pixels, verification) and where they inject. Nothing goes in a raw <head> field — everything is a named, toggleable integration here.', 's5' ); ?></p>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_INTEGRATIONS ); ?>">
+			<?php wp_nonce_field( self::ACTION_SAVE_INTEGRATIONS ); ?>
+			<table class="widefat striped s5-int__table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Name', 's5' ); ?></th>
+						<th><?php esc_html_e( 'Injection point', 's5' ); ?></th>
+						<th><?php esc_html_e( 'Enabled', 's5' ); ?></th>
+						<th><?php esc_html_e( 'Snippet', 's5' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php
+					$rows   = $list;
+					$rows[] = array(
+						'id'      => '',
+						'name'    => '',
+						'point'   => 'head',
+						'enabled' => false,
+						'code'    => '',
+					); // blank row to add a new one.
+					foreach ( $rows as $i => $row ) :
+						?>
+						<tr>
+							<td>
+								<input type="hidden" name="int[<?php echo (int) $i; ?>][id]" value="<?php echo esc_attr( (string) $row['id'] ); ?>">
+								<input type="text" name="int[<?php echo (int) $i; ?>][name]" value="<?php echo esc_attr( (string) $row['name'] ); ?>" placeholder="<?php esc_attr_e( 'e.g. Analytics', 's5' ); ?>" class="regular-text">
+							</td>
+							<td>
+								<select name="int[<?php echo (int) $i; ?>][point]">
+									<?php foreach ( $points as $pk => $pl ) : ?>
+										<option value="<?php echo esc_attr( $pk ); ?>" <?php selected( $pk, $row['point'] ); ?>><?php echo esc_html( $pl ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</td>
+							<td style="text-align:center">
+								<input type="checkbox" name="int[<?php echo (int) $i; ?>][enabled]" value="1" <?php checked( ! empty( $row['enabled'] ) ); ?>>
+							</td>
+							<td>
+								<textarea name="int[<?php echo (int) $i; ?>][code]" rows="2" class="large-text code" placeholder="<?php esc_attr_e( '<script>…</script>', 's5' ); ?>"><?php echo esc_textarea( (string) $row['code'] ); ?></textarea>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+			<p class="description"><?php esc_html_e( 'Leave the name blank to remove a row. Conditions (per-integration Include/Exclude) use the shared rule builder.', 's5' ); ?></p>
+			<p><?php submit_button( __( 'Save integrations', 's5' ), 'primary', 'submit', false ); ?></p>
+		</form>
+		<?php
+	}
+
+	/**
+	 * General screen (§3.1): identity (site name/tagline — WP core), redirects manager
+	 * (→ 301s via Redirects), and a Build & Deploy status card (recompile now).
+	 *
+	 * @return void
+	 */
+	private static function render_general(): void {
+		$redirects = Redirects::all();
+		$rebuild   = wp_nonce_url(
+			add_query_arg( array( 'action' => Admin::ACTION_REBUILD ), admin_url( 'admin-post.php' ) ),
+			Admin::ACTION_REBUILD
+		);
+		?>
+		<h2><?php esc_html_e( 'General', 's5' ); ?></h2>
+
+		<div class="s5-gen__card">
+			<div class="s5-tpl__card-head"><?php esc_html_e( 'Identity', 's5' ); ?></div>
+			<p class="description">
+				<?php
+				printf(
+					/* translators: %s: site title. */
+					esc_html__( 'Site name: %s — edit under Settings → General. Logo & favicon are theme mods.', 's5' ),
+					'<strong>' . esc_html( get_bloginfo( 'name' ) ) . '</strong>'
+				);
+				?>
+			</p>
+		</div>
+
+		<div class="s5-gen__card">
+			<div class="s5-tpl__card-head"><?php esc_html_e( 'Redirects', 's5' ); ?></div>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_REDIRECTS ); ?>">
+				<?php wp_nonce_field( self::ACTION_SAVE_REDIRECTS ); ?>
+				<table class="widefat striped">
+					<thead><tr><th><?php esc_html_e( 'From (path)', 's5' ); ?></th><th><?php esc_html_e( 'To (URL)', 's5' ); ?></th><th><?php esc_html_e( 'Code', 's5' ); ?></th></tr></thead>
+					<tbody>
+						<?php
+						$rrows   = $redirects;
+						$rrows[] = array(
+							'from' => '',
+							'to'   => '',
+							'code' => 301,
+						);
+						foreach ( $rrows as $i => $r ) :
+							?>
+							<tr>
+								<td><input type="text" name="rdr[<?php echo (int) $i; ?>][from]" value="<?php echo esc_attr( (string) $r['from'] ); ?>" placeholder="/old-path" class="regular-text"></td>
+								<td><input type="text" name="rdr[<?php echo (int) $i; ?>][to]" value="<?php echo esc_attr( (string) $r['to'] ); ?>" placeholder="/new-path or https://…" class="regular-text"></td>
+								<td>
+									<select name="rdr[<?php echo (int) $i; ?>][code]">
+										<option value="301" <?php selected( 301, (int) $r['code'] ); ?>>301</option>
+										<option value="302" <?php selected( 302, (int) $r['code'] ); ?>>302</option>
+									</select>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+				<p><?php submit_button( __( 'Save redirects', 's5' ), 'primary', 'submit', false ); ?></p>
+			</form>
+		</div>
+
+		<div class="s5-gen__card">
+			<div class="s5-tpl__card-head"><?php esc_html_e( 'Build & Deploy', 's5' ); ?></div>
+			<p class="description">
+				<?php esc_html_e( 'Compiled bundle:', 's5' ); ?>
+				<strong><?php echo StyleBundle::exists() ? esc_html__( 'present', 's5' ) : esc_html__( 'missing', 's5' ); ?></strong>.
+				<a class="button" href="<?php echo esc_url( $rebuild ); ?>"><?php esc_html_e( 'Recompile now', 's5' ); ?></a>
+				<span class="description"><?php esc_html_e( 'Environment select & remote deploy are coming.', 's5' ); ?></span>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * CSS / Tailwind screen (§3.6): the source layers — Tokens (locked), Classes, Custom —
+	 * with an engine toggle (Tailwind is coming-soon). Read views of the real layers.
+	 *
+	 * @return void
+	 */
+	private static function render_css(): void {
+		?>
+		<h2><?php esc_html_e( 'CSS / Tailwind', 's5' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'The source layers the closed vocabulary is built from. Tokens are locked (edit them in StyleGuide). The Tailwind engine is on the roadmap.', 's5' ); ?></p>
+
+		<div class="s5-css__engine">
+			<span class="s5-cb__tag"><?php esc_html_e( 'Engine', 's5' ); ?></span>
+			<span class="s5-editor__seg is-wide" style="display:inline-flex">
+				<span class="s5-editor__seg-opt is-active"><?php esc_html_e( 'CSS', 's5' ); ?></span>
+				<span class="s5-editor__seg-opt" style="opacity:.55"><?php esc_html_e( 'Tailwind · soon', 's5' ); ?></span>
+			</span>
+		</div>
+
+		<div class="s5-tpl__card">
+			<div class="s5-tpl__card-head"><?php esc_html_e( 'Tokens', 's5' ); ?> <span class="s5-cb__tag s5-cb__tag--ro"><?php esc_html_e( 'locked · edit in StyleGuide', 's5' ); ?></span></div>
+			<p class="description"><?php esc_html_e( 'The design tokens (tokens.css / scales.css) — the values every class builds on.', 's5' ); ?></p>
+		</div>
+		<div class="s5-tpl__card">
+			<div class="s5-tpl__card-head"><?php esc_html_e( 'Classes', 's5' ); ?></div>
+			<p class="description"><?php esc_html_e( 'The closed class vocabulary (components.css + utilities.css) the Authoring Contract validator enforces.', 's5' ); ?></p>
+		</div>
+		<div class="s5-tpl__card">
+			<div class="s5-tpl__card-head"><?php esc_html_e( 'Custom CSS', 's5' ); ?></div>
+			<p class="description"><?php esc_html_e( 'Site-authored custom layer. Editing lands with the CSS engine work.', 's5' ); ?></p>
+		</div>
 		<?php
 	}
 

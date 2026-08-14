@@ -180,3 +180,8 @@
 .s5-roles__matrix, .s5-roles__users { max-width: 760px; margin-top: 12px; }
 .s5-roles__col, .s5-roles__cell { text-align: center; width: 100px; }
 .s5-roles__cell input { transform: scale(1.2); }
+
+/* Integrations / General / CSS screens */
+.s5-int__table textarea { font-family: Menlo, Consolas, monospace; font-size: 12px; }
+.s5-gen__card { background: #fff; border: 1px solid #dcdcde; border-radius: 6px; padding: 8px 0 4px; margin-bottom: 16px; }
+.s5-css__engine { margin: 12px 0 16px; display: flex; align-items: center; gap: 10px; }
