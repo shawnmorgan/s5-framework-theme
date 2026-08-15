@@ -164,3 +164,25 @@ data can't yet back what the mockup drew, or WP-admin constraints — never inve
 revealed the shipped light specimen's headings rendering faint — the dark-chrome heading-color
 neutralization (`.s5set h1..h4`) was bleeding into the intentionally-light `.specimen`. Fixed by
 re-asserting `--s5-color-ink` on `.specimen` headings; specimen h1 now computes rgb(30,30,30).
+
+---
+
+# 2026-08-14 evening — fresh re-audit findings
+
+**GAP: the audit checklist's Item 5b describes "a 'Build in Framework' button in the editor top
+bar" — no such button exists anywhere in the block-editor toolbar (verified: no
+`enqueue_block_editor_assets` hook, no `registerPlugin` call, no editor-toolbar JS file in the
+theme at all).** The actual, working takeover entry point is a **"Take over with S5" row action**
+on the Pages list screen (`PageAdmin::add_convert_row_action`, filtering `page_row_actions`),
+documented in the code's own comment as a deliberate choice: "there is no 'New S5 Page' screen...
+a page becomes an S5 page by being taken over here." This is not a mockup deviation (neither
+mockup covers a Gutenberg-toolbar button — HANDOFF's checklist language is the only place
+describing it that way) and not a functional defect: the row-action path was independently
+verified end-to-end — existing post_content wrapped as canonical (never replaced with scaffold),
+a revision created BEFORE the first framework write (proven: revision 57 = pre-takeover plain
+content, revision 59 = framework-wrapped, in that order), the served front-end page identical
+after adoption (curl-verified logged-out), and restoring the pre-takeover revision correctly
+un-adopts the page (all `_s5_*` canonical meta keys removed, page reachable via normal
+`post.php?action=edit` again, not redirected into the S5 editor). Logged as a GAP between the
+checklist's literal UI description and the shipped (working) UI location, composed from an
+existing WP-native pattern (row actions), not an invented visual.

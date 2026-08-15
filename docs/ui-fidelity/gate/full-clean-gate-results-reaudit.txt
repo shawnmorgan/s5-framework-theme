@@ -1,0 +1,442 @@
+
+> s5-framework@0.0.0 test
+> bash tests/run-all.sh
+
+• Clean slate: wp-env destroy…
+• Starting wp-env once for the whole suite…
+✔ environment up; running all acceptance suites against it
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 0 — bootstrap
+
+• S5 Step 0 acceptance test
+
+• 1/5  Starting wp-env (idempotent)…
+✔ wp-env is up
+• 2/5  Activating the s5-theme framework theme…
+✔ s5-theme active (framework theme)
+• 3/5  Asserting the framework booted from the theme (wp s5 CLI registered)…
+✔ framework booted from the theme (wp s5 CLI present)
+• 4/5  Requesting site root and checking debug.log for PHP errors…
+✔ site root responded HTTP 200
+✔ no PHP errors/notices from S5 code on front-page request
+• 5/5  Running 'wp s5 hello'…
+✔ 'wp s5 hello' → s5 ok
+
+✔ Step 0 acceptance: ALL CHECKS PASSED
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 1 — serve canonical HTML
+
+• S5 Step 1 acceptance test
+
+• 1/5  Starting wp-env and activating the s5-theme framework theme…
+✔ environment ready
+• 2/5  Creating a WordPress page…
+✔ page created (ID 4)
+• 3/5  Storing a known canonical fragment in _s5_canonical_html…
+✔ fragment stored
+• 4/5  Requesting the page and capturing the served body…
+✔ served http://localhost:8888/s5-canonical-page/
+• 5/5  Asserting the fragment is served verbatim (no WP transforms)…
+✔ fragment served byte-clean; no WP transforms; no PHP errors
+
+✔ Step 1 acceptance: ALL CHECKS PASSED
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 2 — wp s5 import
+
+• S5 Step 2 acceptance test
+
+• 0/5  Starting wp-env, activating the s5-theme framework theme, resetting pages…
+✔ environment ready
+• 1/5  Importing wp-content/s5-pages (first run)…
+✔ pages created (index #17, about #5, fix-my-store #15)
+• 2/5  Re-importing twice (idempotence)…
+✔ idempotent: same IDs, no duplicates, all unchanged
+• 3/5  Requesting /about/ and checking body + head…
+✔ body verbatim; title + description each present exactly once
+• 4/5  Checking index.html is the front page at /…
+✔ index.html serves at / as the front page
+• 5/5  Checking fix-my-store.html resolves at /fix-my-store/…
+✔ fix-my-store.html resolves at /fix-my-store/ (HTTP 200)
+
+✔ Step 2 acceptance: ALL CHECKS PASSED
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 3 — round-trip fidelity (Ship Gate #1)
+
+• S5 Step 3 — round-trip fidelity harness
+
+• 0/4  Starting wp-env, activating plugin, importing corpus…
+✔ environment ready; corpus imported
+• 1/4  Round-tripping the corpus (must be green)…
+✔   /about/  round-trips with zero unexplained deltas
+✔   /apps/  round-trips with zero unexplained deltas
+✔   /book-a-call/  round-trips with zero unexplained deltas
+✔   /commerce/  round-trips with zero unexplained deltas
+✔   /faq/  round-trips with zero unexplained deltas
+✔   /fix-my-store/  round-trips with zero unexplained deltas
+✔   /index/  round-trips with zero unexplained deltas
+✔   /manage/  round-trips with zero unexplained deltas
+✔   /privacy-policy/  round-trips with zero unexplained deltas
+✔ corpus round-trips with zero unexplained deltas
+• 2/4  Arming render-path mutation — harness MUST now detect a delta…
+✔ mutation detected — harness went red with a delta report naming it
+• 3/4  Disarming mutation — harness MUST be green again…
+✔ green again after disarming — fidelity is self-verifying
+• 4/4  Checking debug.log for PHP errors…
+✔ no PHP errors during round-trip
+
+✔ Step 3 acceptance: ALL CHECKS PASSED (round-trip fidelity is executable)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 4 — Authoring Contract validation
+
+• S5 Step 4 — Authoring Contract validation
+
+• 0/6  Starting wp-env and activating the plugin…
+✔ environment ready
+• 1/6  Validating the real corpus (must be clean)…
+✔ real corpus passes clean (0 errors)
+• 2/6  Planted unknown class → ERROR + did-you-mean…
+✔ unknown class → ERROR at unknown.html:2, did-you-mean 'hero'
+• 3/6  Inline style outside <svg> → ERROR; inside <svg> → passes…
+✔ inline style outside svg → ERROR; style inside <svg> passes
+• 4/6  Numeric scale class defined in CSS → WARNING (import proceeds)…
+✔ numeric scale class → WARNING; validation proceeds
+✔ import gate: warning-only page proceeds and imports
+• 5/6  --format=json parses and carries every field…
+✔ --format=json parses; findings carry severity/rule/file/line/token/message/permitted/repair/did_you_mean
+• 6/6  Round-trip harness still green (validation didn't touch render)…
+✔ round-trip fidelity still green
+
+✔ Step 4 acceptance: ALL CHECKS PASSED (Authoring Contract validation is live)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 5 — canonical vs derived render
+
+• S5 Step 5 — canonical source vs derived render
+
+• 0/6  Starting wp-env, activating plugin, fresh import…
+✔ environment ready; corpus imported (about #64)
+• 1/6  Derived render + mirror exist; page served from _s5_render_html…
+✔ derived render + mirror exist; page is served from _s5_render_html
+•       round-trip harness still green (identity compile)…
+✔ round-trip fidelity still green after the split
+• 2/6  Mutate canonical (cli) → recompile → derived updates deterministically…
+✔ recompile is deterministic (render + mirror byte-identical twice)
+• 3/6  post_content mirror is semantic (no script/style/data-*); WP search finds it…
+✔ mirror has body text, zero script/style/data-*; WP search finds the page
+• 4/6  Update via import → revision → restore reverts served output…
+✔ restore reverts served output automatically (render recompiled on restore)
+• 5/6  Delete _s5_render_html + post_content → recompile restores both…
+✔ disposable: recompile restored render + mirror from canonical alone
+• 6/6  Round-trip negative self-test still red/green…
+✔ negative-mutation self-test still red/green
+
+✔ Step 5 acceptance: ALL CHECKS PASSED (canonical is truth; render is disposable)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 6 — media resolution
+
+• S5 Step 6 — media resolution
+
+• 0/6  Starting wp-env, activating plugin, fresh import…
+✔ environment ready; corpus imported (S5T #118)
+• 1/6  Served page shows attachment-backed images with srcset + dimensions…
+✔ images attachment-backed with srcset + dimensions; canonical stays portable
+•       round-trip harness still green (media transform normalized)…
+✔ round-trip fidelity green with media resolution active
+• 2/6  Re-import unchanged source → no duplicate attachments (hash dedupe)…
+✔ unchanged re-import/recompile reused attachments by hash (no duplicates)
+• 3/6  Change a source image (same name) → new attachment, page serves it…
+✔ changed source image re-sideloaded to a new attachment; page serves it
+• 4/6  Portability: canonical is env-independent; render re-derives per env…
+✔ canonical is portable; render re-derives to this env's URLs from the same source
+• 5/6  Unresolvable asset path → loud compile error naming file + path…
+✔ unresolvable path failed loudly, naming file + path; no bad render persisted
+• 6/6  Recompile determinism holds with media transform active…
+✔ recompile is deterministic (render + mirror byte-identical) with media active
+
+✔ Step 6 acceptance: ALL CHECKS PASSED (media resolution; canonical stays portable)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 8 — parts + generic dynamics (L&L)
+
+• S5 Step 8 — templates/parts + generic dynamics (L&L)
+
+• 0/5  Env up; L&L active; import the static corpus…
+✔ environment ready; L&L active; static corpus imported
+• 1/5  Reusable parts: canonical holds <s5-part>, render holds expanded markup…
+✔ parts expand at compile time; header/footer shared from one source
+• 2/5  Static pages are not dynamic; round-trip harness still green…
+✔ static pages stay static; round-trip fidelity green across the corpus
+• 3/5  Import the L&L archive fixture → flagged dynamic…
+✔ L&L archive page imported and flagged dynamic
+• 4/5  Dynamic pass renders the loop at request time (conditions/fields)…
+✔ dynamic pass rendered the loop (13 items) at request time; no L&L tags leaked
+• 5/5  Dynamic output is stable across repeat requests (cache-safe)…
+✔ dynamic output is stable across requests
+
+✔ Step 8 acceptance: ALL CHECKS PASSED (parts + generic L&L dynamics)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 9 — baseline SEO/AEO ownership
+
+• S5 Step 9 — baseline SEO/AEO ownership
+
+• 0/5  Env up; import the corpus…
+✔ environment ready; corpus imported
+• 1/5  Document metadata present; exactly one canonical (no core duplicate)…
+✔ title + description + exactly one (authored) canonical served without an SEO plugin
+• 2/5  S5-owned schema graph present (WebSite/WebPage/Organization)…
+✔ owned schema graph emitted with WebSite + WebPage + Organization
+• 3/5  Schema matches visible content (WebPage name == served <title>)…
+✔ schema is synchronized with visible content (name + url match)
+• 4/5  SEO gates flag a planted bad page (missing alt, two <h1>, lazy LCP)…
+✔ SEO gates flag h1/alt/LCP as warnings; bad page still imports (non-blocking)
+• 5/5  Provider seams present for specialist takeover…
+✔ provider seams present (s5_emit_owned_schema + s5_schema_graph)
+
+✔ Step 9 acceptance: ALL CHECKS PASSED (S5 owns document SEO + schema)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 10 — frontend interactive islands
+
+• S5 Step 10 — frontend state and interactive islands
+
+• 0/5  Env up; import corpus + the islands fixture…
+✔ environment ready; islands fixture imported (#196)
+• 1/5  Sidecar discovery: page records its islands (counter, wishlist)…
+✔ island page records [counter, wishlist] via sidecar discovery
+• 2/5  Only required island modules are enqueued as type=module…
+✔ counter + wishlist modules enqueued as native ES modules
+• 3/5  A static page ships no interaction JS…
+✔ static page ships zero interaction JS
+• 4/5  Local (counter) + shared (wishlist) island markup present…
+✔ local + shared island markup server-rendered (works before JS runs)
+• 5/5  Static corpus still round-trips byte-clean (islands didn't regress it)…
+✔ round-trip fidelity still green across the static corpus
+
+✔ Step 10 acceptance: ALL CHECKS PASSED (interactive islands; static stays static)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 11 — components (registry + copy-on-insert)
+
+• S5 Step 11 — components as registered human capabilities
+
+• 0/6  Env up; import the corpus…
+✔ environment ready; corpus imported
+• 1/6  Register the 'card' component (validates + reports version)…
+✔ component registered and listed with its version stamp
+• 2/6  Insert the card → expands into canonical, renders on the page…
+✔ copy-on-insert expanded into real canonical HTML (with version stamp) and renders
+• 3/6  Targeted insert (--at) places the component after the anchor…
+✔ targeted insert placed the component after the anchor node
+• 4/6  Unregistered component and bad anchor are refused…
+✔ unregistered component and bad anchor both refused
+• 5/6  Inserting a bad component is rejected; canonical unchanged…
+✔ contract-breaking insert rejected; canonical left unchanged
+• 6/6  Restore corpus; round-trip fidelity byte-clean (no component residue)…
+✔ corpus restored; round-trip fidelity byte-clean
+
+✔ Step 11 acceptance: ALL CHECKS PASSED (registered capabilities; copy-on-insert; no page-state abstraction)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Item 2 — component folders + CSS bundle
+
+• S5 Item 2 — component folders + scan discovery + compiled CSS bundle
+
+• 0/6  Env up; import the corpus (import rebuilds the CSS bundle)…
+✔ environment ready; corpus imported
+• 1/6  Directory scan discovers starter components; each folder is complete…
+✔ 6 starter components discovered by scan; each has component.html + manifest.json + style.css
+• 2/6  Folder name = component name = block class on the component root…
+✔ each component root carries its block class (name = folder = class)
+• 3/6  Scoped CSS concatenates into the compiled bundle…
+✔ compiled bundle present and contains every component's scoped CSS (OK:13667 bytes)
+• 4/6  Compiled bundle is enqueued on a served framework page…
+✔ served framework page carries the one compiled S5 stylesheet
+• 5/6  Scoped component inserts (own classes validate); re-key is server-side + recursive…
+✔ component inserted twice through the one door; server-assigned recursive re-key gives unique ids; served
+• 6/6  Restore corpus; round-trip fidelity byte-clean…
+✔ corpus restored; round-trip fidelity byte-clean
+
+✔ Component structure acceptance: ALL CHECKS PASSED (folder scan; CSS bundle; vocabulary extension)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Step 12 — Editor MVP (WordCamp cut)
+
+• S5 Editor MVP acceptance (Step 12, WordCamp cut)
+
+• 0/7  Env up; import the corpus (about.html carries declarations)…
+✔ environment ready; corpus imported (about #241)
+• 1/7  Editor screen registered and gated behind manage_options…
+✔ editor gated behind manage_options
+• 2/7  Editor assets never ship to logged-out visitors (D8)…
+✔ no editor asset for anon (front-end or ?s5-preview=1); declarations still ship
+• 3/7  REST slot save round-trips through persist_page…
+✔ slot save persisted; canonical+render updated; data-node preserved
+• 4/7  Invalid Code-lens save is rejected; canonical unchanged…
+✔ invalid save rejected with diagnostics; canonical left unchanged
+• 5/7  Head save updates _s5_head without touching canonical…
+✔ head save updated _s5_head (canonical untouched)
+• 6/7  Style tab reads real design tokens…
+✔ design tokens parsed live from the declared token files
+• 7/7  Restore corpus; declarations round-trip byte-clean…
+✔ authored declarations served verbatim (round-trip byte-clean)
+
+✔ Editor MVP acceptance: ALL CHECKS PASSED (one save door; fidelity intact)
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Distribution — the uploadable zip works with zero mounts
+
+• S5 distribution acceptance — installing the ZIP with zero mounts
+
+• 0  Build dist/s5-theme.zip…
+✔ zip built and installed at wp-content/themes/s5-dist (no repo, no composer, no node on target)
+• 1  Scenario A — seed existing content, capture front-page setting…
+✔ existing page #261 created; front-page setting was 'page'
+• 2  Activate the installed zip (s5-dist)…
+✔ active theme: s5-dist
+✔ front-page setting intact after activation
+• 3  Existing page renders styled via the fallback template…
+✔ existing page survived and renders through the styled fallback
+• 4  Adopt the existing page into S5 — content WRAPPED, not replaced (Item 5a)…
+✔ adoption WRAPPED the page's own content (marker survives, no starter scaffold)
+✔ pre-adoption revision captured before the first framework write (0 → 2)
+✔ restore returns the pre-adoption plain page (un-adopted, original content serves)
+✔ existing page adopted into S5 (now a framework page, editable in the S5 editor)
+• 5  Scenario B — framework page serves styled; token-driven rule applies…
+✔ framework page serves styled; bundle carries :root tokens + component rules
+• 6  Top-level S5 admin menu is registered…
+✔ top-level S5 menu present (Editor · Style · Components · Setup/Status)
+
+✔ DISTRIBUTION ACCEPTANCE PASSED — the uploadable zip works as a real theme, no mounts.
+
+
+──────────────────────────────────────────────────────────────
+• RUN  Phase A — WordPress integration (takeover · badge · menu · Appearance)
+
+• S5 Phase A — WordPress integration acceptance
+
+• 0/9  Env up; activate theme; import corpus…
+✔ environment ready; framework #241, non-framework #267
+• 1/9  'S5' post-state badge on framework pages only…
+✔ badge present on framework page, absent on plain page
+• 2/9  Block editor locked on framework pages…
+✔ block editor off for framework page, on for plain page
+• 3/9  Framework edit link → S5 editor…
+✔ edit link points at the S5 editor (http://localhost:8888/wp-admin/admin.php?page=s5-editor&post=241)
+✔ plain page keeps native edit link
+• 4/9  Row actions (Bricks pattern)…
+✔ framework row exposes 'Edit content (WP)' (keys: edit|s5_wp_edit)
+✔ plain page row exposes the 'Take over with S5' adopt action
+• 5/9  S5 menu contents = Setup + Theme Settings only…
+•      S5 submenu slugs: s5,s5-settings
+✔ S5 menu is Setup & Status + Theme Settings only
+• 6/9  Theme Settings app shell renders (7-screen sub-nav)…
+✔ settings app renders the mockup shell + seven-screen sub-nav (data-screen×14 = 7 links + 7 sections)
+• 7/9  Appearance menu cleanup — removal RUN against the real rendered submenu…
+•      7a removal (real slug shapes) → OK:themes.php,theme-editor.php
+•      7b rendered submenu           → OK:theme-editor.php
+✔ removal RUN drops Patterns/Customize/Fonts (real slug shapes); keeps Themes + Theme File Editor
+✔ rendered themes.php submenu carries no forbidden Appearance child (OK:theme-editor.php)
+• 8/9  Removed Appearance screens are unreachable by URL…
+✔ direct-access guard is registered on admin_init
+• 9/9  Fullscreen editor document has no admin chrome…
+✔ fullscreen takeover seam present; standalone document (no admin-header.php)
+
+✔ Phase A acceptance: ALL CHECKS PASSED
+
+──────────────────────────────────────────────────────────────
+• RUN  Phase B — Disable (R4): disabled ≠ hidden, dropped from render + mirror
+
+• S5 Phase B — Disable (R4) acceptance
+
+• 0/4  Env up; theme active; corpus imported…
+✔ environment ready (about #241, admin #1)
+• 1/4  Disabling node 'about-hero-title' through mode:disable…
+✔ disable persisted through the one door
+• 2/4  Canonical keeps the node + data-disabled (re-enable possible)…
+✔ canonical retains data-disabled="true" on the node
+• 3/4  Render AND mirror drop the disabled node (absent, not hidden)…
+✔ disabled node absent from render and mirror (R4)
+• 4/4  Re-enable restores it to the render…
+✔ re-enable restores the node to the render
+
+✔ Disable (R4) acceptance: ALL CHECKS PASSED (disabled ≠ hidden; canonical is truth)
+
+──────────────────────────────────────────────────────────────
+• RUN  Phase B — Style class-swap (R3): axis-swap-only, loud, no free-form
+
+• S5 Phase B — Style class-swap (R3) acceptance
+
+• 0/4  Env up; theme active; corpus imported…
+✔ environment ready (about #241)
+• 1/4  Manifest exposes only vocabulary-backed axes…
+✔ manifest = real axes (text-align + text-scale + space-top, all vocabulary-backed)
+• 2/4  Swap within the axis applies + replaces…
+✔ axis swap is mutually exclusive within the set
+• 3/4  Free-form class rejected; canonical unchanged…
+✔ no free-form class passes (s5_class_axis, canonical untouched)
+• 4/4  text-scale swap applies; a truly-unavailable axis is rejected…
+✔ text-scale swap applies; a fabricated axis is rejected — the vocabulary is never invented
+
+✔ Style class-swap (R3) acceptance: ALL CHECKS PASSED (axis-swap-only; loud; no free-form)
+
+──────────────────────────────────────────────────────────────
+• RUN  Phase C — Roles (R1): hidden AND blocked, server-side, client-holds-admin
+
+• S5 Phase C — Roles / R1 access enforcement
+
+• 0/5  Env up; theme active…
+✔ environment ready
+• 1/5  WP-role mapping seeds S5 defaults…
+✔ Administrator→developer · Editor→marketer · Author→client
+• 2/5  Client is denied advanced/structure/embed/settings; allowed content…
+✔ client = Content only; Advanced/Embed/Settings blocked
+• 3/5  Marketer: advanced yes, embed no, roles-edit no…
+✔ marketer resolves per the §4 matrix
+• 4/5  Per-user override wins (editor→developer gains Embed)…
+✔ per-user override wins over the WP role
+• 5/5  Client-holds-Administrator is actually restricted…
+✔ Roles::can() gates by S5 role, not manage_options; fail-closed; developer never locked out
+
+✔ Roles / R1 acceptance: ALL CHECKS PASSED (hidden AND blocked, server-side)
+
+══════════════════════ SUITE SUMMARY ══════════════════════
+  PASS  Step 0 — bootstrap
+  PASS  Step 1 — serve canonical HTML
+  PASS  Step 2 — wp s5 import
+  PASS  Step 3 — round-trip fidelity (Ship Gate #1)
+  PASS  Step 4 — Authoring Contract validation
+  PASS  Step 5 — canonical vs derived render
+  PASS  Step 6 — media resolution
+  PASS  Step 8 — parts + generic dynamics (L&L)
+  PASS  Step 9 — baseline SEO/AEO ownership
+  PASS  Step 10 — frontend interactive islands
+  PASS  Step 11 — components (registry + copy-on-insert)
+  PASS  Item 2 — component folders + CSS bundle
+  PASS  Step 12 — Editor MVP (WordCamp cut)
+  PASS  Distribution — the uploadable zip works with zero mounts
+  PASS  Phase A — WordPress integration (takeover · badge · menu · Appearance)
+  PASS  Phase B — Disable (R4): disabled ≠ hidden, dropped from render + mirror
+  PASS  Phase B — Style class-swap (R3): axis-swap-only, loud, no free-form
+  PASS  Phase C — Roles (R1): hidden AND blocked, server-side, client-holds-admin
+
+✔ ALL SUITES PASSED (single-environment clean-slate run)

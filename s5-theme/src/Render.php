@@ -157,7 +157,17 @@ final class Render {
 			return;
 		}
 		$post_id = get_queried_object_id();
-		if ( $post_id && Storage::is_framework_page( (int) $post_id ) ) {
+		if ( ! $post_id || ! Storage::is_framework_page( (int) $post_id ) ) {
+			return;
+		}
+		// Only suppress WP core's canonical when THIS page actually has a custom
+		// one to take its place (output_seo_head() below emits it) -- otherwise a
+		// framework page with no Page-Settings canonical set would regress from
+		// "WP's default canonical" to shipping with NO canonical link at all
+		// (fresh re-audit finding: output_seo_head() never emitted the canonical
+		// field even though this function always removed core's).
+		$head = Storage::get_head( (int) $post_id );
+		if ( ! empty( $head['canonical'] ) ) {
 			remove_action( 'wp_head', 'rel_canonical' );
 		}
 	}
@@ -219,6 +229,43 @@ final class Render {
 		if ( ! $index || ! $follow ) {
 			$directives = array( $index ? 'index' : 'noindex', $follow ? 'follow' : 'nofollow' );
 			printf( '<meta name="robots" content="%s">' . "\n", esc_attr( implode( ',', $directives ) ) );
+		}
+
+		// Imported pages carry their ORIGINAL description/canonical byte-verbatim in
+		// head['passthrough'] (HtmlDocument::extract_head — "pulled out structurally
+		// for the head contract; ALSO passed through verbatim so the served head
+		// matches source" — by design, for import fidelity). save_head() (Page
+		// Settings drawer) only ever updates the structured description/canonical
+		// fields, never the passthrough copy, so on an imported page BOTH exist and
+		// emitting both here would print two <meta name="description"> tags (caught
+		// by the Step 2 import acceptance suite: "expected exactly one meta
+		// description, found 2"). Passthrough is the byte-verbatim/authoritative one
+		// for import fidelity, so skip the structured emission when it already covers
+		// the tag; only a page with NO passthrough copy (built fresh in the editor,
+		// never imported) needs this to print at all — which was the actual gap this
+		// fresh re-audit found (a page-editor-authored description silently never
+		// reached the served head).
+		$passthrough_has = static function ( string $needle ) use ( $head ): bool {
+			if ( empty( $head['passthrough'] ) || ! is_array( $head['passthrough'] ) ) {
+				return false;
+			}
+			foreach ( $head['passthrough'] as $entry ) {
+				if ( is_string( $entry ) && false !== stripos( $entry, $needle ) ) {
+					return true;
+				}
+			}
+			return false;
+		};
+
+		if ( ! empty( $head['description'] ) && ! $passthrough_has( 'name="description"' ) ) {
+			printf( '<meta name="description" content="%s">' . "\n", esc_attr( (string) $head['description'] ) );
+			if ( ! $passthrough_has( 'property="og:description"' ) ) {
+				printf( '<meta property="og:description" content="%s">' . "\n", esc_attr( (string) $head['description'] ) );
+			}
+		}
+
+		if ( ! empty( $head['canonical'] ) && ! $passthrough_has( 'rel="canonical"' ) ) {
+			printf( '<link rel="canonical" href="%s">' . "\n", esc_url( (string) $head['canonical'] ) );
 		}
 
 		// Open Graph image.

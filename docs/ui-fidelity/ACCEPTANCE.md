@@ -54,6 +54,28 @@ suite (both scenarios: fresh site + site-with-content, incl. the 5a adopt/restor
 Phase A (hardened Appearance rendered-menu gate) + Phase B Disable + Style class-swap +
 Phase C Roles. Full results: `docs/ui-fidelity/gate/full-clean-gate-results.txt`.
 
+**RE-RUN (2026-08-14 evening, fresh independent re-audit, D39–D43):** re-verified from scratch —
+trusted nothing above, re-walked the entire checklist in a real browser against a zip rebuilt from
+current source, found and fixed 8 real defects the original pass missed (screenshot.png never
+shipped; Component Builder pencil dead on normal client-side navigation; Integrations silently
+dropped unnamed rows; props panel disabled-state desync; meta description/canonical never
+rendered to the served head; a genuine XSS gap — `on*` event-handler attributes bypassed the
+Authoring Contract validator entirely; template part edits never propagated to any served page;
+and a Grammar.php scale-category regression the gate itself caught before ship). Full root cause,
+reproduction, and verification for each is in `DECISIONS.md` D39–D43. Reran the full clean gate
+from the documented `~/s5-work/framework-theme` mirror (the repo lives under `~/Desktop`, which
+macOS Docker Desktop cannot bind-mount) with every fix applied: **ALL 18 SUITES PASSED
+(single-environment clean-slate run)** — Steps 0,1,2,3,4,5,6,8,9,10,11, Item 2, Step 12,
+Distribution, Phase A, Phase B (Disable + Style class-swap), Phase C, including the exact checks
+that directly exercise the fixed areas (Step 2/3 "title + description each present exactly once";
+Step 9 "S5 owns document SEO + schema"; Phase A "removal RUN drops Patterns/Customize/Fonts...
+keeps Themes + Theme File Editor"; Phase B "text-scale swap applies; a fabricated axis is
+rejected — the vocabulary is never invented"). Two regressions were caught and fixed by the gate
+itself DURING this pass (D42, D43) before the zip ever shipped — proof the gate is doing its job.
+Results archived: `docs/ui-fidelity/gate/full-clean-gate-results-reaudit.txt`. Rebuilt
+`dist/s5-theme.zip` (970K) from the source that passed this run, reinstalled fresh on the audit
+site, activates cleanly.
+
 Three suites went red on the first clean run — investigated each against the real install
 before touching anything; none was a runtime regression (D38): two were stale assertions my
 intentional changes invalidated (the Item 3 sub-nav attribute; the Item 5c size axis, now

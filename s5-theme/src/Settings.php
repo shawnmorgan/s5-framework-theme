@@ -124,15 +124,27 @@ final class Settings {
 		$rows = isset( $_POST['int'] ) && is_array( $_POST['int'] ) ? wp_unslash( $_POST['int'] ) : array(); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- shaped in Integrations::save; code is verbatim admin-authored snippet by design.
 		$list = array();
 		foreach ( $rows as $row ) {
-			if ( ! is_array( $row ) || '' === trim( (string) ( $row['name'] ?? '' ) ) ) {
-				continue; // Blank name = drop.
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$name = trim( (string) ( $row['name'] ?? '' ) );
+			$code = trim( (string) ( $row['code'] ?? '' ) );
+			// A totally empty card (no name AND no snippet) is a no-op row someone opened
+			// and didn't fill in — drop it. But a card with a pasted snippet and no name
+			// carries real user data (the "New integration" title is a placeholder, not a
+			// static label — this mirrors the mockup's own transparent-until-hover input,
+			// which reads as plain text until you focus it): silently discarding the row
+			// on save would lose the snippet behind a false "Integrations saved" success
+			// notice. Loud-door rule: never drop authored content silently.
+			if ( '' === $name && '' === $code ) {
+				continue;
 			}
 			$list[] = array(
 				'id'      => (string) ( $row['id'] ?? '' ),
-				'name'    => (string) ( $row['name'] ?? '' ),
+				'name'    => '' !== $name ? $name : __( 'Untitled integration', 's5' ),
 				'point'   => (string) ( $row['point'] ?? 'head' ),
 				'enabled' => ! empty( $row['enabled'] ),
-				'code'    => (string) ( $row['code'] ?? '' ),
+				'code'    => $code,
 			);
 		}
 		Integrations::save( $list );
@@ -362,10 +374,14 @@ final class Settings {
 			);
 		}
 
-		// Components screen: the Component Builder driver (only on the components screen).
-		$screen = isset( $_GET['screen'] ) ? sanitize_key( wp_unslash( (string) $_GET['screen'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only screen router.
-		$js     = S5_PLUGIN_DIR . 'assets/settings/components.js';
-		if ( 'components' === $screen && is_readable( $js ) ) {
+		// Component Builder driver. Enqueued on EVERY settings-app load (not gated to
+		// $_GET['screen']==='components'): the left sub-nav switches screens client-side
+		// via history.replaceState (settings.js), so a user who reaches Components by
+		// clicking the tab — the normal path — never re-requests the page and would
+		// otherwise get a dead pencil button if this script only loaded on a server-side
+		// components deep-link. Matches how settings.js itself is unconditionally enqueued.
+		$js = S5_PLUGIN_DIR . 'assets/settings/components.js';
+		if ( is_readable( $js ) ) {
 			wp_enqueue_script(
 				's5-settings-components',
 				get_stylesheet_directory_uri() . '/assets/settings/components.js',

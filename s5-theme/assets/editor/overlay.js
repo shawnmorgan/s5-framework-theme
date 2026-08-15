@@ -198,6 +198,13 @@
 				dynamic: el.hasAttribute( 'data-s5-dynamic' ),
 				classes: el.getAttribute( 'class' ) || '',
 				tag: el.tagName ? el.tagName.toLowerCase() : '',
+				// Bug fix (fresh re-audit): this field was missing, so the props panel's
+				// Enabled/Disabled toggle (panel.js enableRow) always read undefined ->
+				// always showed "Enabled" even for a disabled element, even though the
+				// underlying data-disabled attribute and the structure-tree red-line were
+				// both correct. reportStructure() below already computes this the same
+				// way -- keep both in sync.
+				disabled: 'true' === el.getAttribute( 'data-disabled' ),
 			},
 			ORIGIN
 		);

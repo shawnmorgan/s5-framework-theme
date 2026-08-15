@@ -169,9 +169,29 @@ final class Rest {
 			return $written;
 		}
 
-		// A part change ripples into every including page — recompile the bundle so
-		// served renders reflect it. Recompiling all framework pages is heavier and is
-		// handled by `wp s5 recompile`; the bundle rebuild keeps styling correct now.
+		// A part change ripples into every including page. Fresh re-audit finding:
+		// this used to ONLY rebuild the CSS bundle and leave it at that -- the
+		// comment here literally said page recompile was "handled by `wp s5
+		// recompile`", but a browser user editing a part via Theme Settings ->
+		// Templates has no way to know that CLI command exists, so every served
+		// page kept showing the OLD part content indefinitely (each page's
+		// _s5_render_html is a compile-time expansion of <s5-part>, not a
+		// request-time include). Recompile every framework page now, the same
+		// way `wp s5 recompile --all` does, so the save is actually visible.
+		$recompiled = 0;
+		foreach ( self::all_framework_page_ids() as $page_id ) {
+			$page_canonical = Storage::get_canonical_html( $page_id );
+			if ( '' === $page_canonical ) {
+				continue;
+			}
+			try {
+				Compiler::persist_page( $page_id, $page_canonical );
+				++$recompiled;
+			} catch ( \RuntimeException $e ) {
+				unset( $e ); // One page's recompile failure must not fail the part save.
+			}
+		}
+
 		try {
 			StyleBundle::build();
 		} catch ( \Throwable $e ) {
@@ -182,9 +202,34 @@ final class Rest {
 			array(
 				'ok'          => true,
 				'diagnostics' => self::shape_diagnostics( $findings ),
+				'recompiled'  => $recompiled,
 			),
 			200
 		);
+	}
+
+	/**
+	 * Every framework page's post ID (same query `wp s5 recompile --all` uses).
+	 *
+	 * @return array<int, int>
+	 */
+	private static function all_framework_page_ids(): array {
+		$ids = get_posts(
+			array(
+				'post_type'      => Storage::POST_TYPE,
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'meta_key'       => Storage::META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- framework identity lookup; small dataset, mirrors RecompileCommand.
+			)
+		);
+		$out = array();
+		foreach ( $ids as $id ) {
+			if ( Storage::is_framework_page( (int) $id ) ) {
+				$out[] = (int) $id;
+			}
+		}
+		return $out;
 	}
 
 	/**

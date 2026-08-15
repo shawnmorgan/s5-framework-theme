@@ -47,9 +47,26 @@ final class Grammar {
 	/**
 	 * Scale categories that take a ladder step (A5: the generated scale classes).
 	 *
+	 * MUST stay ordered longest-prefix-first: classify_scale() below does a simple
+	 * strpos() prefix match and returns on the first hit, so a shorter category
+	 * that is itself a prefix of a longer one (space vs space-top/space-bottom)
+	 * would otherwise shadow it and misparse the step (e.g. "space-top-sm" would
+	 * match "space-" first, leaving step="top-sm" -> wrongly rejected as
+	 * off-ladder). Fixed a matching bug (fresh re-audit): 'text' was listed
+	 * instead of the actually-shipped 'text-scale' prefix (utilities.css ships
+	 * .text-scale-xxs..xxxl, never bare .text-xxs), which meant every real
+	 * text-scale-* class a user applied via the Style tab was rejected on save
+	 * as "off-ladder scale step" even though it's a valid, shipped utility.
+	 *
 	 * @var array<int, string>
 	 */
-	public const SCALE_CATEGORIES = array( 'text', 'space', 'space-top', 'space-bottom', 'radius' );
+	// 'text' stays a DISTINCT category from 'text-scale': the Step 4 acceptance
+	// suite's own fixture (tests/acceptance-step4.sh, "4/6 Numeric scale class")
+	// deliberately defines a legacy/alias class like .text-2 (bare `text-` prefix,
+	// no `-scale-`) to prove the numeric-scale-alias WARNING path works — that is a
+	// real, intentionally-supported pattern, separate from the real text-scale-*
+	// ladder utilities.css ships (.text-scale-xxs..xxxl). Both must be recognized.
+	public const SCALE_CATEGORIES = array( 'text-scale', 'text', 'space-top', 'space-bottom', 'space', 'radius' );
 
 	/**
 	 * Classify a class name.
@@ -159,7 +176,7 @@ final class Grammar {
 	 */
 	public static function permitted_summary(): string {
 		return 'block (dash-case: hero, pricing-card) · element (block_element) · '
-			. 'modifier (block--modifier) · utility (u-*) · scale ({text|space|space-top|space-bottom|radius}-{'
+			. 'modifier (block--modifier) · utility (u-*) · scale ({text-scale|space|space-top|space-bottom|radius}-{'
 			. implode( '|', self::LADDER ) . '})';
 	}
 }

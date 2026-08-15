@@ -884,3 +884,217 @@ anything; none was a runtime regression:
   render; re-enable restores).
 
 All three fixes verified on the real install before re-running the full clean gate.
+
+---
+
+**D39 — Fresh independent re-audit (2026-08-14 evening): 3 real defects found and fixed that the
+prior "mission complete" pass missed.** User asked for a from-scratch re-audit trusting nothing
+previously reported. Rebuilt the zip from current source, reinstalled fresh on the WP Studio
+`s5-audit` site, and re-walked the checklist. Found:
+
+1. **`screenshot.png` was never shipped.** Checklist item 1 explicitly required creating one if
+   missing (1200×900, dark, S5 wordmark, mockup tokens) and shipping it. It existed in none of
+   source / `build-zip.mjs` / the zip. Fixed: generated `s5-theme/screenshot.png` via headless
+   Chrome render of an HTML page using the exact `--s5e-bg`/`--s5e-accent` mockup tokens (no new
+   visual language invented — same palette, dark theme, wordmark treatment already established by
+   the mockups). Verified live: Themes screen now renders a real branded card.
+
+2. **Component Builder pencil was dead for the normal navigation path.** `Settings.php::enqueue_assets()`
+   only enqueued `assets/settings/components.js` when `$_GET['screen'] === 'components'` at PHP
+   render time. But the sub-nav switches screens CLIENT-SIDE (`settings.js`, `history.replaceState`,
+   no reload) — so a user who lands on any other screen and clicks the Components tab, the normal
+   flow, never gets the script and the pencil silently does nothing (`.cb-modal` stays
+   `display:none`). Only a hard reload/deep-link to `?screen=components` happened to trigger the
+   gate, which is why the prior session's walkthrough never caught it. Fixed: enqueue
+   `components.js` unconditionally on every settings-app load, matching how `settings.js` itself is
+   already unconditionally enqueued ("so all interactions work"). Reproduced the exact failure and
+   the fix live in a real browser before and after.
+
+3. **Integrations save silently discarded a pasted snippet with no name.** The mockup's integration
+   card title ("New integration") is an `<input>` with a transparent border until hover/focus — a
+   faithful transcription of the mockup's own minimalist design (`theme-settings-mockup.html` line
+   370-372). But that makes it genuinely easy for a real user to paste a snippet into the code
+   textarea and click Save without ever noticing the title is editable. `handle_save_integrations()`
+   silently dropped any row with a blank `name` ("Blank name = drop"), while still redirecting with
+   an `Integrations saved.` SUCCESS notice — so the user's pasted snippet vanished with no error, no
+   warning, nothing. Reproduced: pasted a script, saved, notice said success, but
+   `wp option get s5_integrations` was `[]` and the row was gone from the UI on reload. This is a
+   mockup-fidelity-compliant screen with a genuine data-loss bug underneath it — fidelity to the
+   mockup's visuals does not excuse silently discarding authored content (the "loud door" rule
+   applies here too, not just to the editor save door). Fixed: a row is only dropped when BOTH name
+   and code are empty (a truly untouched card); a row with code but no name is kept and given a
+   `Untitled integration` fallback name rather than being silently deleted. Verified end-to-end
+   after the fix: saved → persisted server-side → injected into the served `<head>` on the front
+   end (confirmed via `curl` for a logged-out response).
+
+All three verified against a zip rebuilt from the fixed source, reinstalled fresh, browser-driven.
+Also re-verified as genuinely working (no defect): Appearance menu cleanup (rendered-menu DOM
+parse, not code inspection), General → Redirects (real 301 round-trip), Templates (real parts),
+StyleGuide (token edit → recompile → served CSS bundle round-trip, confirmed via curl), CSS/Tailwind
+(real file contents per layer, Tailwind stays honestly inert), Roles (permission matrix toggle →
+persisted → confirmed via `wp option get`).
+
+---
+
+**D40 — Item 6 (full editing loop) re-audit: 4 more real defects, one of them a genuine
+XSS-adjacent security gap.** Continuing the same fresh independent pass, walked the entire
+editing loop on a real page (`audit-save-test`, post 27) in a real browser against a rebuilt
+zip. The single most important click — content edit on glass → Save → served page changes →
+revision exists — is PROVEN working (curl-confirmed logged-out, revision count incremented).
+Found and fixed:
+
+1. **Props panel Enabled/Disabled toggle showed the wrong state after reselecting a node.**
+   `overlay.js`'s click-driven `postMessage({s5:'select', ...})` (the path every real click uses)
+   never included a `disabled` field, while the separate `reportStructure()` function (only used
+   to build the structure-tree list) computed it correctly. Result: the props panel always showed
+   "Enabled" regardless of the element's actual disabled state — reselecting a disabled element
+   after disabling it via the selection-chrome eye icon showed the toggle as ON. The underlying
+   `data-disabled` attribute, the compiler's drop-from-render, and the structure-tree red-line
+   were all correct — this was a display-only desync, but a user acting on the panel's toggle
+   (assuming it reflects reality) could take the wrong action. Fixed: `overlay.js`'s select
+   message now computes `disabled` the same way `reportStructure()` does. Re-verified: reselecting
+   a disabled node now correctly shows "Disabled · removed from output" with the switch off.
+
+2. **Page Settings drawer: meta description and canonical URL were captured and saved but NEVER
+   rendered to the served `<head>`.** `Render.php::output_seo_head()` emitted `robots`, `og:image`,
+   and custom `json_ld` — but had no code path for `description` or `canonical` at all, despite
+   both being real fields in the drawer, persisted correctly by `Storage::save_head()`
+   (`wp option`/postmeta confirmed correct). A page-editor-authored description silently never
+   reached search engines or social previews; a custom canonical silently never shipped even
+   though `own_canonical()` unconditionally removed WP core's default canonical on every framework
+   page (a users-lose-both-ways regression: no custom canonical AND no fallback one). Fixed:
+   `output_seo_head()` now emits `<meta name="description">` + matching `<meta property="og:description">`
+   when a description is set, and `<link rel="canonical">` when one is set; `own_canonical()` now
+   only suppresses WP core's canonical when a custom one will actually replace it (so pages with
+   no custom canonical keep WP's default instead of losing canonical entirely). Verified end-to-end
+   post-fix: `curl` on the served, logged-out page shows both new meta tags for already-persisted
+   data (no page re-save needed — the render-side fix alone surfaced it).
+
+3. **Grammar.php's scale-class category list had a genuine matching bug rejecting real, shipped
+   utility classes.** `SCALE_CATEGORIES` listed `'text'` where the actually-shipped prefix is
+   `'text-scale'` (utilities.css ships `.text-scale-xxs`…`.text-scale-xxxl`, never bare
+   `.text-xxs`), and listed `'space'` BEFORE the more specific `'space-top'`/`'space-bottom'` —
+   since `classify_scale()` does a first-match `strpos()` prefix scan, `'space-top-sm'` matched
+   the shorter `'space-'` first and mis-parsed its step as `'top-sm'`. Net effect: applying
+   `text-scale-lg` or `space-top-sm`/`space-bottom-*` via the Style tab's own sliders — real, shipped,
+   correctly-defined utility classes — got silently accepted by the UI but flagged by the
+   Code-lens Validator as "off-ladder scale step" WARNING on the very next save-canonical pass,
+   even though nothing was actually wrong. Caught while testing Code lens's real rejection
+   behavior: a deliberately-planted unknown class correctly triggered `[s5.class.unknown]`, but
+   the diagnostic panel ALSO showed two false `[s5.class.grammar]` warnings for classes I'd
+   applied via the Style tab moments earlier. Fixed: reordered `SCALE_CATEGORIES` longest-prefix-
+   first and corrected `'text'` → `'text-scale'`; updated `permitted_summary()` to match. Verified:
+   `text-scale-lg` and `space-top-sm` now validate clean (0 findings); regression-swept all 9 real
+   corpus pages' canonical HTML through the fixed Validator — 0 findings, 0 errors on every page
+   (no false positives introduced).
+
+4. **Security gap: the Authoring Contract validator never checked HTML attributes other than
+   `class` and `style` — bare event-handler attributes (`onclick`, `onerror`, `onload`, …) went
+   through Code lens with ZERO diagnostics and reached canonical + the live served front-end,
+   where they execute for every visitor.** Discovered while reproducing what looked like an
+   "unknown class not rejected" bug (it turned out to be a typo of mine that created a bare
+   attribute instead of a class token) — but proving that theory required confirming the
+   Validator has NO attribute-level protection at all, which is real and independent of my typo.
+   Verified directly: `wp eval`'ing `Validator::validate('<div class="page-hero" onclick="alert(1)">…')`
+   returned 0 findings / `has_errors: false`. Given the theme's own stated design law ("what you
+   approve is exactly what ships") and that Code lens is reachable by both Marketer and Developer
+   roles, an unreviewed on* attribute is a live script-injection path, not just a fidelity gap.
+   Fixed: added `Validator::RULE_EVENT_HANDLER` (`s5.attr.event-handler`) — any attribute matching
+   `/^on/i` on any element is now a SEVERITY_ERROR finding with the same agent-readable
+   file/line/token/permitted/repair shape as the other rules, blocking the save the same way an
+   unknown class does. Verified: `onclick`/`onerror` now correctly rejected with `has_errors: true`;
+   regression-swept all 9 real corpus pages through the new check — 0 findings, 0 errors (no
+   existing legitimate markup uses on* attributes, so no false positives).
+
+All four fixes verified against a zip rebuilt from the fixed source, reinstalled fresh on
+s5-audit, re-tested in the real browser / via direct server-side `wp eval` probes. Add-component-
+from-palette re-verified working end-to-end post-fix (lands inside `<main>`, re-keyed node ids,
+immediately editable slots, persists, appears on the served logged-out page).
+
+---
+
+**D41 — Item 7: template part edit was NOT propagating to any served page — a fifth real
+defect, and the code's own comment predicted it.** `Rest.php::handle_template_save()` (the
+`/templates/{name}/save` REST route the Theme Settings → Templates pencil icon uses) correctly
+validated and wrote the part file (`site/parts/site-header.html`), but only ran
+`StyleBundle::build()` afterward — never recompiling any page. Every framework page's served
+render is a COMPILE-TIME expansion of `<s5-part>` references into `_s5_render_html`
+(`PartExpander.php`), not a request-time include, so editing the header and saving showed the
+change nowhere: not on the page that seeded it, not on any other page, not on the homepage.
+The function's own comment said the quiet part out loud: "Recompiling all framework pages is
+heavier and is handled by `wp s5 recompile`" — but the browser UI gives a user no way to know
+that CLI command exists or needs running. Reproduced: edited `site-header`'s brand text via
+Code lens, saved (200 OK, file confirmed updated on disk), then `curl`'d 4 different served
+pages (the page that prompted the edit, two unrelated pages, and the homepage) — 0/4 showed the
+change; `_s5_render_html` for a sampled page still had the pre-edit text. Fixed:
+`handle_template_save()` now recompiles every framework page (`Compiler::persist_page()` on each,
+mirroring exactly what `wp s5 recompile --all` does) after a successful part write, before
+rebuilding the CSS bundle; one page's recompile failure doesn't abort the others or fail the
+save response. Verified post-fix: same edit → same 4 pages all `curl`-confirmed updated
+(logged-out). Reverted the header back to its shipped text afterward and re-confirmed 0 leftover
+matches sitewide.
+
+Also verified in this pass (no defect): bare `wp s5 import` (zero args) run from `/tmp` — an
+arbitrary CWD, not the theme/site directory — correctly resolves the corpus path and imports all
+9 corpus pages ("Success: Imported 9 file(s)"), matching the prior session's claim.
+
+---
+
+**D42 — the full clean wp-env gate caught a regression in D40's own description/canonical fix,
+before it shipped.** Running the mandatory `npm test` clean `destroy → start → all suites` gate
+(from the documented `~/s5-work/framework-theme` mirror — the repo lives under `~/Desktop`, which
+macOS Docker Desktop cannot bind-mount; see `s5-step0-dod-wpenv-gotchas`) with all of this
+session's fixes applied, Step 2 (`wp s5 import`) failed: "expected exactly one meta description,
+found 2" on `/about/`, which then cascaded into Step 3's round-trip fidelity suite failing on
+every imported page ("UNEXPLAINED DELTA"). Root cause: `HtmlDocument::extract_head()` already
+captures an imported page's ORIGINAL `<meta name="description">` / `<link rel="canonical">`
+BOTH structurally (for the head contract) AND byte-verbatim in `head['passthrough']` (by design,
+for import fidelity — its own comment says so). D40's fix made `output_seo_head()` print the
+structured `description`/`canonical` unconditionally, so on any IMPORTED page both the
+passthrough copy and the new structured copy were emitted — two `<meta name="description">` tags.
+Editor-created pages (never imported) have no passthrough entry, so D40's fix was only ever wrong
+for imported content, not for the actual gap it was built to close. Fixed:
+`output_seo_head()` now checks whether `head['passthrough']` already contains a matching
+`name="description"` / `property="og:description"` / `rel="canonical"` string before printing the
+structured version, so passthrough (byte-verbatim, authoritative for import fidelity) always wins
+when both exist, and the structured emission only fires for pages with no passthrough copy —
+exactly the editor-authored-page gap this was meant to close. Verified directly against the
+running gate's own WordPress instance (not a separate audit site): all 9 imported corpus pages +
+the homepage show exactly one `<meta name="description">` each (the earlier "found 2" case is
+now "1"); confirmed by re-running the specific failing check, not just re-running the whole gate
+blind. Zip rebuilt from the fixed source; full gate re-run to confirm green (see D43 for the
+final clean-run result).
+
+Process note: this is exactly what the mandatory clean-gate-before-declaring-done rule is for —
+a fix that looked complete and was independently browser-verified (Page Settings drawer save →
+curl showed the new meta tag) still had a real regression the browser-only testing never
+exercised, because the audit site (WP Studio `s5-audit`) never had an IMPORTED page with a
+pre-existing description to collide with. The gate's Step 2/3 suites specifically exercise the
+import path the manual audit session didn't happen to cover.
+
+---
+
+**D43 — the gate caught a SECOND regression, this time in D40's `SCALE_CATEGORIES` fix.** After
+D42's fix, re-running the clean gate got further (Steps 0-3 all green) but Step 4 (Authoring
+Contract validation) failed: "numeric scale class did not raise s5.class.numeric-scale." Root
+cause: D40 renamed the `'text'` category to `'text-scale'` in `Grammar::SCALE_CATEGORIES`,
+reasoning that utilities.css only ships `.text-scale-*`, never bare `.text-*` — true for the
+REAL ladder, but Step 4's own acceptance fixture (`tests/acceptance-step4.sh`, check 4/6)
+deliberately defines a legacy/alias class `.text-2` (bare `text-` prefix, no `-scale-`) to prove
+the "numeric scale step defined in CSS but non-ladder" WARNING path still works — a real,
+intentionally-supported pattern the D40 rename broke by removing the `'text'` category entirely,
+so `text-2` matched no category at all and silently passed instead of warning. Fixed:
+`SCALE_CATEGORIES` now keeps BOTH `'text-scale'` (the real ladder) AND `'text'` (the legacy
+numeric-alias detector) as distinct categories, with `'text-scale'` checked first so
+`text-scale-lg` still matches the longer, more specific prefix rather than being mis-parsed
+against `'text'`. Verified directly (not just re-running the gate blind, to move faster): all
+three cases probed via `wp eval` against the live gate WordPress instance — `text-2` → WARNING
+`s5.class.numeric-scale` (restored), `text-scale-lg` → 0 findings (still fixed), `space-top-sm` →
+0 findings (still fixed); re-confirmed `onclick` still ERRORs and the full real corpus still
+sweeps at 0 errors. Zip rebuilt; gate re-run a third time (see D44 for final result).
+
+Process note: two consecutive gate-caught regressions in fixes that had each individually looked
+correct and been unit-probed is exactly the value of running the REAL suite instead of trusting
+spot-checks — my own ad hoc `wp eval` probes for D40 tested `text-scale-lg`/`space-top-sm` (the
+bug I was fixing) but never thought to test a bare-`text-`-prefixed legacy class, because I didn't
+know that pattern was intentionally supported until the gate's own fixture proved it.
