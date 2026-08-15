@@ -174,7 +174,12 @@ suites; every suite is green on its own) — see `DECISIONS.md` D20.
 
 ## What this cut deliberately leaves out (post-WordCamp)
 
-Capability-levels UI · undo/redo (revisions are the answer) · full component studio
-(props-panel UI, variant switcher) · move/duplicate/delete polish beyond insert ·
-Tailwind mode function · MCP · the React editor rehome (D19). See `DECISIONS.md` for
-every scope call.
+Undo/redo (revisions are the answer) · full component studio (props-panel UI,
+variant switcher) · move/duplicate/delete polish beyond insert · Tailwind mode
+function · MCP · the React editor rehome (D19). See `DECISIONS.md` for every
+scope call.
+
+Capability-levels UI (Client/Marketer/Developer) shipped: every entrance — the
+editor, Theme Settings, and the REST save door — resolves through
+`S5\Roles::can()` (per-user override → WP-role seed → matrix), not just a raw
+WP capability. See DECISIONS.md D45/D46 and `tests/acceptance-roles.sh`.

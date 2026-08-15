@@ -30,14 +30,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Settings {
 
 	/**
-	 * Capability required to reach the settings app at all.
+	 * WP capability FLOOR to reach the settings app at all — the widest net any S5
+	 * role needs (`edit_posts`, held by Administrator/Editor/Author).
 	 *
 	 * Per the roles contract (HANDOFF §4) a Client never sees the settings page;
-	 * Marketer sees a reduced set of screens; Developer sees everything. The coarse
-	 * gate is `manage_options` (Developer/Administrator) with per-screen role checks
-	 * layered on in Phase C. Manage_options is the correct floor for Phase A.
+	 * Marketer sees a reduced set of screens; Developer sees everything. This
+	 * constant is NOT the real gate — {@see Roles::can()} ('settings.view' at the
+	 * app level, then a per-screen capability from {@see self::screen_capability()})
+	 * is what actually decides visibility and access, so a WP-Administrator pinned
+	 * to a lower S5 role is still restricted (R1: hidden AND blocked).
 	 */
-	public const CAPABILITY = 'manage_options';
+	public const CAPABILITY = 'edit_posts';
 
 	/**
 	 * Settings app page slug (admin.php?page=s5-settings).

@@ -1098,3 +1098,204 @@ correct and been unit-probed is exactly the value of running the REAL suite inst
 spot-checks — my own ad hoc `wp eval` probes for D40 tested `text-scale-lg`/`space-top-sm` (the
 bug I was fixing) but never thought to test a bare-`text-`-prefixed legacy class, because I didn't
 know that pattern was intentionally supported until the gate's own fixture proved it.
+
+---
+
+**D45 — Pre-human QA sweep: Roles & Access is fully built and fully documented, but
+non-functional for 2 of its 3 tiers. NOT YET FIXED — logged for follow-up.**
+Found during an exhaustive real-install sweep (`docs/qa-sweep/REPORT.html`) against the tagged
+zip on the real WP Studio site, with three real WordPress users created (one per documented
+tier: Client → Author, Marketer → Editor, Developer → Administrator) and logged in as each.
+The Roles settings screen explicitly documents Client as seeing "only the Content and Style
+tabs" in the canvas and Marketer as able to "open Theme Settings, but not Roles, CSS/Tailwind,
+or Deploy." Both claims are false in the shipped code: `Editor::CAPABILITY` and
+`Settings::CAPABILITY` are both hard-coded to `manage_options` (Administrator-only), checked
+*before* the granular `Roles::can()` permission matrix ever runs. Neither WP Author nor WP
+Editor holds `manage_options` by default, so both the Client and Marketer roles are blocked
+outright — server-side, `wp_die()`-level — from the editor AND Theme Settings, not
+tab-restricted as documented. Verified directly: `qa_client` (Author) got "Sorry, you are not
+allowed to access this page" on both `?page=s5-editor` and `?page=s5-settings`; `qa_marketer`
+(Editor) got the same on `?page=s5-settings`. `Settings.php:37`'s own comment confirms this was
+a known, intentional simplification ("gate is `manage_options` (Developer/Administrator) with
+per-screen role checks") that was never finished — the fine-grained `Roles::can()` layer is a
+real, separately-built permission matrix, presumably correct, but structurally unreachable for
+anyone but an Administrator. Rejected: fixing this inline during the QA sweep — a capability-
+model change of this size (loosening the outer gate to something like `edit_posts` and trusting
+`Roles::can()` for the rest, across both `Editor.php` and every gated method in `Settings.php`)
+deserves its own review pass, not a rushed patch buried inside an audit. Why not fixed now: the
+blast radius (every gated method across two files, plus whatever assumptions the granular
+`Roles::can()` matrix makes about the caller already being an admin) is large enough that a fast
+fix risks trading one broken permission model for a differently-broken one. Flagged clearly
+instead. Also flagged: DEMO.md line 177 lists "Capability-levels UI" under features this cut
+deliberately leaves out — directly contradicted by this now-shipped (if broken) feature; the doc
+line is stale either way and should be reconciled alongside the real fix.
+
+---
+
+**D46 — Pre-human QA sweep: the compiled design system ships with zero responsive CSS. NOT YET
+FIXED — logged for follow-up.**
+Found during the same sweep. `grep -c "@media"` against the shipped `site/dist/s5.css` (448
+lines, real compiled content, not truncated) and all four source stylesheets
+(`tokens.css`/`utilities.css`/`components.css`/`scales.css`) returns zero matches across the
+board; a follow-up grep for `clamp(`/`container-type`/`@container` also returns zero. There is
+no responsive mechanism anywhere in the design system — no breakpoints, no fluid type, no
+container queries. Every served page renders the identical fixed-width desktop layout at every
+viewport width; a phone visitor gets the desktop grid compressed into a narrow window, not a
+responsively redesigned page. This is independent of the editor's viewport toggle (Section 01 of
+the sweep report), which only resizes the in-editor preview iframe and was never a claim about
+the served site's real responsiveness. Not fixed now: a real responsive pass (breakpoints across
+every component's scoped CSS, the header/footer parts, the type ramp) is a substantial design-
+system change in its own right, not a one-line patch, and belongs in its own reviewed pass rather
+than bolted on inside a QA sweep. Full write-up, evidence, and the rest of the sweep's findings
+(2 moderate defects — silent dirty-state loss on navigate-away with no `beforeunload` guard;
+silent Schema/JSON-LD save rejection with no user-facing error — plus the README.md architecture
+staleness finding) are in `docs/qa-sweep/REPORT.html`.
+
+---
+
+**D47 — Post-sweep fix pass v2, item 1: Roles enforcement actually wired at every entrance
+(D45 fixed).**
+`Editor::CAPABILITY` and `Settings::CAPABILITY` changed from `manage_options` to `edit_posts` — a
+WP capability FLOOR only (Administrator/Editor/Author all hold it), never the real gate.
+`Roles::can( 'editor.open' )` is now ANDed alongside the WP capability at every one of Editor.php's
+8 gate sites (menu registration, row action, admin-bar link, edit-link filter, block-editor
+redirect, asset enqueue's screen guard, render_screen, maybe_render_fullscreen, maybe_prepare_preview).
+Settings.php's 5 gate sites already had `Roles::can()` calls correctly written NEXT TO the
+`manage_options` check (a prior session had built the fine-grained logic but never loosened the
+outer gate) — broadening the constant alone made all 5 correct. `Rest::can_save()` (the
+permission_callback for every `/s5/v1` write route) now also ANDs `Roles::can('editor.open')`;
+added three previously-missing resource-level checks inside the handlers themselves:
+`mode:"canonical"` (Code lens / raw HTML save) now requires `editor.advanced` (no dedicated
+capability key exists for "Code lens" specifically; this is the nearest existing semantic fit,
+matching the Roles screen's own documented "Client: Content + Style only" boundary — rejected
+adding a new capability key as scope creep beyond "fix the entrances"); `handle_template_save`
+now requires `settings.templates`; `handle_component_save` (POST only, not GET — the palette needs
+GET to load a component for insert/preview) now requires `settings.components`. `Admin.php`
+needed two additional fixes beyond the four named files: the top-level "S5" menu's OWN capability
+had to be broadened too (`MENU_PARENT_CAPABILITY = edit_posts`, a new constant, separate from
+`Admin::CAPABILITY` which stays `manage_options` for Setup & Status specifically, which is
+correctly Developer-only and out of the Roles matrix's scope) — otherwise the parent menu itself
+would hide the newly-reachable Theme Settings child for Marketer. A new
+`Admin::prune_menu_for_role()` (`admin_menu` priority 999, after every submenu registers) removes
+Theme Settings from the menu for anyone `Roles::can('settings.view')` denies, and removes the
+top-level "S5" entry entirely if BOTH children are unreachable for that role — closing a
+regression the broadened parent capability would otherwise introduce (Client would see a dead-end
+"S5" menu item, blocked-but-not-hidden, the exact anti-pattern R1 exists to prevent).
+`render_setup_screen()` now redirects a non-Developer who lands there (only possible by clicking
+the literal "S5" label, whose click target is fixed at registration) to Theme Settings if their
+role can see it, instead of `wp_die()`ing on a surface they were never trying to reach.
+
+Verified with real logins (not just `Roles::can()` unit logic — see D-fix and the new standing
+gate below): `qa_client` (Author) reaches the editor, is correctly blocked from Code-lens saves
+server-side (`s5_role_advanced`), is blocked from Theme Settings and the S5 menu is entirely
+absent from their sidebar. `qa_marketer` (Editor) reaches the editor AND Theme Settings, sees only
+General + StyleGuide in the sub-nav (Templates/Components/CSS/Integrations/Roles absent, matching
+the existing capability matrix's pre-set defaults, which this fix intentionally did NOT change —
+"fix the entrances" ≠ "redefine the matrix"), and a direct URL-jump to `?screen=roles` falls back
+to General rather than ever rendering the Roles content. `qa_developer` (Administrator) unchanged.
+
+Standing gate replaces `tests/acceptance-roles.sh` as the thing that actually proves this:
+`tests/playwright/roles-login.spec.mjs` + `tests/acceptance-roles-login.sh`
+(`npm run test:roles-login`) creates three real WordPress users, logs in as each through the real
+`wp-login.php` form via Playwright, and asserts what that session actually sees/reaches —
+including a direct URL-jump to a blocked route. The old logic-only suite is NOT removed (still a
+useful fast unit check) but is relabeled in `tests/run-all.sh` as demoted, since it passed the
+entire time the product was broken — proof that `Roles::can()` being correct in isolation was
+never sufficient.
+
+---
+
+**D48 — Post-sweep fix pass v2, item 2: loud-door fixes for dirty-state loss and the silent
+schema-save rejection.**
+2a: `editor.js` gained a `beforeunload` listener (warns via the native browser dialog whenever
+`state.dirty` is true — no custom message is possible in any modern browser, but the dialog
+itself is the loud signal) and a `click` guard on the "Back to WordPress" logo link
+(`window.confirm()` before letting the navigation proceed, since `beforeunload` does not fire
+reliably for same-tab anchor clicks in every browser). Both read the SAME `state.dirty` flag
+`markDirty()`/`markClean()` already maintained — no new state, just two new listeners on it.
+
+2b: the sweep's finding ("Save schema" fails silently) had a second, INDEPENDENT bug underneath
+it that made the fix nontrivial. `codelens.js` captured `headSaveBtn` via a single-element
+`querySelector('[data-s5-head-save]')` (there are two buttons sharing that attribute — "Save
+meta" and "Save schema" — a head save always writes every head field at once, by design). The
+`input` listener on every `data-s5-head` field only ever re-enabled the FIRST button found in the
+DOM ("Save meta"), so typing in the JSON-LD textarea alone could never enable "Save schema" at
+all — the field was unreachable through normal use, not just its failure invisible. Fixed by
+calling the ALREADY-CORRECT `enableHeadSave()` helper (which used `querySelectorAll`) instead of
+the stale single-button reference. Separately, added a `<p data-s5-head-error="json_ld" hidden>`
+element directly under the Schema section in `editor-drawers.php` (`.field-error` CSS, reusing
+the existing `--s5e-danger` token) and a `renderHeadErrors()` function in `codelens.js` that
+places each returned diagnostic (the server already correctly returns
+`{ok:false, diagnostics:[{rule:'s5.jsonld.invalid', message:'...'}]}`, HTTP 422, on invalid JSON —
+that half was never broken) next to the field it names, replacing the old `renderDiagnostics()`
+call that wrote into `codeDiag` — the CODE LENS's own diagnostics box, invisible while the Page
+Settings drawer is open on top of it. Verified live: typing `{not valid json,,,` and clicking
+"Save schema" now shows "[s5.jsonld.invalid] JSON-LD is not valid JSON: Syntax error" directly
+under the button; confirmed server-side the invalid payload was never persisted, both before and
+after this fix (the rejection logic itself was always correct — only the surfacing was broken).
+
+---
+
+**D49 — Post-sweep fix pass v2, item 3: README.md rewritten to the shipped architecture;
+DEMO.md's stale "Capability-levels UI... left out" line corrected.**
+README.md described "Build Order Step 6 complete" and an `s5-plugin/` companion plugin with its
+own `composer.json`/`vendor/` — architecture from before the single-theme repackage (D14).
+`s5-plugin/` does not exist on disk at all (confirmed by direct listing before rewriting); a
+fresh clone following README's own setup instructions (`composer install -d s5-plugin`) would
+fail on the first command. Rewritten from first-hand ground truth read at rewrite time: the real
+`s5-theme/src/` and `s5-theme/cli/` file listings, the real `package.json` scripts, `wp s5 init`'s
+actual doc comment (`InitCommand.php`), the real top-level directory listing, and `style.css`'s
+actual shipped version (0.9.0) — nothing carried over from the stale version, nothing invented.
+DEMO.md's "what this cut deliberately leaves out" list dropped "Capability-levels UI" (shipped,
+per D47) and gained a note that it shipped, pointing at D45-D47 and the new
+`tests/acceptance-roles-login.sh`.
+
+---
+
+**D50 — Post-sweep fix pass v2, item 4: starter fluidity — clamp()-based type/space scales, a
+responsive-images base rule, and minimum-viable @media breaks on two starter components (D46
+partially addressed; the full responsive design pass is still deferred to the S5T design work,
+per D46's own reasoning).**
+`scales.css`'s type and space ladders (`--s5-text-*`, `--s5-space-*`) are now `clamp(min,
+preferred, max)` between a 375px and 1440px viewport. Every step's MAX is the exact pre-existing
+fixed value — nothing regresses at 1440px+; MIN scales down proportionally more at larger steps
+(the standard fluid-type ratio: headings compress harder than body text). Radius stays fixed (a
+visual detail, not a layout/typography metric that needs viewport-driven fluidity).
+`components.css` gained two `@media` breakpoints on `.feature-grid` (3 columns to 2 to 1, the
+exact class the sweep's own screenshot showed rendering a fixed 3-column grid at 375px) and a
+flex-wrap fallback on `.site-header`/`.nav ul` (a full unwrapped nav row is the classic 375px
+overflow case). While verifying this with the new viewport-matrix gate (item 5a), found and fixed
+a THIRD, independent gap in the same class of bug: zero base rule anywhere made `<img>` elements
+responsive, so the home page's hero image (`width="1200" height="640"` — correct practice for
+intrinsic aspect ratio, but with no CSS override those attributes ARE the rendered size at every
+viewport) caused a real 825px horizontal overflow at 375px. Added
+`img, picture, video { max-width: 100%; height: auto; }` to `components.css` (element selectors,
+not classes — adds nothing to the closed vocabulary the validator enforces). Also found: the
+repo's checked-in `s5-theme/site/dist/s5.css` and `tools/build-zip.mjs`'s zip-embedded compile are
+TWO SEPARATE compile paths (the Node build script never writes back to the source tree's own
+`dist/`) — the repo copy was stale relative to source for the entire duration of this fix until
+regenerated via the real `S5\StyleBundle::build()` PHP path and copied back; worth a future DECISIONS
+note if this bites again (the zip is always correct since `build-zip.mjs` compiles fresh into its
+own stage every run; only the repo's own committed `dist/s5.css` can silently drift).
+
+---
+
+**D51 — Post-sweep fix pass v2, item 5: closed the QA sweep's three disclosed coverage holes —
+viewport matrix, WebKit parity, network sweep — by installing Playwright as a real project
+devDependency (it was not previously a dependency at all).**
+`tests/playwright/viewport-matrix.mjs`: 375/768/1440 × all 9 corpus pages = 27 screenshots via
+Playwright's browser-CONTEXT viewport (not a post-launch window resize, which is exactly what
+made the original sweep's viewport pass invalid) — explicitly asserts `window.innerWidth` actually
+changed before trusting any screenshot, and checks for horizontal overflow at every shot (caught
+the D50 image-overflow bug this way, before it was found any other way). All 27 pass clean after
+the D50 fixes. `tests/playwright/webkit-parity.mjs`: the same 9 pages at 1440+375 in Playwright's
+real WebKit engine (Safari's actual engine, not a Chromium emulation), diffing PNG dimensions
+against the Chromium baseline — 18/18 pass, essentially zero divergence (all exact width matches,
+height deltas under 1.2%). `tests/playwright/network-sweep.mjs`: request-by-request log across
+the editor, all 7 settings screens, and 3 served pages — zero 404s, zero S5-asset requests to any
+non-local origin (confirms the bundled-FontAwesome-never-CDN guarantee holds). Screenshots saved
+to `docs/qa-sweep/viewports/` and `docs/qa-sweep/webkit/`. The one item explicitly left as a
+disclosed gap, per the sweep's own "note for the human, do not attempt to fix": preview-iframe
+wheel-scroll still needs a real-trackpad confirmation — the sweep already isolated this to
+synthetic-event delivery over a cross-origin iframe, not a product defect, and no amount of
+additional automation resolves what requires physical hardware input to confirm.

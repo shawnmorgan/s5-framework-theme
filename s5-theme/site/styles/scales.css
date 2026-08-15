@@ -7,30 +7,42 @@
  * values. The editor's Style tab (Phase B4) renders these live as a type ramp,
  * spacing steps, and radius samples — no hand-built HTML to drift.
  *
+ * Type + space steps are clamp(min, preferred, max) — fluid between a 375px and
+ * a 1440px viewport (BEM+Token v0.9, post-sweep v2 item 4: "the starter obeys
+ * its own spec"). The MAX in every step is the exact pre-existing fixed value —
+ * nothing changes at 1440px+, so this never regresses a desktop layout that
+ * already shipped. The MIN scales down proportionally more at larger steps
+ * (headings compress harder than body text; large spacing compresses harder
+ * than tight spacing) — the standard fluid-type ratio, not an arbitrary number.
+ * This is a STARTER-scale fix only, not the full responsive design pass (that
+ * lands with the S5T design pass); it exists so a corpus page doesn't render
+ * pure fixed-desktop at 375px with zero fluidity at all.
+ *
  * Placeholder-tier for the test corpus; replace with the real scale at launch.
  */
 :root {
 	/* Type scale */
-	--s5-text-xxs: 0.694rem;
-	--s5-text-xs: 0.833rem;
-	--s5-text-sm: 0.9rem;
-	--s5-text-md: 1rem;
-	--s5-text-lg: 1.2rem;
-	--s5-text-xl: 1.44rem;
-	--s5-text-xxl: 1.728rem;
-	--s5-text-xxxl: 2.074rem;
+	--s5-text-xxs: clamp(0.694rem, 0.694rem + 0.0000vw, 0.694rem);
+	--s5-text-xs: clamp(0.833rem, 0.833rem + 0.0000vw, 0.833rem);
+	--s5-text-sm: clamp(0.855rem, 0.8392rem + 0.0676vw, 0.9rem);
+	--s5-text-md: clamp(0.9rem, 0.8648rem + 0.1502vw, 1rem);
+	--s5-text-lg: clamp(1.02rem, 0.9566rem + 0.2704vw, 1.2rem);
+	--s5-text-xl: clamp(1.152rem, 1.0506rem + 0.4327vw, 1.44rem);
+	--s5-text-xxl: clamp(1.296rem, 1.1439rem + 0.6490vw, 1.728rem);
+	--s5-text-xxxl: clamp(1.4518rem, 1.2327rem + 0.9348vw, 2.074rem);
 
 	/* Space scale */
-	--s5-space-xxs: 0.25rem;
-	--s5-space-xs: 0.5rem;
-	--s5-space-sm: 0.75rem;
-	--s5-space-md: 1rem;
-	--s5-space-lg: 1.5rem;
-	--s5-space-xl: 2rem;
-	--s5-space-xxl: 3rem;
-	--s5-space-xxxl: 4rem;
+	--s5-space-xxs: clamp(0.25rem, 0.25rem + 0.0000vw, 0.25rem);
+	--s5-space-xs: clamp(0.5rem, 0.5rem + 0.0000vw, 0.5rem);
+	--s5-space-sm: clamp(0.675rem, 0.6486rem + 0.1127vw, 0.75rem);
+	--s5-space-md: clamp(0.85rem, 0.7972rem + 0.2254vw, 1rem);
+	--s5-space-lg: clamp(1.125rem, 0.9930rem + 0.5634vw, 1.5rem);
+	--s5-space-xl: clamp(1.4rem, 1.1887rem + 0.9014vw, 2rem);
+	--s5-space-xxl: clamp(1.8rem, 1.3775rem + 1.8028vw, 3rem);
+	--s5-space-xxxl: clamp(2.2rem, 1.5662rem + 2.7042vw, 4rem);
 
-	/* Radius scale */
+	/* Radius scale — unitless visual detail, not a typography/layout metric;
+	 * stays fixed (no viewport-driven fluidity needed). */
 	--s5-radius-xxs: 2px;
 	--s5-radius-xs: 4px;
 	--s5-radius-sm: 6px;

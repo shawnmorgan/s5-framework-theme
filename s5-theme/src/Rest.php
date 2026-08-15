@@ -16,7 +16,8 @@
  *   - "head":      _s5_head structured fields updated; canonical untouched (B3).
  *
  * On a validation ERROR the canonical is left UNCHANGED and diagnostics return
- * to the editor (loud, never silent). Gated behind manage_options + nonce.
+ * to the editor (loud, never silent). Gated behind the edit_posts capability
+ * floor + the R1 Roles::can() resolution + nonce.
  *
  * @package S5\Plugin
  */
@@ -134,6 +135,12 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function handle_template_save( \WP_REST_Request $request ) {
+		// R1: Templates is a Theme Settings screen (settings.templates); the same
+		// resource-level gate the router uses to hide/show the screen also gates
+		// its own save route, so a direct REST call cannot do what the UI hides.
+		if ( ! Roles::can( 'settings.templates' ) ) {
+			return new \WP_Error( 's5_role_templates', __( 'Your role cannot edit template parts.', 's5' ), array( 'status' => 403 ) );
+		}
 		$name = (string) $request->get_param( 'name' );
 		if ( ! Templates::part_exists( $name ) ) {
 			return new \WP_Error( 's5_no_part', __( 'Unknown template part.', 's5' ), array( 'status' => 404 ) );
@@ -267,6 +274,13 @@ final class Rest {
 	 * @return \WP_REST_Response|\WP_Error
 	 */
 	public static function handle_component_save( \WP_REST_Request $request ) {
+		// R1: Components is a Theme Settings screen (settings.components); GET stays
+		// open to any capable editor (the palette needs to load a component's HTML/
+		// manifest to insert or preview it), but writing the source is gated the
+		// same way the settings screen itself is.
+		if ( ! Roles::can( 'settings.components' ) ) {
+			return new \WP_Error( 's5_role_components', __( 'Your role cannot edit components.', 's5' ), array( 'status' => 403 ) );
+		}
 		$name = (string) $request['name'];
 		$html = (string) $request->get_param( 'html' );
 		$man  = (string) $request->get_param( 'manifest' );
@@ -328,13 +342,18 @@ final class Rest {
 	}
 
 	/**
-	 * Permission check: single-user MVP — manage_options. The REST nonce
+	 * Permission check for every /s5/v1 write route: the WP capability FLOOR
+	 * ({@see Editor::CAPABILITY}, edit_posts) plus 'editor.open' — the R1
+	 * resolution — so a role the matrix denies is blocked here regardless of
+	 * WP capability, before any handler runs. Mode-specific and resource-
+	 * specific Roles::can() checks (page settings, embed, structure, components,
+	 * templates) layer on inside the individual handlers below. The REST nonce
 	 * (X-WP-Nonce) is validated by core before this runs.
 	 *
 	 * @return bool
 	 */
 	public static function can_save(): bool {
-		return current_user_can( Editor::CAPABILITY );
+		return current_user_can( Editor::CAPABILITY ) && Roles::can( 'editor.open' );
 	}
 
 	/**
@@ -367,6 +386,13 @@ final class Rest {
 				}
 				return self::persist_canonical( $post_id, $canonical );
 			case 'canonical':
+				// R1: a raw full-fragment (Code lens) save is structure-level editing —
+				// no capability key exists specifically for "Code lens", so this maps
+				// onto the nearest existing one, 'editor.advanced', matching the Roles
+				// screen's own documented boundary that Client gets Content+Style only.
+				if ( ! Roles::can( 'editor.advanced' ) ) {
+					return new \WP_Error( 's5_role_advanced', __( 'Your role cannot edit canonical HTML directly.', 's5' ), array( 'status' => 403 ) );
+				}
 				$canonical = (string) $request->get_param( 'canonical' );
 				return self::persist_canonical( $post_id, $canonical );
 			case 'insert':

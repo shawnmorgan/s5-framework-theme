@@ -170,12 +170,24 @@ echo "$BUNDLE" | grep -qE '\.(prose|page-hero|hero|section)[^{]*\{' || fail "ser
 pass "framework page serves styled; bundle carries :root tokens + component rules"
 
 # ---------------------------------------------------------------------------
-# 6. Top-level S5 admin menu exists.
+# 6. Top-level S5 admin menu exists FOR A REAL ADMINISTRATOR.
+#
+# Post-sweep v2 item 1: the menu is now role-pruned (Admin::prune_menu_for_role,
+# DECISIONS.md D47) — a logged-out/no-user eval context resolves to the S5
+# "client" role (Roles::role_for_user(0), documented as the most-restrictive
+# default) and correctly has the menu stripped. This check exists to prove
+# the menu exists for a real Developer, so it must actually impersonate one
+# (wp_set_current_user) rather than run in no-user context.
 # ---------------------------------------------------------------------------
-info "6  Top-level S5 admin menu is registered…"
-MENU="$(wpc eval 'do_action("admin_menu"); foreach((array)($GLOBALS["menu"]??[]) as $m){ if(($m[2]??"")==="s5"){echo "yes";break;} }' | tail -1)"
-[ "$MENU" = "yes" ] || fail "top-level S5 menu not registered"
-pass "top-level S5 menu present (Editor · Style · Components · Setup/Status)"
+info "6  Top-level S5 admin menu is registered (as a real Administrator)…"
+MENU="$(wpc eval '
+	$admins = get_users(array("role"=>"administrator","number"=>1,"fields"=>"ID"));
+	wp_set_current_user($admins ? (int)$admins[0] : 1);
+	do_action("admin_menu");
+	foreach((array)($GLOBALS["menu"]??[]) as $m){ if(($m[2]??"")==="s5"){echo "yes";break;} }
+' | tail -1)"
+[ "$MENU" = "yes" ] || fail "top-level S5 menu not registered for a real Administrator"
+pass "top-level S5 menu present for Developer (Editor · Style · Components · Setup/Status)"
 
 # ---------------------------------------------------------------------------
 # 7. Restore the mounted s5-theme so a full-gate run leaves a clean baseline.

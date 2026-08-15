@@ -2,152 +2,148 @@
 
 Pages are authored directly as **HTML** by an AI agent or developer. WordPress
 compiles, validates, stores, and serves that HTML. Humans edit only the
-capabilities the author explicitly exposes. There is **no page-builder
-abstraction** between source and output.
+capabilities the author explicitly exposes, through the built-in S5 canvas
+editor. There is **no page-builder abstraction** between source and output,
+and **no companion plugin** — S5 ships as a single WordPress theme.
 
 ## Source of truth — read these first
 
 1. [`Agent-Native-WordPress-One-Sheet-v1.md`](./Agent-Native-WordPress-One-Sheet-v1.md) — thesis and positioning.
-2. [`PRD-Agent-Native-WordPress-Framework-v1_4.md`](./PRD-Agent-Native-WordPress-Framework-v1_4.md) — approved architecture.
+2. [`PRD-Agent-Native-WordPress-Framework-v1_5.md`](./PRD-Agent-Native-WordPress-Framework-v1_5.md) — approved architecture.
 3. [`BUILD-ORDER-Agent-Native-WP-v1.md`](./BUILD-ORDER-Agent-Native-WP-v1.md) — step-by-step execution sheet.
+4. [`DECISIONS.md`](./DECISIONS.md) — every judgment call made along the way, with the why.
+5. [`DEMO.md`](./DEMO.md) — a live click-script for the editor, and the real-site install path.
 
-The Build Order is strict: **do not begin a step until the current step's
-acceptance test passes.** Build the smallest thing that proves the invariant;
-defer everything deferrable.
+## Current status
 
-## Current status — Build Order **Step 6** complete (media resolution)
+Build Order Steps 0–12 are complete, plus template parts, SEO/AEO ownership,
+frontend interactive islands, the component registry, and the Editor MVP
+(canvas + Code lens + Style/Advanced tabs). Distribution as a real installable
+theme zip is complete and gate-tested. Roles & Access (Client/Marketer/
+Developer capability tiers) is live: every entrance — the editor, the
+Theme Settings screens, and the REST save door — resolves through
+`S5\Roles::can()` (per-user override → WP-role seed → matrix), not raw WP
+capabilities, so a role the matrix denies is blocked even if the underlying
+WP account holds `manage_options`.
 
-> **Exit condition (Step 6):** media no longer forces environment-specific data
-> into canonical HTML. Canonical references assets by **portable relative path**
-> (`assets/hero.png`), resolved against the asset dir declared in
-> `s5.config.json` — canonical never contains attachment IDs, upload URLs, or
-> srcset. On compile, the **media-resolution transform** (sanctioned transform #2)
-> sideloads each `<img>`/`<source>` asset into the media library — matching by
-> **content hash** (`_s5_source_hash`) so re-imports dedupe and a changed file
-> re-sideloads — and the **derived render** gets that environment's attachment
-> URL, srcset/sizes, explicit width/height, and lazy/LCP loading (author-set
-> attributes win; the first content image is not lazy). External `http(s)`/`data:`
-> URLs are untouched everywhere. An unresolvable path is a **loud compile error**
-> naming the file + path. The served markup carries **only runtime attributes** —
-> no framework-internal attribute ships; the reversal information lives out of
-> band in the `_s5_media_map` page meta, which the round-trip harness reads to map
-> resolved media back to its logical source before diffing, so everything
-> non-media stays byte-for-byte.
-
-> **Exit condition (Step 5):** source is portable truth; render output is
-> disposable environment state. `_s5_canonical_html` stays the authored,
-> revisioned, portable source. Compile turns it into `_s5_render_html` (the
-> derived artifact the canvas now **serves**) via an auditable ordered transform
-> pipeline plus a visible **`post_content` semantic mirror**
-> (canonical body minus `<script>`/`<style>`/inline-`<svg>`/`data-*`) for WP
-> search + SEO introspection — never served. Canonical, render, and mirror
-> persist **atomically**. `wp s5 recompile` regenerates the derived artifacts
-> deterministically; deleting them and recompiling restores them from canonical
-> alone. Canonical source is revisioned, and **restoring a revision recompiles
-> automatically** — the served page reverts with no manual step.
-
-Steps 0–5 stay green; Step 6 resolves media at compile time. What exists now:
+What exists now:
 
 | Path | Purpose |
 |---|---|
-| `s5-theme/` | Shell theme. `style.css` (WP header), `functions.php` (enqueue stub), `index.php`/`header.php`/`footer.php` (minimal fallback templates). |
-| `s5-plugin/` | Companion plugin — the shippable unit. Owns its `composer.json` / `vendor/` (PSR-4 autoload), the `wp s5` CLI namespace with one smoke command (`wp s5 hello`), plus `phpcs.xml` and `phpunit.xml.dist`. |
-| `s5-plugin/src/Storage.php` | Registers the page meta: `_s5_canonical_html` (canonical source — revisioned), `_s5_head`, and `_s5_render_html` (derived, served, **not** revisioned). A page is a *framework page* when canonical is non-empty. |
-| `s5-plugin/src/Compiler.php` | Compile: canonical → `_s5_render_html` via an **auditable ordered transform pipeline** (identity today; media/hidden-node seats reserved) + the visible `post_content` semantic mirror. `persist_page()` writes canonical + render + mirror **atomically** (rolls back if the mirror can't be stored verbatim). |
-| `s5-plugin/src/Revisions.php` | Registers `_s5_canonical_html` + `_s5_head` for native revisions and **recompiles derived artifacts on revision restore** (served page reverts with no manual recompile). |
-| `s5-plugin/cli/RecompileCommand.php` | `wp s5 recompile [<slug>\|--all]` — regenerates derived render + mirror from canonical. Deterministic (byte-identical). |
-| `s5-plugin/src/MediaResolver.php` | Media-resolution compile transform (Step 6). Resolves canonical relative `<img>`/`<source>` refs against the declared asset dir, **sideloads/dedupes by content hash** (`_s5_source_hash`), and rewrites the **derived render** with attachment URL + srcset/sizes + width/height + lazy/LCP. Author attrs win; external URLs untouched; unresolvable path = loud compile error. Byte-fidelity preserved (targeted string replacement, never DOM re-serialization). |
-| `assets/` | Local **portable** asset dir declared in `s5.config.json` (`assets.dir`). Canonical HTML references these by relative path (`assets/hero.png`); the compiler resolves them per environment. |
-| `s5-plugin/src/Render.php` | `template_include` render path: routes framework pages to the canvas template, bypassing theme + Gutenberg; turns off the block editor for them. |
-| `s5-plugin/templates/canvas.php` | Runtime template — emits the **derived `_s5_render_html`** (fallback: canonical) **verbatim** in a minimal `<html>` shell (`wp_head`/`wp_footer` stay outside the fragment). Never runs `the_content`; never serves the `post_content` mirror. |
-| `s5-plugin/src/HtmlDocument.php` | Full-document parser: splits a source HTML file into the verbatim `<body>` fragment and the sanctioned `<head>` artifacts (title, description, canonical, OG/meta, JSON-LD). |
-| `s5-plugin/cli/ImportCommand.php` | `wp s5 import [<dir>]` — turns a directory of HTML docs into pages (slug = filename, `index.html` = front page), idempotent, never duplicates. Step 4: **gates every page through validation** before write (errors block that page; import continues; exits nonzero at end). |
-| `s5-plugin/src/Stylesheet.php` | Parses the **closed class vocabulary** (union of class selectors) from the theme stylesheet(s) declared in `s5.config.json` `styles.vocabulary`. No hardcoded lists. |
-| `s5-plugin/src/Grammar.php` | Authoring Contract A4/A3 grammar: classifies a class into its layer (block/element/modifier/utility/scale) and flags off-ladder / numeric scale steps. |
-| `s5-plugin/src/Validator.php` | Validates a page's HTML: unknown class / inline `style=` / unparseable → ERROR; defined-but-nonconforming / numeric scale → WARNING. Emits agent-readable findings (file·line·rule·token·permitted·repair·did-you-mean). |
-| `s5-plugin/cli/ValidateCommand.php` | `wp s5 validate [<dir>] [--format=json]` — standalone report; nonzero on any ERROR. |
-| `s5-theme/styles/` | The design-system stylesheets (`components.css`, `utilities.css`) whose class selectors **are** the vocabulary. |
-| `Authoring-Contract-v0.1.md` | Part A CSS system (token/scale/name grammar) the validator enforces. |
-| `pages/` | The source corpus. Full HTML documents imported into pages — including `series-5-technology.html`, the real production-bound S5T page with genuine markup complexity. Also the QA corpus the fidelity harness round-trips. |
-| `s5.config.json` | Machine-readable layout: paths, namespaces, `s5` prefix / text-domain, and `styles.vocabulary` (the declared stylesheets that define the class vocabulary). |
-| `.wp-env.json` | Docker dev environment (WordPress 6.7, PHP 8.2) mounting the theme + plugin, and mapping `pages/` → `wp-content/s5-pages` and the repo root → `wp-content/s5-repo` (so the validator can read `s5.config.json` + the theme styles in-container). |
-| `tests/acceptance.sh` | **The Step 0 acceptance test** (bash). |
-| `tests/acceptance-step1.sh` | **The Step 1 acceptance test** — stores a known fragment, `curl`s the page, asserts byte-clean output. |
-| `tests/acceptance-step2.sh` | **The Step 2 acceptance test** — imports the corpus and checks idempotence, slugs, front page, verbatim body + head. |
-| `tests/acceptance-step3.sh` | **The Step 3 round-trip fidelity harness** (`npm run test:roundtrip`) — import → HTTP → normalize sanctioned transforms → diff; self-verifying via an armed render mutation. Ship Gate check #1. |
-| `tests/acceptance-step4.sh` | **The Step 4 acceptance test** — real corpus clean; planted unknown class → ERROR + did-you-mean; inline style outside/inside `<svg>`; numeric scale → WARNING proceeds; `--format=json` fields; round-trip still green. |
-| `tests/acceptance-step5.sh` | **The Step 5 acceptance test** — derived + mirror exist and are served from `_s5_render_html`; recompile deterministic; mirror is semantic (no script/style/data-\*) and WP-searchable; revision restore reverts the served page automatically; delete-then-recompile proves disposability; negative self-test still red/green. |
-| `tests/acceptance-step6.sh` | **The Step 6 acceptance test** — real images import with srcset + dimensions and the harness stays green; unchanged re-import dedupes by hash; a changed source image re-sideloads; canonical stays portable while render re-derives per environment; an unresolvable path fails loudly; recompile stays deterministic with media active. |
-| `tests/fixtures/README.md` | The QA-corpus contract: what the harness guarantees, and how to add a page. |
-| `tests/lib/extract-head.php` | Host-side helper the harness uses to read source head artifacts (raw bytes) for the head-contract assertions. |
-| `tests/mu-plugins/` | Test-only mu-plugins mounted into WordPress: `s5-debug-guard.php` (surfaces notices) and `s5-roundtrip-mutator.php` (the armed render-path mutation for the negative test; inert unless the `s5_roundtrip_mutate` option is set). |
-| `s5-plugin/tests/phpunit/` | PHPUnit bootstrap scaffold, reserved for Step 4 compiler units. |
-| `s5-plugin/composer.json` / `s5-plugin/phpcs.xml` | PSR-4 autoload + WordPress Coding Standards lint (live inside the plugin so `vendor/` mounts into the container). |
+| `s5-theme/` | The theme — the entire shippable product. No companion plugin. |
+| `s5-theme/style.css` | WP theme header (name, version, description) — the only file WordPress requires to recognize S5 as a theme. |
+| `s5-theme/functions.php` | Bootstraps the framework: autoloads `src/`, registers the `wp s5` CLI namespace from `cli/`, wires every class's `register()` hooks. |
+| `s5-theme/site/` | The **fenced site subtree** (D14/D15) — everything a real install authors: `s5.config.json`, `styles/` (design tokens + vocabulary), `components/`, `parts/`, `assets/`, `pages/`, and the compiled `dist/`. Product updates never touch this directory; `wp s5 init` scaffolds it on a fresh install and never overwrites an existing file. |
+| `s5-theme/src/` | The framework's PHP classes (autoloaded, no Composer package needed at runtime): `Storage`, `Compiler`, `Validator`, `Grammar`, `Stylesheet`, `Render`, `Rest`, `Revisions`, `Editor`, `Settings`, `Admin`, `Roles`, `Templates`, `PartExpander`, `MediaResolver`, `ComponentRegistry`, `Islands`, `SeoGate`, `Schema`, `Redirects`, `Integrations`, and more — one class per concern, see each file's own doc comment for its contract. |
+| `s5-theme/cli/` | The `wp s5` CLI commands: `InitCommand` (`wp s5 init` — scaffold `site/`), `ImportCommand` (`wp s5 import [<dir>]`), `ValidateCommand` (`wp s5 validate [<dir>]`), `RecompileCommand` (`wp s5 recompile [<slug>\|--all]`), `ComponentCommand`, `HelloCommand` (`wp s5 hello`, the smoke test). |
+| `s5-theme/templates/` | The editor's own admin-screen templates (`editor.php`, `editor-drawers.php`) and the runtime canvas template that serves a framework page's derived render. |
+| `s5-theme/assets/editor/` | The editor's vanilla JS (no build step): shell, panel, palette, structure tree, Code lens, Style/Advanced tabs, the selection overlay injected into the live preview. |
+| `pages/` | The source corpus — HTML documents `wp s5 import` turns into pages. Also the QA corpus the round-trip fidelity harness diffs against. |
+| `tests/` | The acceptance suite: one script per Build Order step (`acceptance-step0.sh` … `acceptance-step11.sh`), plus `acceptance-editor.sh`, `acceptance-components.sh`, `acceptance-dist.sh`, `acceptance-disable.sh`, `acceptance-classswap.sh`, `acceptance-roles.sh`, and `run-all.sh` (the full gate). |
+| `tools/build-zip.mjs` | Builds the distributable `dist/s5-theme.zip` from `s5-theme/` — strips dev-only files, compiles the design-system bundle, asserts every critical asset is present before it will produce a zip. |
+| `.wp-env.json` | Docker dev environment (WordPress + PHP) for the acceptance suite. Mounts the repo so the suite can read `s5.config.json` and drive `wp s5` commands in-container. **Not** how a real site runs S5 — see "Install on a real site" below. |
 
-Not built yet (later steps — see the Build Order): the real production corpus
-(Step 7), templates/parts/dynamics (Step 8), SEO/AEO (Step 9), editor,
-components, MCP.
+## Install on a real site (the uploadable zip)
 
-## Requirements
+The framework installs like any other WordPress theme — no CLI, no Composer,
+no build tools on the target.
 
-- **Docker Desktop** (running) — wp-env needs it.
+```bash
+npm run build:zip          # produces dist/s5-theme.zip (self-contained)
+```
+
+Then, in wp-admin:
+
+1. **Appearance → Themes → Add Theme → Upload Theme** → choose `dist/s5-theme.zip`
+   → **Install** → **Activate**.
+2. On activation the design system compiles and, if `site/` doesn't already
+   exist, `wp s5 init` scaffolds it — a starter config, starter tokens, and the
+   empty authoring directories — so the site is stylable and ready to author
+   into immediately.
+3. Open the top-level **S5** menu (Developer role only):
+   - **Setup & Status** — environment health (framework code, design system,
+     compiled CSS bundle, framework-page count) and, on a site with existing
+     content, an *"N existing pages found — rendering via the styled
+     fallback until adopted"* list with per-page and bulk **Adopt into S5**.
+   - **Theme Settings** — General, Templates, StyleGuide, Components,
+     CSS/Tailwind, Integrations, and Roles & Access, each gated by the
+     resolved S5 role (see `S5\Roles`).
+4. **Existing content is safe.** Menus, front-page settings, and existing
+   pages/posts survive activation untouched. Non-framework pages render
+   through a styled fallback (the design system's base typography), never
+   browser-default. Adopting a page is explicit and reversible via the
+   page's revisions.
+5. **Edit with S5** appears as a row action on framework pages (and in the
+   admin bar when viewing one); framework pages open the S5 editor, not
+   Gutenberg — gated by the viewer's resolved S5 role, not just a raw WP
+   capability, so a Client sees Content + Style only and a Marketer adds the
+   Advanced/structure surfaces plus their permitted Theme Settings screens.
+
+> The permanent guarantee that this all works from the zip with **no repo
+> mount** is the `distribution` acceptance suite (`npm run test:dist`), which
+> installs the built zip into a clean, mount-free WordPress and asserts
+> styled serving for both a fresh site and a site that already had content.
+
+## Requirements (for the dev acceptance suite)
+
+- **Docker Desktop** (running) — `wp-env` needs it. Not required to install
+  the built zip on a real site — see above.
 - **Node.js** ≥ 18 and npm.
-- **Composer** — installs the plugin's autoloader and dev tooling.
 
 ## Setup and the test loop
 
 ```bash
-npm install                          # wp-env
-composer install -d s5-plugin        # plugin autoloader + phpcs/phpunit (builds s5-plugin/vendor/)
+npm install                          # installs @wordpress/env
 npm run env:start                    # boot WordPress in Docker
-npm test                             # run Steps 0,1,2 + the round-trip harness
+npm test                             # run the full acceptance gate (destroy → start → all suites)
 ```
 
 > **macOS note:** Docker Desktop cannot bind-mount paths under TCC-protected
-> folders (`~/Desktop`, `~/Documents`, `~/Downloads`). If the repo lives there,
-> either grant Docker **Full Disk Access** (System Settings → Privacy & Security)
-> or keep the working copy under a plain path such as `~/Projects`.
+> folders (`~/Desktop`, `~/Documents`, `~/Downloads`). If the repo lives
+> there, either grant Docker **Full Disk Access** (System Settings → Privacy
+> & Security) or run the suite from a mirror at a plain path (e.g.
+> `rsync -a --delete --exclude node_modules --exclude vendor --exclude .git
+> ./ ~/s5-work/framework-theme/` and run `npm test` from there).
 
-`npm test` runs the acceptance suite in order — **Steps 0, 1, 2, then the
-round-trip fidelity harness** — and is green only if every step passes. Any
-failure exits nonzero with a clear message.
+`npm test` runs the full acceptance suite in order and is green only if
+every step passes. Any failure exits nonzero with a clear message.
+`SKIP_DESTROY=1 npm test` (`npm run test:reuse`) reuses an already-running
+environment instead of a clean destroy → start — faster for iterating on a
+single failing suite, but not a substitute for a clean run before a release
+tag.
 
 ### The round-trip fidelity harness (`npm run test:roundtrip`)
 
-This is the standing Ship Gate check. For every page in `pages/` it:
+The standing Ship Gate check. For every page in the corpus it:
 
 1. imports the corpus (`wp s5 import`);
 2. requests each page over HTTP;
 3. normalizes **only the sanctioned transforms** — enumerated as an auditable
-   list in `tests/acceptance-step3.sh` (head assembly + the canvas body wrapper +
-   media resolution reversed via the `_s5_media_map` manifest; dynamics join in
-   Step 8);
+   list in `tests/acceptance-step3.sh` (head assembly, the canvas body
+   wrapper, media resolution reversed via the `_s5_media_map` manifest,
+   template-part expansion, dynamics);
 4. diffs the served **body byte-for-byte** against source, and asserts the
    **head contract** (title/description once & matching, canonical matching,
    each OG tag present, each JSON-LD block verbatim);
-5. **self-verifies**: it arms a render-path mutation, requires the harness to go
-   red with a delta report, then disarms it and requires green again.
-
-It is usable against any `pages/` corpus, so it grows with the site.
-
-### Definition of done (Step 0)
-
-`npm run env:start && npm test` passes from a clean clone, **twice in a row**
-(the second run proves idempotence).
+5. **self-verifies**: it arms a render-path mutation, requires the harness to
+   go red with a delta report, then disarms it and requires green again.
 
 ## Other commands
 
 ```bash
 npm run env:stop            # stop the environment
 npm run env:destroy         # tear it down completely
+npm run env:cli             # wp-env run cli wp <...> shorthand
 npm run lint                # WordPress Coding Standards (phpcs) via the env
-npm run test:phpunit        # PHPUnit units (placeholder until Step 4)
-npm run test:step1          # Step 1 acceptance (canonical HTML served byte-clean)
-npm run test:step2          # Step 2 acceptance (wp s5 import → pages)
+npm run test:phpunit        # PHPUnit units
+npm run test:step0 .. test:step11   # individual Build Order step suites
 npm run test:roundtrip      # Step 3 round-trip fidelity harness (Ship Gate #1)
-npm run test:step4          # Step 4 acceptance (Authoring Contract validation)
-npm run test:step5          # Step 5 acceptance (canonical/derived split + revisions)
-npm run test:step6          # Step 6 acceptance (media resolution)
+npm run test:editor         # Editor MVP acceptance (Step 12) — the one save door, role-gated saves
+npm run test:components     # Component registry + CSS bundle + copy-on-insert
+npm run test:dist           # the uploadable zip works with zero repo mounts
+npm run test:disable        # disabled ≠ hidden — dropped from render + mirror
+npm run test:classswap      # style axis-swap, loud, no free-form classes
+npm run test:roles          # Roles & Access: hidden AND blocked, server-side
 npm run validate            # wp s5 validate the real corpus (Authoring Contract)
 npm run recompile           # wp s5 recompile --all (regenerate derived render + mirror)
 ```

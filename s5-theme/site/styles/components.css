@@ -13,6 +13,22 @@
  * real design system; these rules reference plain values only to be valid CSS.
  */
 
+/*
+ * Base element behavior (element selectors — not classes, so this adds
+ * nothing to the closed class vocabulary the validator enforces). An
+ * authored <img> commonly carries explicit width/height attributes (correct
+ * practice — sets the intrinsic aspect ratio, prevents layout shift), but
+ * without a responsive override those attributes ARE the rendered size at
+ * every viewport. This is the fixed-desktop-at-375px case the sweep caught
+ * on the home page's 1200px-wide hero image (post-sweep v2 item 4).
+ */
+img,
+picture,
+video {
+	max-width: 100%;
+	height: auto;
+}
+
 /* --- site header ------------------------------------------------------- */
 .site-header {
 	display: flex;
@@ -36,6 +52,22 @@
 
 .nav-cta {
 	font-weight: 600;
+}
+
+/* Minimum viable breakpoint (post-sweep v2 item 4): a full nav row (brand +
+ * every nav link, unwrapped) is the classic 375px overflow case the sweep
+ * caught. Wrap rather than reflow into a full mobile-nav pattern (menu
+ * button, drawer) — that UI decision belongs to the real S5T design pass,
+ * not the starter; wrapping is the smallest change that keeps every link
+ * reachable and nothing clipped off-screen. */
+@media (max-width: 640px) {
+	.site-header {
+		flex-wrap: wrap;
+	}
+	.nav ul {
+		flex-wrap: wrap;
+		gap: var(--s5-space-sm, 0.75rem);
+	}
 }
 
 /* --- hero -------------------------------------------------------------- */
@@ -89,6 +121,23 @@
 	list-style: none;
 	margin: 0;
 	padding: 0;
+}
+
+/* Minimum viable breakpoint (post-sweep v2 item 4 — "the starter obeys its own
+ * spec"): a fixed 3-column grid has no fallback at all below its intrinsic
+ * content width, which is what the sweep caught rendering fixed-desktop at
+ * 375px. Two tiers, not a full responsive system (that lands with the S5T
+ * design pass) — just enough that the starter never ships an unusable grid. */
+@media (max-width: 900px) {
+	.feature-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+@media (max-width: 600px) {
+	.feature-grid {
+		grid-template-columns: 1fr;
+	}
 }
 
 .card {

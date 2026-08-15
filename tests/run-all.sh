@@ -63,7 +63,8 @@ SUITES=(
 	"tests/acceptance-phase-a.sh|Phase A — WordPress integration (takeover · badge · menu · Appearance)"
 	"tests/acceptance-disable.sh|Phase B — Disable (R4): disabled ≠ hidden, dropped from render + mirror"
 	"tests/acceptance-classswap.sh|Phase B — Style class-swap (R3): axis-swap-only, loud, no free-form"
-	"tests/acceptance-roles.sh|Phase C — Roles (R1): hidden AND blocked, server-side, client-holds-admin"
+	"tests/acceptance-roles.sh|Phase C — Roles (R1) logic only: Roles::can() resolution — demoted, does NOT prove entrances are wired (post-sweep v2 item 1)"
+	"tests/acceptance-roles-login.sh|Phase C+ — Roles & Access, REAL BROWSER LOGINS (the actual standing gate — post-sweep v2 item 1)"
 )
 
 fail_count=0

@@ -54,12 +54,20 @@ ABOUT="$(wp post list --post_type=page --name=about --field=ID | head -n1)"
 pass "environment ready; corpus imported (about #$ABOUT)"
 
 # ---------------------------------------------------------------------------
-# 1. Editor screen registered + gated manage_options.
+# 1. Editor screen registered + gated by the R1 role resolution.
+#
+# Post-sweep v2 item 1: Editor::CAPABILITY is the WP-level FLOOR only
+# (edit_posts — Administrator/Editor/Author all hold it), not the real gate.
+# The real gate is Roles::can('editor.open'), proven server-side and with
+# real browser logins by tests/acceptance-roles-login.sh — this check only
+# confirms the floor is broad enough for non-Administrators to reach at all
+# (a regression back to manage_options would silently re-lock Client/
+# Marketer out of the editor even though Roles::can() says they're allowed).
 # ---------------------------------------------------------------------------
-info "1/8  Editor screen registered and gated behind manage_options…"
+info "1/8  Editor screen registered; capability floor is edit_posts (R1 is the real gate)…"
 CAP="$($WP_ENV run cli wp eval 'echo \S5\Editor::CAPABILITY;' 2>/dev/null | tr -d '[:space:]')"
-[ "$CAP" = "manage_options" ] || fail "editor capability is '$CAP', expected manage_options"
-pass "editor gated behind manage_options"
+[ "$CAP" = "edit_posts" ] || fail "editor capability floor is '$CAP', expected edit_posts (R1's WP-level floor — see DECISIONS.md D47)"
+pass "editor capability floor is edit_posts; Roles::can('editor.open') is the real gate"
 
 # ---------------------------------------------------------------------------
 # 2. D8: editor assets absent from anon front-end AND anon preview request.

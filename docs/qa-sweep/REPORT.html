@@ -1,0 +1,591 @@
+<title>Pre-Human QA Sweep</title>
+
+<style>
+  @font-face {
+    font-family: 'Fraunces Var';
+    src: local('Fraunces');
+    font-weight: 300 700;
+  }
+
+  :root {
+    --paper: #f6f5f2;
+    --paper-raised: #ffffff;
+    --ink: #1b1e22;
+    --ink-soft: #565c64;
+    --ink-faint: #8a9099;
+    --line: #dcdad4;
+    --line-soft: #eae8e2;
+    --accent: #0f8f82;
+    --accent-soft: #e4f4f1;
+    --pass: #1f8a4c;
+    --pass-bg: #eaf7ef;
+    --fail: #c93838;
+    --fail-bg: #fceeee;
+    --note: #a8730f;
+    --note-bg: #faf1e0;
+    --code-bg: #eef0ee;
+    --shadow: 0 1px 2px rgba(20,20,20,.04), 0 8px 24px rgba(20,20,20,.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #14171c;
+      --paper-raised: #1b1f26;
+      --ink: #eceef1;
+      --ink-soft: #a7adb6;
+      --ink-faint: #6d747e;
+      --line: #2c313a;
+      --line-soft: #23272f;
+      --accent: #4dd6c4;
+      --accent-soft: #16302d;
+      --pass: #4fc785;
+      --pass-bg: #142a1e;
+      --fail: #ec6b6b;
+      --fail-bg: #2e1717;
+      --note: #e0b25c;
+      --note-bg: #2c2312;
+      --code-bg: #0f1216;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14171c;
+    --paper-raised: #1b1f26;
+    --ink: #eceef1;
+    --ink-soft: #a7adb6;
+    --ink-faint: #6d747e;
+    --line: #2c313a;
+    --line-soft: #23272f;
+    --accent: #4dd6c4;
+    --accent-soft: #16302d;
+    --pass: #4fc785;
+    --pass-bg: #142a1e;
+    --fail: #ec6b6b;
+    --fail-bg: #2e1717;
+    --note: #e0b25c;
+    --note-bg: #2c2312;
+    --code-bg: #0f1216;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
+
+  a { color: var(--accent); }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 260px minmax(0,1fr);
+    max-width: 1320px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; }
+    .toc { display: none; }
+  }
+
+  .toc {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 28px 20px;
+    border-right: 1px solid var(--line);
+  }
+  .toc-title {
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 14px;
+  }
+  .toc a {
+    display: block;
+    padding: 6px 8px;
+    margin: 1px 0;
+    border-radius: 6px;
+    color: var(--ink-soft);
+    text-decoration: none;
+    font-size: 13.5px;
+  }
+  .toc a:hover { background: var(--line-soft); color: var(--ink); }
+  .toc .n { color: var(--ink-faint); margin-right: 6px; font-variant-numeric: tabular-nums; }
+
+  main { padding: 40px 56px 120px; min-width: 0; }
+  @media (max-width: 640px) { main { padding: 28px 20px 80px; } }
+
+  header.hero {
+    padding-bottom: 32px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin: 0 0 10px;
+  }
+  h1.title {
+    font-size: clamp(28px, 4vw, 42px);
+    line-height: 1.08;
+    margin: 0 0 14px;
+    letter-spacing: -.01em;
+    text-wrap: balance;
+  }
+  .dek { font-size: 16px; color: var(--ink-soft); max-width: 62ch; margin: 0 0 24px; }
+
+  .stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .stat {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 16px;
+    min-width: 108px;
+    box-shadow: var(--shadow);
+  }
+  .stat .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat .l { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+  .stat.fail .v { color: var(--fail); }
+  .stat.pass .v { color: var(--pass); }
+
+  section.block { margin: 0 0 56px; }
+  h2.sec-title {
+    font-size: 22px;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+  h2.sec-title .num { color: var(--ink-faint); font-weight: 400; font-size: 15px; }
+  .sec-sub { color: var(--ink-soft); font-size: 14px; margin: 0 0 22px; max-width: 70ch; }
+
+  /* finding cards */
+  .finding {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 0 0 16px;
+    box-shadow: var(--shadow);
+  }
+  .finding.sev-severe { border-left-color: var(--fail); }
+  .finding.sev-moderate { border-left-color: var(--note); }
+  .finding.sev-note { border-left-color: var(--ink-faint); }
+  .finding.pass { border-left-color: var(--pass); }
+
+  .f-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .pill {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .pill.severe { background: var(--fail-bg); color: var(--fail); }
+  .pill.moderate { background: var(--note-bg); color: var(--note); }
+  .pill.note { background: var(--line-soft); color: var(--ink-soft); }
+  .pill.pass { background: var(--pass-bg); color: var(--pass); }
+  .f-title { font-weight: 650; font-size: 15.5px; }
+  .f-body { font-size: 14px; color: var(--ink-soft); }
+  .f-body p { margin: 8px 0; }
+  .f-body code, .kv code {
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    background: var(--code-bg);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--ink);
+  }
+  .evidence {
+    margin-top: 10px;
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    overflow-x: auto;
+    white-space: pre;
+    line-height: 1.5;
+  }
+  .evidence .g { color: var(--pass); }
+  .evidence .r { color: var(--fail); }
+
+  /* inventory table */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--paper-raised); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 640px; }
+  th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-faint); font-weight: 600; background: var(--line-soft); position: sticky; top: 0; }
+  tr:last-child td { border-bottom: none; }
+  td.status-pass { color: var(--pass); font-weight: 600; }
+  td.status-fixed { color: var(--note); font-weight: 600; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .divider { height: 1px; background: var(--line); margin: 48px 0; border: none; }
+
+  .closing {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px 30px;
+    box-shadow: var(--shadow);
+  }
+  .closing h2 { margin-top: 0; }
+  .tally { font-size: 15px; line-height: 1.8; }
+  .tally b { font-variant-numeric: tabular-nums; }
+
+  .cannot-verify { border-left-color: var(--ink-faint); }
+</style>
+
+<div class="shell">
+  <nav class="toc">
+    <p class="toc-title">Sections</p>
+    <a href="#summary"><span class="n">·</span>Summary</a>
+    <a href="#s1"><span class="n">01</span>Interaction exhaustion</a>
+    <a href="#s2"><span class="n">02</span>Every page, core loop</a>
+    <a href="#s3"><span class="n">03</span>Hostile input</a>
+    <a href="#s4"><span class="n">04</span>Console + PHP log</a>
+    <a href="#s5"><span class="n">05</span>Viewports + WebKit</a>
+    <a href="#s6"><span class="n">06</span>Roles as real users</a>
+    <a href="#s7"><span class="n">07</span>Lifecycle torture</a>
+    <a href="#s8"><span class="n">08</span>Docs truth test</a>
+    <a href="#tally"><span class="n">·</span>Final tally</a>
+  </nav>
+
+  <main>
+    <header class="hero" id="summary">
+      <p class="eyebrow">S5 Framework · Real-install QA sweep</p>
+      <h1 class="title">Pre-Human QA Sweep</h1>
+      <p class="dek">Exhaustive coverage pass against the tagged build (<code class="mono">v0.9.0-preflight</code>, 970K zip) installed on the real WP Studio site — no wp-env, no mounts, no synthetic shortcuts. Two severe defects found; everything else checked held up.</p>
+      <div class="stat-row">
+        <div class="stat fail"><div class="v">2</div><div class="l">Severe defects</div></div>
+        <div class="stat"><div class="v">4</div><div class="l">Moderate findings</div></div>
+        <div class="stat"><div class="v">9 / 9</div><div class="l">Pages pass core loop</div></div>
+        <div class="stat pass"><div class="v">0</div><div class="l">S5 log errors</div></div>
+      </div>
+    </header>
+
+    <section class="block" id="s1">
+      <h2 class="sec-title"><span class="num">01</span>Interaction exhaustion</h2>
+      <p class="sec-sub">Editor toolbar, canvas selection, Page Settings drawer, Tools menu, all 7 settings screens. Every element inventoried below either performed its function or showed its designed state.</p>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>Element</th><th>Expected</th><th>Observed</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Viewport toggle — All</td><td>Full-width canvas</td><td>Canvas returns to full width</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Viewport toggle — 768–991px</td><td>Canvas narrows, reflows</td><td>Narrowed correctly, text reflowed</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Viewport toggle — ≤767px</td><td>Mobile-width canvas</td><td>Narrowed correctly, text reflowed</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Element click-select (h1)</td><td>Overlay outlines element, Properties panel opens</td><td>Correct — <code>about-hero-title</code> loaded in panel</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Selection overlay after scroll</td><td>Stays aligned to element (no drift)</td><td>Verified aligned after scrollbar-drag scroll</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Edit-lens canvas mouse-wheel scroll</td><td>Scrolls preview</td><td>No movement via automation tool; scrollbar-drag and Code-lens wheel scroll both work fine on identical content — isolated to the cross-origin iframe + synthetic wheel event path</td><td class="status-fixed">Tooling limit, not a defect&dagger;</td></tr>
+            <tr><td>Edit / Code lens toggle</td><td>Switches between glass and canonical-source view</td><td>Switches correctly both directions</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Code lens — canonical source view</td><td>Full HTML with line numbers, error count</td><td>Renders correctly, "0 errors", scrolls natively</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Page settings (gear icon)</td><td>Opens Page Settings drawer</td><td>Opens correctly</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Page Settings — Title / Permalink / Status / Template / Parent</td><td>Editable fields</td><td>All present and editable</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Page Settings — Index / Noindex toggle</td><td>Toggles active state</td><td>Toggled correctly, reverted cleanly</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Page Settings — Schema (JSON-LD) invalid save</td><td>Rejected, not persisted (per its own label)</td><td>Correctly never persisted to postmeta — but zero visible error/toast shown to the user</td><td class="status-fixed">Defect — silent rejection&Dagger;</td></tr>
+            <tr><td>Page Settings — Cancel</td><td>Discards drawer changes</td><td>Discards correctly</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Tools menu (Components / StyleGuide / CSS-Tailwind)</td><td>Opens dropdown, links route correctly</td><td>Opens correctly, links correct</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Undo / Redo buttons</td><td>Present, enabled after edits</td><td>Present in toolbar; state-gated correctly</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Save / Update button</td><td>Disabled when clean, active + labeled "Update" after a save</td><td>Correct dirty-state gating observed across every save in this sweep</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Component tiles (card, cta, faq-item, hero, pricing-card, testimonial, embed)</td><td>Draggable onto canvas</td><td>Present, correctly labeled, drag affordance visible</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Settings → General</td><td>Loads identity/redirects</td><td>Loads correctly</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Settings → Templates</td><td>Lists parts + hierarchy, pencil opens part editor</td><td>Loads correctly; pencil opens Site Header in canvas editor</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Settings → StyleGuide</td><td>Live specimen rendered from tokens</td><td>Loads correctly, fonts/colors/type ramp/buttons live</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Settings → Components — pencil (Component Builder)</td><td>Opens HTML/CSS/manifest editor</td><td>Opens correctly — the previously-fixed defect holds</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Settings → CSS / Tailwind</td><td>Tokens / Classes / Custom CSS tabs</td><td>Loads correctly, tabs present</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Settings → Integrations — delete + save</td><td>Removes a snippet, persists removal</td><td>Correctly removed a leftover test snippet from a prior session; confirmed no longer injected on served pages</td><td class="status-pass">Pass</td></tr>
+            <tr><td>Settings → Roles — permission matrix display</td><td>Shows Developer/Marketer capability grid</td><td>Renders correctly — see Section 06 for the functional gap behind it</td><td class="status-pass">Pass (display only)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:13px;color:var(--ink-faint);margin-top:10px;">&dagger; Full write-up in the finding below. &Dagger; Full write-up in Section 03.</p>
+
+      <div class="finding sev-note">
+        <div class="f-head"><span class="pill note">Tooling caveat</span><span class="f-title">Edit-lens wheel-scroll could not be conclusively tested</span></div>
+        <div class="f-body">
+          <p>The canvas content lives inside <code>iframe.preview-frame</code>. Automated wheel-scroll events dispatched at this iframe never moved <code>scrollTop</code>, while the identical scrollbar dragged by mouse-down/move/up worked immediately, and the exact same page loaded standalone (outside the iframe) scrolled normally on wheel input. Code-lens, which is native DOM rather than an iframe, also scrolled correctly on wheel input. No <code>wheel</code> listener exists anywhere in the editor's JS. This isolates the gap to synthetic-wheel-over-cross-frame event delivery in the automation layer, not the product — but it could not be ruled out with a real trackpad in this session.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="s2">
+      <h2 class="sec-title"><span class="num">02</span>Every page, not the demo page</h2>
+      <p class="sec-sub">Canvas edit → Save → served page changes → revision exists, run on all 9 corpus pages. 3 of the 9 additionally exercised through the Code lens (canonical save).</p>
+
+      <div class="finding pass">
+        <div class="f-head"><span class="pill pass">Pass — all 9</span><span class="f-title">Core loop verified on every corpus page</span></div>
+        <div class="f-body">
+          <p>About and Apps run through the real browser UI (type → Save → curl the served page → confirm → revert). The remaining 7 (Book a Call, Commerce, FAQ, Fix My Store, Index, Manage, Privacy Policy) run through the identical <code>S5\Rest::handle_save()</code> door the UI itself calls — same code path, same validation, same compile — verified by direct server probe rather than repeating the same UI click sequence nine times.</p>
+          <div class="evidence">id=5  slug=about            revisions=8
+id=7  slug=apps            revisions=4
+id=9  slug=book-a-call     revisions=4
+id=11 slug=commerce        revisions=4
+id=13 slug=faq             revisions=4
+id=15 slug=fix-my-store    revisions=13
+id=17 slug=index           revisions=6
+id=22 slug=manage          revisions=4
+id=3  slug=privacy-policy  revisions=5
+
+leak check (all clean): about apps book-a-call commerce faq
+                         fix-my-store manage privacy-policy</div>
+          <p>Code-lens (canonical) save additionally verified on FAQ, Commerce, and Privacy Policy — all saved, all reverted byte-identical.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="s3">
+      <h2 class="sec-title"><span class="num">03</span>Hostile input — try to break the door</h2>
+      <p class="sec-sub">Every abuse run against the real save door on the About page, canonical validated after each, all reverted.</p>
+
+      <div class="grid-2">
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Empty save</span></div>
+          <div class="f-body"><p>Empty slots array accepted without error; canonical left unchanged.</p></div>
+        </div>
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Save with no changes</span></div>
+          <div class="f-body"><p>Identical canonical resubmitted — succeeds as a clean no-op.</p></div>
+        </div>
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Double-click Save</span></div>
+          <div class="f-body"><p>Two rapid identical requests — both succeed, canonical stays valid UTF-8, no corruption.</p></div>
+        </div>
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Emoji + special chars (&amp; &lt; &gt; " ')</span></div>
+          <div class="f-body"><p><code>&#x1F680;&#x1F525;&#x1F4AF;</code> preserved verbatim; <code>&amp; &lt; &gt; " '</code> correctly HTML-escaped; canonical validates clean.</p></div>
+        </div>
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">5,000-char paste</span></div>
+          <div class="f-body"><p>5,200-char string saved, preserved verbatim, validates clean.</p></div>
+        </div>
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">HTML pasted into a plain-text slot</span></div>
+          <div class="f-body"><p><code>&lt;img onerror&gt;</code> and <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> both fully escaped, never executed, validates clean — direct confirmation the D-fix #6 XSS closure holds under a fresh, deliberately hostile payload.</p></div>
+        </div>
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Two tabs, same page</span></div>
+          <div class="f-body"><p>Tab 2 saves, then Tab 1 (stale state) saves — clean last-write-wins, zero corruption or mixed content. No conflict notice shown to either tab, which the spec allows ("last-write <em>or</em> conflict message"), though a notice would be a nicer UX.</p></div>
+        </div>
+      </div>
+
+      <div class="finding sev-moderate">
+        <div class="f-head"><span class="pill moderate">Moderate</span><span class="f-title">Navigate away with dirty state — silently discarded, zero warning</span></div>
+        <div class="f-body">
+          <p>Typed an edit, did not save, clicked "Back to WordPress." No <code>beforeunload</code> handler exists anywhere in the editor (confirmed: <code>window.onbeforeunload</code> is not a function, and a dispatched <code>beforeunload</code> event was never <code>defaultPrevented</code>). The click reset the editor and the unsaved text vanished with no prompt. The original content was untouched — this is data <em>loss</em>, not corruption — but it directly misses the spec's own bar: "warn or lose-intentionally, never silently corrupt." A user has no way to know their edit didn't save.</p>
+        </div>
+      </div>
+
+      <div class="finding sev-moderate">
+        <div class="f-head"><span class="pill moderate">Moderate</span><span class="f-title">Invalid Schema (JSON-LD) save fails with zero user-visible feedback</span></div>
+        <div class="f-body">
+          <p>Typed <code>{not valid json,,,</code> into Page Settings &rarr; Schema, clicked "Save schema." No error, no toast, no red border appeared. Server-side confirmed correct — <code>_s5_schema_json</code> postmeta was never written — so the rejection itself works. But the user is left staring at a form that appears to have done nothing, with no way to know their input was silently thrown away.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="s4">
+      <h2 class="sec-title"><span class="num">04</span>Console + PHP log zero</h2>
+      <p class="sec-sub"><code>WP_DEBUG</code> / <code>WP_DEBUG_LOG</code> were off for the entire install prior to this sweep — enabled partway through (noted honestly below) and watched for the remainder.</p>
+
+      <div class="finding sev-note">
+        <div class="f-head"><span class="pill note">Coverage gap, disclosed</span><span class="f-title">Debug logging was off until partway through the sweep</span></div>
+        <div class="f-body">
+          <p><code>wp-config.php</code> shipped with <code>WP_DEBUG</code>, <code>WP_DEBUG_LOG</code> both <code>false</code>. This means Sections 02 and 03 (all 9 pages, every hostile-input case) ran without a PHP error trail. Enabled both flags (<code>WP_DEBUG_DISPLAY</code> stayed <code>false</code> — nothing changed for end users) partway into Section 04 and re-ran a representative edit/save cycle plus the full settings-screen pass under logging.</p>
+        </div>
+      </div>
+
+      <div class="finding pass">
+        <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Zero PHP notices/warnings/deprecations from S5 code</span></div>
+        <div class="f-body">
+          <p>Every log line captured for the remainder of the sweep is the same single WordPress-core deprecation, unrelated to S5:</p>
+          <div class="evidence">[15-Aug-2026 14:49:51 UTC] PHP Deprecated: Function print_emoji_styles is <span class="g">deprecated</span>
+since version 6.4.0! Use wp_enqueue_emoji_styles instead.
+in .../wp-includes/functions.php on line 6170</div>
+        </div>
+      </div>
+
+      <div class="finding pass">
+        <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Zero JS errors attributable to S5</span></div>
+        <div class="f-body">
+          <p>Three console exceptions were observed, all identical: <code>"A listener indicated an asynchronous response by returning true, but the message channel closed..."</code> at line <code>0:0</code> with no file reference — the standard signature of a Chrome extension's own background script, not page code. No error referencing any S5 asset path appeared at any point.</p>
+        </div>
+      </div>
+
+      <div class="finding sev-note cannot-verify">
+        <div class="f-head"><span class="pill note">Not verified</span><span class="f-title">Network-tab 404 sweep</span></div>
+        <div class="f-body"><p>Every page load in this sweep returned HTTP 200 (spot-checked via curl across all 9 corpus pages), and no broken-asset visuals appeared in any screenshot. A dedicated request-by-request network log was not captured for every screen — see the tally for why.</p></div>
+      </div>
+    </section>
+
+    <section class="block" id="s5">
+      <h2 class="sec-title"><span class="num">05</span>Viewports + WebKit</h2>
+      <p class="sec-sub">Editor viewport toggle (in-app simulation) is confirmed working — see Section 01. Real device-width emulation for the served-page screenshot matrix could not be forced in this session; a code-level check surfaced a severe, independently-confirmed finding instead.</p>
+
+      <div class="finding sev-severe">
+        <div class="f-head"><span class="pill severe">Severe</span><span class="f-title">The compiled design system has zero responsive CSS</span></div>
+        <div class="f-body">
+          <p>Grepped the shipped bundle and all four source stylesheets for any responsive mechanism. All four return zero matches:</p>
+          <div class="evidence">$ grep -c "@media" site/dist/s5.css                     <span class="r">0</span>
+$ grep -c "@media" site/styles/{tokens,utilities,components,scales}.css
+tokens.css:0  utilities.css:0  components.css:0  scales.css:<span class="r">0</span>
+$ grep -c "clamp(\|container-type\|@container" site/dist/s5.css  <span class="r">0</span></div>
+          <p>No <code>@media</code> queries, no container queries, no fluid <code>clamp()</code> typography — nothing. Every served page renders the identical fixed-width desktop layout at every viewport width; a phone visitor gets the desktop grid scaled into a narrow window, not a responsive redesign. This is the compiled bundle actually shipped in the tagged zip (448 lines, real content — not a truncated build), so this is not a build artifact.</p>
+        </div>
+      </div>
+
+      <div class="finding sev-note cannot-verify">
+        <div class="f-head"><span class="pill note">Not verified</span><span class="f-title">375 / 768 / 1440 screenshot matrix + WebKit pass</span></div>
+        <div class="f-body">
+          <p>The available browser-resize tool changed the outer Chrome window (<code>outerWidth</code>) but not the page's actual rendering viewport (<code>window.innerWidth</code> stayed 1442 regardless of the requested size) — confirmed via direct JS inspection, so a screenshot taken under it would not have reflected a real mobile viewport and is not included. No WebKit/Safari-engine browser context was available in this session to run the parity pass. Given the finding above, a true viewport test would very likely show the same fixed-width layout at every breakpoint — but that specific claim is unverified pending a session with real device emulation.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="s6">
+      <h2 class="sec-title"><span class="num">06</span>Roles as real users</h2>
+      <p class="sec-sub">Three real WordPress users created, one per documented tier, logged in as each: <code>qa_client</code> (Author), <code>qa_marketer</code> (Editor), <code>qa_developer</code> (Administrator). Cleaned up after testing.</p>
+
+      <div class="finding sev-severe">
+        <div class="f-head"><span class="pill severe">Severe</span><span class="f-title">Roles &amp; Access is fully built, fully documented, and non-functional for 2 of its 3 tiers</span></div>
+        <div class="f-body">
+          <p>The Roles settings screen explicitly documents:</p>
+          <ul style="margin:8px 0 8px 20px;padding:0;">
+            <li><b>Client</b> (&rarr; WP Author): "In the canvas, sees only the Content and Style tabs — no Advanced, no structure surgery."</li>
+            <li><b>Marketer</b> (&rarr; WP Editor): "Can open Theme Settings, but not Roles, CSS/Tailwind, or Deploy."</li>
+          </ul>
+          <p>Both claims are false in the shipped code. <code>Editor::CAPABILITY</code> and <code>Settings::CAPABILITY</code> are both hard-coded to <code>manage_options</code> — Administrator-only — checked <em>before</em> the granular <code>Roles::can()</code> permission matrix ever runs. Neither Author nor Editor holds <code>manage_options</code> by default, so both roles are blocked outright, server-side, from the editor <em>and</em> Theme Settings — not tab-restricted as documented, but fully locked out.</p>
+          <div class="evidence"># logged in as qa_client (Author)
+GET /wp-admin/admin.php?page=s5-editor&post=5    &rarr; <span class="r">"Sorry, you are not allowed to access this page."</span>
+GET /wp-admin/admin.php?page=s5-settings         &rarr; <span class="r">"Sorry, you are not allowed to access this page."</span>
+
+# logged in as qa_marketer (Editor)
+GET /wp-admin/admin.php?page=s5-settings         &rarr; <span class="r">"Sorry, you are not allowed to access this page."</span>
+
+# source
+s5-theme/src/Editor.php:46:   CAPABILITY = 'manage_options';
+s5-theme/src/Settings.php:40:  CAPABILITY = 'manage_options';
+s5-theme/src/Settings.php:37:  // gate is manage_options (Developer/Administrator)
+                                 with per-screen role checks</div>
+          <p>The comment at <code>Settings.php:37</code> confirms this was a known, intentional simplification — never finished. The permission matrix on the Roles screen (a real, separately-built <code>Roles::can()</code> layer) is fully implemented and presumably correct, but structurally unreachable for anyone but an Administrator. This is the single most consequential finding in this sweep: an entire, prominently-documented settings feature does nothing for the two roles it exists to support.</p>
+        </div>
+      </div>
+
+      <div class="finding pass">
+        <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Client sidebar correctly minimal</span></div>
+        <div class="f-body"><p>Logged in as <code>qa_client</code>, the wp-admin sidebar shows only Dashboard, Posts, Media, Comments, Profile, Tools — no Pages, no Appearance, no S5. Matches "never sees this settings page at all" for the settings link itself, even though the underlying block is the wrong mechanism (see above).</p></div>
+        </div>
+
+      <div class="finding pass">
+        <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Blocks are real server-side blocks, not just hidden UI</span></div>
+        <div class="f-body"><p>Every blocked URL returned WordPress's native "Sorry, you are not allowed to access this page" — a <code>wp_die()</code>-level capability check, not a client-side route guard. Hidden <em>and</em> blocked, exactly as the sweep required — just blocking the wrong set of roles.</p></div>
+      </div>
+    </section>
+
+    <section class="block" id="s7">
+      <h2 class="sec-title"><span class="num">07</span>Lifecycle torture</h2>
+      <p class="sec-sub">Theme switch away and back, trash and restore, re-import idempotence — all against the real, tagged install.</p>
+
+      <div class="grid-2">
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Switch to Twenty Twenty-Five</span></div>
+          <div class="f-body"><p>Front page served HTTP 200 under the default theme — no fatal.</p></div>
+        </div>
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Switch back to S5</span></div>
+          <div class="f-body"><p>About page served fully intact, correct title, no drift, no log errors from the switch.</p></div>
+        </div>
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Trash a framework page</span></div>
+          <div class="f-body"><p>About trashed → served URL returns 404.</p></div>
+        </div>
+        <div class="finding pass">
+          <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">Restore from trash</span></div>
+          <div class="f-body"><p>Page live again immediately, content correct, and — verified directly — still edits through the real save door afterward.</p></div>
+        </div>
+      </div>
+
+      <div class="finding sev-note">
+        <div class="f-head"><span class="pill note">Observation</span><span class="f-title">Bare re-import needed one reconciliation pass after trash/restore</span></div>
+        <div class="f-body">
+          <p>Running <code>wp s5 import</code> (bare, from an unrelated CWD) right after the trash/restore cycle reported About as <code>updated</code> while the other 8 pages reported <code>unchanged</code> — content was confirmed correct throughout, and a second immediate run showed all 9 pages <code>unchanged</code> (0 created, 0 updated, 9 unchanged). Reads as a one-time metadata reconciliation triggered by the <code>post_status</code> churn, not ongoing instability — idempotence held from the very next run.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="s8">
+      <h2 class="sec-title"><span class="num">08</span>Docs truth test</h2>
+      <p class="sec-sub">README.md and DEMO.md read literally against the current, real state of the repo.</p>
+
+      <div class="finding sev-severe">
+        <div class="f-head"><span class="pill severe">Severe</span><span class="f-title">README.md describes an architecture that no longer exists</span></div>
+        <div class="f-body">
+          <p>README.md states the project is at "Build Order Step 6 complete," describes <code>s5-plugin/</code> as "the shippable unit" holding its own <code>composer.json</code>/<code>vendor/</code>, and lists the editor, Components, and MCP under "Not built yet." None of this is true today:</p>
+          <ul style="margin:8px 0 8px 20px;padding:0;">
+            <li>The gate this session ran (and every suite this sweep exercised) covers Steps 0–12, plus Item 2, Distribution, and Phase A/B/C — many steps past what README.md claims.</li>
+            <li><code>s5-plugin/</code> does not exist on disk at all — confirmed by direct listing. DEMO.md correctly says the opposite: "the framework ships as a single theme — there is no companion plugin."</li>
+            <li>The editor and Components settings screen are fully built and are exactly what this entire sweep has been testing.</li>
+          </ul>
+          <p>A developer or agent following README.md's setup instructions (<code>composer install -d s5-plugin</code>) would fail on the first command against a fresh clone. This is not a stale detail — it is a structurally incorrect map of the codebase, left over from before the single-theme repackage. Rewriting it is a substantial task in its own right and out of scope for a fix-forward pass inside this sweep; flagging it here as the sweep's top documentation finding.</p>
+        </div>
+      </div>
+
+      <div class="finding sev-moderate">
+        <div class="f-head"><span class="pill moderate">Moderate</span><span class="f-title">DEMO.md's "deliberately left out" list contradicts a shipped feature</span></div>
+        <div class="f-body">
+          <p>DEMO.md line 177 lists "Capability-levels UI" under features this cut deliberately leaves out. The product now ships a fully-built Roles &amp; Access settings screen with a permission matrix — see Section 06. Either this line is stale (the feature landed after the doc was last touched) or the feature was shipped in a half-finished state and the doc line was never revisited either way. Worth reconciling alongside the Section 06 fix.</p>
+        </div>
+      </div>
+
+      <div class="finding pass">
+        <div class="f-head"><span class="pill pass">Pass</span><span class="f-title">DEMO.md's Setup &amp; Status claim, verified true</span></div>
+        <div class="f-body"><p>DEMO.md promises an "N existing pages found — rendering via the styled fallback until adopted" list on Setup &amp; Status. Confirmed live: "1 existing page found," listing Sample Page with a working "Adopt into S5" action.</p></div>
+      </div>
+
+      <div class="finding sev-note cannot-verify">
+        <div class="f-head"><span class="pill note">Not verified</span><span class="f-title">Full literal DEMO.md walkthrough, step-by-step, on a truly fresh install</span></div>
+        <div class="f-body"><p>The install/activate/first-edit path was exercised against this session's real (already-configured) WP Studio site, not a brand-new WordPress install from scratch — see the tally for why a fresh-install run wasn't completed in this session.</p></div>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <section class="closing" id="tally">
+      <h2 style="margin-top:0;">Final tally</h2>
+      <div class="tally">
+        <p><b>Elements clicked / exercised:</b> 24 top-level editor controls, 7 settings screens end-to-end, Component Builder modal, Templates part editor, Integrations delete flow, Roles matrix display — plus every save/revert cycle counted separately in Section 02.</p>
+        <p><b>Pages passed the full core loop:</b> <b>9 / 9</b> — all nine corpus pages, three additionally through Code lens.</p>
+        <p><b>Defects found:</b> <b>2 severe</b> (Roles &amp; Access non-functional for Client/Marketer tiers; zero responsive CSS in the shipped design system), <b>4 moderate</b> (silent dirty-state loss on navigate-away; silent Schema-save rejection; README.md architecturally stale; DEMO.md's "not built" list contradicts the shipped Roles UI).</p>
+        <p><b>Defects fixed in this pass:</b> <b>0</b> — every finding above is reported, not yet remediated. Per the fix-forward rule, the two severe items in particular (a capability-model rewrite and a full responsive CSS pass) are substantial enough that fixing them inline risked rushing a real architectural change without its own review; flagging clearly and stopping felt safer than a fast, under-verified patch.</p>
+        <p><b>Cleaned up as found:</b> a leftover script-injection test integration from a prior session (removed, confirmed no longer served); three QA test users (removed after role testing).</p>
+        <p><b>Could not verify, with reason:</b></p>
+        <ul style="margin:4px 0 4px 20px;padding:0;">
+          <li>375/768/1440 screenshot matrix across all 9 pages (27 shots) and the WebKit engine parity pass — no real device-viewport emulation or WebKit browser context was available in this session; the resize tool changed the OS window but not the page's actual rendering viewport, confirmed via direct JS inspection.</li>
+          <li>Section 04's console/log watch for the initial page-and-hostile-input passes — <code>WP_DEBUG_LOG</code> was off until partway through the sweep (now on, disclosed above); the representative re-check afterward showed nothing but a WordPress-core deprecation.</li>
+          <li>A literal DEMO.md walkthrough from a genuinely fresh WordPress install — this session's real install was already configured from prior work, not a blank slate.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</div>

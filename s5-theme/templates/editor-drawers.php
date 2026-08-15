@@ -123,6 +123,7 @@ $s5_is_template = isset( $s5_is_template ) ? (bool) $s5_is_template : false;
 				<?php esc_html_e( 'Save schema', 's5' ); ?>
 			</button>
 			<p class="field-hint"><?php esc_html_e( 'Validated as JSON on save — invalid JSON is rejected, never emitted.', 's5' ); ?></p>
+			<p class="field-error" data-s5-head-error="json_ld" hidden></p>
 		</section>
 
 	</div>

@@ -9,7 +9,11 @@
  * through this same class.
  *
  * Scope guarantees honored here:
- * - Gated behind `manage_options` (editing levels deferred — single user).
+ * - WP-level floor is `edit_posts` (Administrator/Editor/Author all hold it); the
+ *   REAL gate is {@see Roles::can()} ('editor.open') — the R1 resolution (per-user
+ *   override -> WP-role seed -> matrix) — checked at every entrance alongside the
+ *   WP capability, so a role the matrix denies is blocked even though it holds
+ *   `edit_posts` (R1: hidden AND blocked, not just menu-hidden).
  * - Editor assets enqueue ONLY on this admin screen (DECISIONS.md D8) — nothing
  *   ships to logged-out visitors.
  * - The preview iframe points at the REAL canvas URL with `?s5-preview=1`
@@ -39,11 +43,14 @@ final class Editor {
 	public const PAGE_SLUG = 's5-editor';
 
 	/**
-	 * Capability required to open the editor (single-user MVP).
+	 * WP capability FLOOR to open the editor — the widest net any S5 role needs
+	 * (`edit_posts`, held by Administrator/Editor/Author). This is NOT the real
+	 * gate; {@see Roles::can()} ('editor.open') is checked alongside it at every
+	 * entrance and is what actually restricts Client/Marketer per the matrix.
 	 *
 	 * @var string
 	 */
-	public const CAPABILITY = 'manage_options';
+	public const CAPABILITY = 'edit_posts';
 
 	/**
 	 * Query var that flags a canvas request as an in-editor preview.
@@ -148,7 +155,7 @@ final class Editor {
 		if ( ! ( $post instanceof \WP_Post ) ) {
 			return $actions;
 		}
-		if ( ! current_user_can( self::CAPABILITY ) ) {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'editor.open' ) ) {
 			return $actions;
 		}
 		if ( ! Storage::is_framework_page( (int) $post->ID ) ) {
@@ -224,7 +231,7 @@ final class Editor {
 	 */
 	public static function filter_edit_post_link( $link, $post_id ) {
 		$post_id = (int) $post_id;
-		if ( ! $post_id || ! current_user_can( self::CAPABILITY ) ) {
+		if ( ! $post_id || ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'editor.open' ) ) {
 			return $link;
 		}
 		// Do not hijack the deliberate WP-edit escape hatch.
@@ -279,7 +286,7 @@ final class Editor {
 		if ( ! $post_id || ! Storage::is_framework_page( $post_id ) ) {
 			return;
 		}
-		if ( ! current_user_can( self::CAPABILITY ) ) {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'editor.open' ) ) {
 			return;
 		}
 		wp_safe_redirect( self::editor_url( $post_id ) );
@@ -296,7 +303,7 @@ final class Editor {
 		if ( ! ( $bar instanceof \WP_Admin_Bar ) ) {
 			return;
 		}
-		if ( ! current_user_can( self::CAPABILITY ) ) {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'editor.open' ) ) {
 			return;
 		}
 
@@ -528,7 +535,7 @@ final class Editor {
 	 * @return void
 	 */
 	public static function render_screen(): void {
-		if ( ! current_user_can( self::CAPABILITY ) ) {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'editor.open' ) ) {
 			wp_die( esc_html__( 'You do not have permission to edit framework pages.', 's5' ) );
 		}
 
@@ -587,7 +594,7 @@ final class Editor {
 			return;
 		}
 
-		if ( ! current_user_can( self::CAPABILITY ) ) {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'editor.open' ) ) {
 			return; // Fall through to WP's own permission handling on the registered screen.
 		}
 
@@ -787,7 +794,7 @@ final class Editor {
 		if ( ! self::is_preview_request() ) {
 			return;
 		}
-		if ( ! is_user_logged_in() || ! current_user_can( self::CAPABILITY ) ) {
+		if ( ! is_user_logged_in() || ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'editor.open' ) ) {
 			return;
 		}
 		// Chrome-free frame: no admin bar inside the preview.

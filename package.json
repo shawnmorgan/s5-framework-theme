@@ -2,7 +2,7 @@
   "name": "s5-framework",
   "version": "0.0.0",
   "private": true,
-  "description": "Agent-Native WordPress Framework (S5) \u2014 dev environment and test harness.",
+  "description": "Agent-Native WordPress Framework (S5) — dev environment and test harness.",
   "license": "GPL-2.0-or-later",
   "scripts": {
     "env:start": "wp-env start",
@@ -34,9 +34,14 @@
     "recompile": "wp-env run cli wp s5 recompile --all",
     "test:disable": "bash tests/acceptance-disable.sh",
     "test:classswap": "bash tests/acceptance-classswap.sh",
-    "test:roles": "bash tests/acceptance-roles.sh"
+    "test:roles": "bash tests/acceptance-roles.sh",
+    "test:roles-login": "bash tests/acceptance-roles-login.sh",
+    "test:viewports": "node tests/playwright/viewport-matrix.mjs",
+    "test:webkit": "node tests/playwright/webkit-parity.mjs",
+    "test:network": "node tests/playwright/network-sweep.mjs"
   },
   "devDependencies": {
-    "@wordpress/env": "^10.0.0"
+    "@wordpress/env": "^10.0.0",
+    "playwright": "^1.62.1"
   }
 }

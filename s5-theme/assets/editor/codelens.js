@@ -26,7 +26,6 @@
 	var textarea = root.querySelector( '[data-s5-code]' );
 	var codeSaveBtn = root.querySelector( '[data-s5-code-save]' );
 	var codeDiag = root.querySelector( '[data-s5-code-diagnostics]' );
-	var headSaveBtn = root.querySelector( '[data-s5-head-save]' );
 
 	var cm = null;
 
@@ -41,9 +40,15 @@
 			input.value = cfg.head[ key ];
 		}
 		input.addEventListener( 'input', function () {
-			if ( headSaveBtn ) {
-				headSaveBtn.disabled = false;
-			}
+			// ALL head-save buttons share the one mode:"head" save (a head save
+			// writes every field at once) — enableHeadSave() enables every
+			// [data-s5-head-save] button, not just the first one in the DOM.
+			// (Was previously a single querySelector() capture that only ever
+			// re-enabled "Save meta", leaving "Save schema" permanently disabled
+			// once clicked once — a real, pre-existing bug independent of the
+			// error-surfacing fix below: it made the JSON-LD field un-savable
+			// through normal typing, not just its failure silent.)
+			enableHeadSave();
 		} );
 	} );
 
@@ -208,6 +213,54 @@
 		} );
 	}
 
+	/* --- inline head-field errors (Page Settings drawer, NOT the Code-lens
+	 * diagnostics box — a head-save failure happens while the drawer is open,
+	 * so the message must render where the user is actually looking; the
+	 * previous behavior silently reused renderDiagnostics(), which writes into
+	 * codeDiag inside the Code lens region — off-screen and never seen while
+	 * the drawer is on top). Clears all field errors first, then places each
+	 * diagnostic's message next to the field it names (falls back to the
+	 * first error slot if a diagnostic doesn't name a known field). */
+	function clearHeadErrors() {
+		root.querySelectorAll( '[data-s5-head-error]' ).forEach( function ( el ) {
+			el.hidden = true;
+			el.textContent = '';
+		} );
+	}
+
+	function renderHeadErrors( diags ) {
+		clearHeadErrors();
+		if ( ! diags || ! diags.length ) {
+			// The server rejected the save but sent no diagnostics — still loud,
+			// never a silent no-op. Surface a generic message on every error slot
+			// so whichever field the user is looking at shows something.
+			root.querySelectorAll( '[data-s5-head-error]' ).forEach( function ( el ) {
+				el.textContent = 'Save failed — the server rejected this without details.';
+				el.hidden = false;
+			} );
+			return;
+		}
+		var placedAny = false;
+		diags.forEach( function ( d ) {
+			var message = ( d.rule ? '[' + d.rule + '] ' : '' ) + ( d.message || 'Save failed.' );
+			// s5.jsonld.invalid -> json_ld's own error slot; anything else that
+			// doesn't name a field falls back to the first slot so it is never lost.
+			var field = 's5.jsonld.invalid' === d.rule ? 'json_ld' : '';
+			var slot = field ? root.querySelector( '[data-s5-head-error="' + field + '"]' ) : null;
+			if ( ! slot ) {
+				slot = root.querySelector( '[data-s5-head-error]' );
+			}
+			if ( slot ) {
+				slot.textContent = ( slot.hidden ? '' : slot.textContent + ' ' ) + message;
+				slot.hidden = false;
+				placedAny = true;
+			}
+		} );
+		if ( ! placedAny ) {
+			renderHeadErrors( null ); // No error-slot elements exist at all; fall back to the generic path.
+		}
+	}
+
 	/* --- save head (mode:head) — every head-save button saves ALL head fields */
 
 	function saveHead( btn ) {
@@ -219,6 +272,7 @@
 		body.index = segValue( 'index' );
 		body.follow = segValue( 'follow' );
 
+		clearHeadErrors();
 		root.querySelectorAll( '[data-s5-head-save]' ).forEach( function ( b ) {
 			b.disabled = true;
 		} );
@@ -232,12 +286,13 @@
 						f.contentWindow.location.reload();
 					}
 				} else {
-					renderDiagnostics( res.data && res.data.diagnostics );
+					renderHeadErrors( res.data && res.data.diagnostics );
 					enableHeadSave();
 				}
 			} )
 			.catch( function () {
 				btn.textContent = label;
+				renderHeadErrors( null );
 				enableHeadSave();
 			} );
 	}

@@ -255,6 +255,40 @@
 		propsBack.addEventListener( 'click', showPalette );
 	}
 
+	/* --- dirty-state guards: warn or lose-intentionally, never silent loss --- */
+
+	// Real browser navigation (URL bar, tab close, reload, external link): the
+	// native confirm dialog. Every browser suppresses a custom message here, but
+	// the dialog itself is the loud signal — a silent close/reload is what this
+	// closes (D-fix, post-sweep v2 item 2a).
+	window.addEventListener( 'beforeunload', function ( e ) {
+		if ( ! state.dirty ) {
+			return;
+		}
+		e.preventDefault();
+		e.returnValue = '';
+	} );
+
+	// In-app navigation via the editor's own controls (the "Back to WordPress"
+	// logo link is a plain <a>, not a route change JS can intercept after the
+	// fact) — beforeunload alone does not fire reliably for same-tab anchor
+	// navigation in every browser, so this is a belt-and-braces confirm() at the
+	// one in-app link that leaves the editor.
+	var backLink = root.querySelector( '.tb-logo[href]' );
+	if ( backLink ) {
+		backLink.addEventListener( 'click', function ( e ) {
+			if ( ! state.dirty ) {
+				return;
+			}
+			var proceed = window.confirm( // eslint-disable-line no-alert -- intentional, the explicit warn-or-lose-intentionally gate.
+				cfg.i18nUnsavedConfirm || 'You have unsaved changes. Leave without saving?'
+			);
+			if ( ! proceed ) {
+				e.preventDefault();
+			}
+		} );
+	}
+
 	window.S5EditorShell = {
 		state: state,
 		config: cfg,

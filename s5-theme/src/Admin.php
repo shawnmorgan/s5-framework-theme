@@ -35,9 +35,22 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Admin {
 
 	/**
-	 * Capability required for the S5 admin surface.
+	 * Capability required for the S5 admin surface (Setup & Status specifically —
+	 * an environment/adoption tool, out of the R1 role matrix's scope, so it stays
+	 * Developer-only rather than resolving through Roles::can()).
 	 */
 	public const CAPABILITY = 'manage_options';
+
+	/**
+	 * WP capability FLOOR for the top-level "S5" menu PARENT only. Must be no
+	 * stricter than the widest-open child registered under it (Theme Settings,
+	 * `Settings::CAPABILITY` = edit_posts) or WP hides the parent for anyone who
+	 * cannot pass this exact string, hiding the child too regardless of the
+	 * child's own capability. Setup & Status itself still enforces
+	 * `self::CAPABILITY` (manage_options) in {@see self::render_setup_screen()}
+	 * — this constant only keeps the container from disappearing.
+	 */
+	private const MENU_PARENT_CAPABILITY = 'edit_posts';
 
 	/**
 	 * Top-level menu / Setup screen slug.
@@ -61,9 +74,44 @@ final class Admin {
 	 */
 	public static function register(): void {
 		add_action( 'admin_menu', array( self::class, 'register_menu' ), 9 );
+		// After Editor/PageAdmin/Settings have all registered their submenus (default
+		// priority 10), remove the ones the CURRENT user's resolved S5 role cannot see
+		// (Roles::can — not the broadened edit_posts floor). WP only supports a static
+		// capability string at registration time, so registration uses the widest floor
+		// and this pass is what actually makes a blocked screen absent from the menu,
+		// not merely 403-on-click (R1: hidden AND blocked).
+		add_action( 'admin_menu', array( self::class, 'prune_menu_for_role' ), 999 );
 		add_action( 'admin_notices', array( self::class, 'render_notices' ) );
 		add_action( 'admin_post_' . self::ACTION_REBUILD, array( self::class, 'handle_rebuild' ) );
 		add_action( 'admin_post_' . self::ACTION_ADOPT, array( self::class, 'handle_adopt' ) );
+	}
+
+	/**
+	 * Remove S5 menu entries the current user's resolved S5 role cannot see.
+	 *
+	 * Setup & Status stays Developer-only (out of the Roles matrix's scope — it is
+	 * an environment/adoption tool, not an editing surface). Theme Settings is
+	 * removed for anyone `Roles::can( 'settings.view' )` denies (Client, by
+	 * default). If BOTH children are gone for this user, the top-level "S5" entry
+	 * is removed too — the broadened `MENU_PARENT_CAPABILITY` floor means WP alone
+	 * would otherwise leave a dead-end parent link for a role with nothing to do
+	 * under it (R1: hidden AND blocked, not "blocked after one dead click"). The
+	 * Editor screen has no visible menu item to prune (it is always registered
+	 * with an empty parent), so its own gate in {@see Editor} is the only
+	 * enforcement point for that surface.
+	 *
+	 * @return void
+	 */
+	public static function prune_menu_for_role(): void {
+		$can_settings = Roles::can( 'settings.view' );
+		if ( ! $can_settings ) {
+			remove_submenu_page( self::MENU_SLUG, Settings::MENU_SLUG );
+		}
+		// Setup & Status keeps its strict manage_options floor (unaffected by R1).
+		$can_setup = current_user_can( self::CAPABILITY );
+		if ( ! $can_settings && ! $can_setup ) {
+			remove_menu_page( self::MENU_SLUG );
+		}
 	}
 
 	/**
@@ -78,14 +126,19 @@ final class Admin {
 		add_menu_page(
 			__( 'S5', 's5' ),
 			__( 'S5', 's5' ),
-			self::CAPABILITY,
+			self::MENU_PARENT_CAPABILITY,
 			self::MENU_SLUG,
 			array( self::class, 'render_setup_screen' ),
 			'dashicons-editor-code',
 			3
 		);
 
-		// Setup / Status is the landing child (same callback as the parent).
+		// Setup / Status is the landing child (same callback as the parent). Its own
+		// capability stays the strict Setup&Status floor (manage_options) — only the
+		// PARENT container above is broadened, and render_setup_screen() itself
+		// redirects a non-Developer straight to Theme Settings rather than dying,
+		// since the parent click target is fixed at registration time and cannot
+		// know the resolved S5 role in advance.
 		add_submenu_page(
 			self::MENU_SLUG,
 			__( 'Setup & Status', 's5' ),
@@ -247,6 +300,15 @@ final class Admin {
 	 */
 	public static function render_setup_screen(): void {
 		if ( ! current_user_can( self::CAPABILITY ) ) {
+			// Setup & Status is Developer-only; a Marketer/Client landed here only
+			// because they clicked the top-level "S5" label (whose click target is
+			// fixed at registration and cannot know the resolved role in advance).
+			// Send them to the surface they actually have — Theme Settings, if their
+			// role can see it at all — rather than a dead end.
+			if ( Roles::can( 'settings.view' ) ) {
+				wp_safe_redirect( Settings::screen_url() );
+				exit;
+			}
 			wp_die( esc_html__( 'You do not have permission to view this screen.', 's5' ) );
 		}
 		$status = self::status();
