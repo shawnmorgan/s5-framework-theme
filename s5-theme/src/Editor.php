@@ -319,13 +319,42 @@ final class Editor {
 			return;
 		}
 
+		// WP core's own "Edit Page" node (registered by wp_admin_bar_edit_menu())
+		// otherwise renders first and takes a click straight into the classic/
+		// Gutenberg editor, which is locked/redirected for framework pages anyway
+		// (see lock_block_editor / redirect_block_editor). Removing it here leaves
+		// "Edit with S5" as the one obvious admin-bar entrance to the canvas.
+		$bar->remove_node( 'edit' );
+
 		$bar->add_node(
 			array(
 				'id'    => 's5-edit',
-				'title' => __( 'Edit with S5', 's5' ),
+				'title' => '<span class="ab-item s5-edit-cta">' . esc_html__( 'Edit with S5', 's5' ) . '</span>',
 				'href'  => self::editor_url( $post_id ),
+				'meta'  => array( 'class' => 's5-edit-node' ),
 			)
 		);
+
+		add_action( 'wp_before_admin_bar_render', array( self::class, 'print_admin_bar_button_style' ) );
+	}
+
+	/**
+	 * Style the "Edit with S5" admin-bar node as a filled button so it reads as
+	 * the obvious primary action, not another plain text link among many.
+	 *
+	 * @return void
+	 */
+	public static function print_admin_bar_button_style(): void {
+		echo '<style>
+			#wpadminbar .s5-edit-node { background: #2271b1; }
+			#wpadminbar .s5-edit-node > .ab-item.s5-edit-cta {
+				color: #fff !important;
+				font-weight: 600;
+				padding: 0 12px !important;
+			}
+			#wpadminbar .s5-edit-node:hover { background: #135e96; }
+			#wpadminbar .s5-edit-node:hover > .ab-item.s5-edit-cta { color: #fff !important; }
+		</style>';
 	}
 
 	/**

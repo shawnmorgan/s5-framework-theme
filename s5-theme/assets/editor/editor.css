@@ -74,6 +74,26 @@
 	padding-left: 0;
 }
 
+/* WP core's own .screen-reader-text rule (which visually hides accessible-only
+ * labels via clip/position) lives in wp-admin's common.css — never loaded on
+ * this screen's fullscreen-takeover render path (Editor::render_fullscreen_document
+ * intentionally skips admin-header.php and everything it would normally pull in).
+ * Defined here so the class is self-contained: labels like "Canonical HTML
+ * (source of truth)" stop rendering as visible text that steals width from the
+ * Code lens panel next to them. */
+.screen-reader-text {
+	border: 0;
+	clip: rect(1px, 1px, 1px, 1px);
+	clip-path: inset(50%);
+	height: 1px;
+	margin: -1px;
+	overflow: hidden;
+	padding: 0;
+	position: absolute !important;
+	width: 1px;
+	word-wrap: normal !important;
+}
+
 .s5-editor {
 	/* Fixed (not absolute): wp-admin's #wpbody offset parent sizes to its content,
 	   so `inset:0` on an absolute shell resolves against a collapsed ~180px box and
@@ -478,6 +498,14 @@ body.s5-editor-fullscreen .s5-editor {
 .tchildren{margin-left:14px;border-left:1px solid var(--s5e-line-soft);padding-left:4px;}
 .tnode.collapsed > .tchildren{display:none;}
 .leaf .twist{visibility:hidden;}
+
+/* Structure-panel drag-to-reorder (defect #8) */
+.trow .tgrip{width:12px;text-align:center;font-size:11px;color:var(--s5e-text-faint);opacity:.5;flex-shrink:0;cursor:grab;}
+.trow:hover .tgrip{opacity:.9;}
+.trow.dragging{opacity:.4;}
+.trow.drop-before{box-shadow:inset 0 2px 0 var(--s5e-accent);}
+.trow.drop-after{box-shadow:inset 0 -2px 0 var(--s5e-accent);}
+.s5e-reorder-error{color:var(--s5e-danger);}
 
 /* ============================================================================
    PAGE SETTINGS / TEMPLATE DRAWER (opened by the toolbar gear)

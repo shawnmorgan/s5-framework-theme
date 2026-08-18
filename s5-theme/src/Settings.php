@@ -401,6 +401,22 @@ final class Settings {
 				)
 			);
 		}
+
+		// StyleGuide "View Styleguide" fullscreen modal driver (defect #3). Same
+		// unconditional-enqueue reasoning as components.js above: settings.js
+		// switches screens client-side, so this must be present on every load.
+		// No REST calls here — the specimen is static markup already in the page,
+		// so there is nothing to localize.
+		$sg_js = S5_PLUGIN_DIR . 'assets/settings/styleguide.js';
+		if ( is_readable( $sg_js ) ) {
+			wp_enqueue_script(
+				's5-settings-styleguide',
+				get_stylesheet_directory_uri() . '/assets/settings/styleguide.js',
+				array(),
+				(string) filemtime( $sg_js ),
+				true
+			);
+		}
 	}
 
 	/**
@@ -587,43 +603,59 @@ final class Settings {
 		$tokens   = Styles::read_tokens();
 		$can_edit = Roles::can( 'settings.styleguide_edit' );
 		?>
-		<div class="screen-head">
-			<h2><?php esc_html_e( 'StyleGuide', 's5' ); ?></h2>
-			<p><?php esc_html_e( 'The design tokens live here — and everything on the right is rendered from those tokens. Change a token, every primitive updates. This is the client-facing reference: the real headings, buttons, and cards the site is built from.', 's5' ); ?></p>
+		<div class="screen-head sg-screen-head">
+			<div>
+				<h2><?php esc_html_e( 'StyleGuide', 's5' ); ?></h2>
+				<p><?php esc_html_e( 'The design tokens live here — change one and every primitive built from it updates. Open the live specimen to see the real headings, buttons, and cards the site is built from.', 's5' ); ?></p>
+			</div>
+			<button type="button" class="btn btn--primary" data-s5-sg-view>
+				<i class="fa-solid fa-eye"></i> <?php esc_html_e( 'View Styleguide', 's5' ); ?>
+			</button>
 		</div>
 
-		<div class="sg-grid">
-			<div>
-				<?php /* FONTS — informational (families come from the token layer). */ ?>
-				<div class="card">
-					<div class="card-head"><i class="fa-solid fa-font"></i><h3><?php esc_html_e( 'Fonts', 's5' ); ?></h3><span class="card-note"><?php esc_html_e( 'family & source', 's5' ); ?></span></div>
-					<div class="card-body">
-						<div class="field">
-							<label class="field-label"><?php esc_html_e( 'Font Source', 's5' ); ?></label>
-							<div class="seg wide"><div class="seg-opt active"><?php esc_html_e( 'System', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Google Fonts', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Self-hosted', 's5' ); ?></div></div>
-							<p class="field-hint"><?php esc_html_e( 'Self-hosted keeps fonts on your infrastructure (no third-party requests).', 's5' ); ?></p>
-						</div>
-						<?php
-						$fonts = isset( $tokens['font'] ) ? $tokens['font'] : array();
-						foreach ( $fonts as $f ) :
-							?>
-							<div class="field">
-								<label class="field-label"><?php echo esc_html( ucwords( str_replace( array( '--s5-font-', '-' ), array( '', ' ' ), $f['name'] ) ) ); ?> <span class="opt"><?php echo esc_html( $f['name'] ); ?></span></label>
-								<input class="input" value="<?php echo esc_attr( $f['value'] ); ?>" style="font-family:var(--s5e-mono);font-size:11.5px" readonly>
-							</div>
-						<?php endforeach; ?>
+		<?php /* Token cards, full width — the specimen that used to sit beside them
+		 * (squeezing this column to ~340px, defect #3) now lives in the fullscreen
+		 * modal below, opened by the button above. */ ?>
+		<div class="sg-cards-full">
+			<?php /* FONTS — informational (families come from the token layer). */ ?>
+			<div class="card">
+				<div class="card-head"><i class="fa-solid fa-font"></i><h3><?php esc_html_e( 'Fonts', 's5' ); ?></h3><span class="card-note"><?php esc_html_e( 'family & source', 's5' ); ?></span></div>
+				<div class="card-body">
+					<div class="field">
+						<label class="field-label"><?php esc_html_e( 'Font Source', 's5' ); ?></label>
+						<div class="seg wide"><div class="seg-opt active"><?php esc_html_e( 'System', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Google Fonts', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Self-hosted', 's5' ); ?></div></div>
+						<p class="field-hint"><?php esc_html_e( 'Self-hosted keeps fonts on your infrastructure (no third-party requests).', 's5' ); ?></p>
 					</div>
+					<?php
+					$fonts = isset( $tokens['font'] ) ? $tokens['font'] : array();
+					foreach ( $fonts as $f ) :
+						?>
+						<div class="field">
+							<label class="field-label"><?php echo esc_html( ucwords( str_replace( array( '--s5-font-', '-' ), array( '', ' ' ), $f['name'] ) ) ); ?> <span class="opt"><?php echo esc_html( $f['name'] ); ?></span></label>
+							<input class="input" value="<?php echo esc_attr( $f['value'] ); ?>" style="font-family:var(--s5e-mono);font-size:11.5px" readonly>
+						</div>
+					<?php endforeach; ?>
 				</div>
-
-				<?php
-				self::sg_color_card( __( 'Colors', 's5' ), isset( $tokens['color'] ) ? $tokens['color'] : array(), $can_edit );
-				self::sg_scale_card( __( 'Type Scale', 's5' ), isset( $tokens['text'] ) ? $tokens['text'] : array(), 'text', $can_edit );
-				self::sg_scale_card( __( 'Space Scale', 's5' ), isset( $tokens['space'] ) ? $tokens['space'] : array(), 'space', $can_edit );
-				self::sg_scale_card( __( 'Radius', 's5' ), isset( $tokens['radius'] ) ? $tokens['radius'] : array(), 'radius', $can_edit );
-				?>
 			</div>
 
-			<?php self::sg_specimen(); ?>
+			<?php
+			self::sg_color_card( __( 'Colors', 's5' ), isset( $tokens['color'] ) ? $tokens['color'] : array(), $can_edit );
+			self::sg_scale_card( __( 'Type Scale', 's5' ), isset( $tokens['text'] ) ? $tokens['text'] : array(), 'text', $can_edit );
+			self::sg_scale_card( __( 'Space Scale', 's5' ), isset( $tokens['space'] ) ? $tokens['space'] : array(), 'space', $can_edit );
+			self::sg_scale_card( __( 'Radius', 's5' ), isset( $tokens['radius'] ) ? $tokens['radius'] : array(), 'radius', $can_edit );
+			?>
+		</div>
+
+		<div class="sg-modal" data-s5-sg-modal aria-hidden="true">
+			<div class="sg-modal-bar">
+				<button type="button" class="tpl-modal-back" data-s5-sg-close>
+					<i class="fa-solid fa-arrow-left"></i> <?php esc_html_e( 'Back to StyleGuide', 's5' ); ?>
+				</button>
+				<div class="tpl-modal-title"><i class="fa-solid fa-swatchbook"></i> <?php esc_html_e( 'Live Styleguide', 's5' ); ?></div>
+			</div>
+			<div class="sg-modal-stage">
+				<?php self::sg_specimen(); ?>
+			</div>
 		</div>
 		<?php
 	}

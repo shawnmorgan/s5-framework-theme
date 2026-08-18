@@ -239,6 +239,16 @@
 		if ( 'ready' === msg.s5 ) {
 			// Overlay is live; make sure it matches the current lens.
 			sendToFrame( { s5: 's5-lens', lens: shell.state.lens } );
+			// reloadPreview() (after a disable/enable or save round-trip) does a full
+			// contentWindow.location.reload() — the old DOM, and with it the floating
+			// selection toolbar, is gone. Without this the user has to click the
+			// element again to see the toggle actually take effect ("delayed,
+			// have to click out and back" — defect #6). Re-select the same node so
+			// the toolbar (with its now-correct enable/disable icon) reappears
+			// automatically once the fresh overlay reports ready.
+			if ( selected && selected.node ) {
+				sendToFrame( { s5: 's5-select-node', node: selected.node } );
+			}
 			return;
 		}
 		if ( 'select' === msg.s5 ) {
@@ -256,10 +266,14 @@
 				contentTab.click();
 			}
 		} else if ( 's5-disable' === msg.s5 && msg.node ) {
-			// Selection-chrome disable (R4): set data-disabled through the ONE door
-			// (mode:disable). The compiler drops the subtree from render + mirror; it
-			// stays in canonical so it can be re-enabled.
-			doDisable( msg.node, true );
+			// Selection-chrome disable/enable (R4): set data-disabled through the ONE
+			// door (mode:disable). The compiler drops the subtree from render + mirror
+			// when disabled=true; it stays in canonical so it can be re-enabled.
+			// Bug fix: this used to hardcode `true`, so the toolbar's "enable" (eye)
+			// button — which posts disabled:false — silently re-disabled an already-
+			// disabled element instead of re-enabling it. Pass the message's actual
+			// intent through.
+			doDisable( msg.node, !! msg.disabled );
 		} else if ( 's5-duplicate' === msg.s5 && msg.node ) {
 			// Duplicate is a re-keying server op (like insert); it lands with the
 			// component/duplicate work. Surface it honestly rather than no-op silently.

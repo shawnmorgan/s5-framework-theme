@@ -71,8 +71,16 @@
    PAGE (S5 tool, dark) — fills the wp-admin content area
    ============================================================================ */
 .s5set-page{
+  /* z-index:9995 (not the original 9): .s5set-page is a `position:fixed` element
+   * with its own z-index, so it is a STACKING CONTEXT — every descendant's z-index,
+   * including .cb-modal's 999999, is only compared against siblings INSIDE this
+   * context. At z-index:9 the whole subtree loses to WP core's own admin sidebar
+   * (#adminmenuwrap, position:fixed, z-index:9990) regardless of how high a modal
+   * inside it goes. 9995 clears the sidebar with headroom below #wpadminbar
+   * (z-index:99999, deliberately still on top — the admin bar staying visible
+   * above the settings app is correct, unlike the sidebar bleeding through). */
   position:fixed;top:var(--wp-admin--admin-bar--height,32px);left:160px;right:0;bottom:0;
-  background:var(--s5e-canvas);display:flex;flex-direction:column;overflow:hidden;z-index:9;
+  background:var(--s5e-canvas);display:flex;flex-direction:column;overflow:hidden;z-index:9995;
 }
 .folded .s5set-page{left:36px;}
 @media(max-width:960px){.s5set-page{left:0;}}
@@ -113,7 +121,12 @@
 .s5set .screen-head p{color:var(--s5e-text-dim);font-size:13px;margin-top:5px;max-width:70ch;line-height:1.5;}
 
 /* generic settings cards */
-.s5set .card{background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-lg);margin-bottom:20px;overflow:hidden;}
+/* width:auto + max-width/min-width:none override WP core's own unscoped
+ * `.card{min-width:255px;max-width:520px}` dashboard-widget rule (wp-admin/
+ * css/dashboard.css) — .s5set .card never set its own width, so that global
+ * rule was the only one that applied, squishing every settings card to
+ * roughly half the available column regardless of viewport. */
+.s5set .card{background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-lg);margin-bottom:20px;overflow:hidden;width:auto;max-width:none;min-width:0;}
 .s5set .card-head{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--s5e-line-soft);}
 .s5set .card-head i{color:var(--s5e-accent);font-size:14px;opacity:.9;}
 .s5set .card-head h3{font-size:14px;font-weight:700;margin:0;}
@@ -237,8 +250,24 @@
 /* ============================================================================
    STYLEGUIDE screen
    ============================================================================ */
-.s5set .sg-grid{display:grid;grid-template-columns:340px 1fr;gap:22px;align-items:start;}
-@media(max-width:1000px){.s5set .sg-grid{grid-template-columns:1fr;}}
+/* Defect #3: the token cards used to share a 340px column with the specimen
+ * (.sg-grid, now unused), which is why "the left bar where you can edit
+ * values is too cramped" — the cards were never full width. The specimen
+ * moved into its own fullscreen modal (.sg-modal, opened by the "View
+ * Styleguide" button); the cards now lay out in a normal responsive grid
+ * across the full screen width instead of a fixed narrow column. */
+.s5set .sg-screen-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;}
+.s5set .sg-cards-full{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;align-items:start;}
+
+/* top offset (not inset:0) for the SAME reason as .s5set-page's fix earlier
+ * this session: WP core's #wpadminbar sits at z-index 99999, above every
+ * settings-app z-index on purpose. Starting this modal at y:0 hid its own
+ * "Back to StyleGuide" bar underneath the admin bar instead of clearing it. */
+.s5set .sg-modal{position:fixed;top:var(--wp-admin--admin-bar--height,32px);left:0;right:0;bottom:0;z-index:9995;background:var(--s5e-canvas);display:none;flex-direction:column;}
+.s5set .sg-modal.open{display:flex;}
+.s5set .sg-modal-bar{display:flex;align-items:center;gap:14px;height:48px;padding:0 16px;background:var(--s5e-bg-2);border-bottom:1px solid var(--s5e-line);flex-shrink:0;}
+.s5set .sg-modal-stage{flex:1;min-height:0;overflow-y:auto;}
+.s5set .sg-modal-stage .specimen{border-radius:0;border-left:0;border-right:0;min-height:100%;}
 .s5set .token-color{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--s5e-line-soft);}
 .s5set .token-color:last-child{border-bottom:none;}
 .s5set .token-sw{width:30px;height:30px;border-radius:var(--s5e-radius-sm);border:2px solid var(--s5e-line);flex-shrink:0;}

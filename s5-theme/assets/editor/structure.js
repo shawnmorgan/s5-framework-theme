@@ -23,7 +23,10 @@
 		return;
 	}
 	var ORIGIN = window.location.origin;
+	var cfg = window.S5Editor || {};
 	var rowsByNode = {};
+	var lastNodes = [];
+	var dragNode = null;
 
 	function frameWindow() {
 		var f = shell.getPreviewFrame();
@@ -64,6 +67,7 @@
 	function render( nodes ) {
 		listEl.innerHTML = '';
 		rowsByNode = {};
+		lastNodes = nodes || [];
 		if ( ! nodes || ! nodes.length ) {
 			listEl.appendChild( el( 'p', { class: 's5e-hint' }, 'No editable structure on this page.' ) );
 			return;
@@ -86,7 +90,15 @@
 				style: depth ? 'margin-left:' + depth * 14 + 'px' : '',
 				tabindex: '0',
 				role: 'button',
+				draggable: n.node ? 'true' : 'false',
 			} );
+			// drag handle (Item 5 / defect #8): grip icon, drag-and-drop reorder
+			// through the existing mode:reorder save door (Rest::build_canonical_
+			// from_reorder — server-side already handled same-parent/locked-node
+			// guards; this wiring only needs to supply node + after|before).
+			var grip = el( 'span', { class: 'tgrip', title: 'Drag to reorder' } );
+			grip.appendChild( el( 'i', { class: 'fa-solid fa-grip-vertical' } ) );
+			row.appendChild( grip );
 			// twist (leaf → hidden via .leaf .twist), kind icon, label + type tag.
 			row.appendChild( el( 'span', { class: 'twist' } ) );
 			var tico = el( 'span', { class: 'tico' } );
@@ -115,11 +127,124 @@
 					select();
 				}
 			} );
+			wireDrag( row, n, depth );
 			if ( n.node ) {
 				rowsByNode[ n.node ] = row;
 			}
 			listEl.appendChild( node );
 		} );
+	}
+
+	/* --- drag-and-drop reorder (Item 5 / defect #8) ----------------------
+	 * Client-side scope matches the server's: only same-depth rows (the
+	 * client's proxy for "same parent" — the server re-checks authoritatively
+	 * via same_parent()) accept a drop. Dropping on the top or bottom half of
+	 * a target row decides after/before, mirroring common tree-view UX. */
+	function wireDrag( row, n, depth ) {
+		if ( ! n.node ) {
+			return;
+		}
+		row.addEventListener( 'dragstart', function ( e ) {
+			dragNode = n.node;
+			row.classList.add( 'dragging' );
+			if ( e.dataTransfer ) {
+				e.dataTransfer.effectAllowed = 'move';
+				e.dataTransfer.setData( 'text/plain', n.node );
+			}
+		} );
+		row.addEventListener( 'dragend', function () {
+			dragNode = null;
+			row.classList.remove( 'dragging' );
+			listEl.querySelectorAll( '.trow.drop-before, .trow.drop-after' ).forEach( function ( r ) {
+				r.classList.remove( 'drop-before', 'drop-after' );
+			} );
+		} );
+		row.addEventListener( 'dragover', function ( e ) {
+			if ( ! dragNode || dragNode === n.node || depth !== dragDepth() ) {
+				return;
+			}
+			e.preventDefault();
+			if ( e.dataTransfer ) {
+				e.dataTransfer.dropEffect = 'move';
+			}
+			var before = dropIsBefore( e, row );
+			row.classList.toggle( 'drop-before', before );
+			row.classList.toggle( 'drop-after', ! before );
+		} );
+		row.addEventListener( 'dragleave', function () {
+			row.classList.remove( 'drop-before', 'drop-after' );
+		} );
+		row.addEventListener( 'drop', function ( e ) {
+			if ( ! dragNode || dragNode === n.node ) {
+				return;
+			}
+			e.preventDefault();
+			var before = dropIsBefore( e, row );
+			row.classList.remove( 'drop-before', 'drop-after' );
+			reorder( dragNode, n.node, before );
+		} );
+	}
+
+	function dragDepth() {
+		if ( ! dragNode || ! rowsByNode[ dragNode ] ) {
+			return -1;
+		}
+		return parseInt( rowsByNode[ dragNode ].getAttribute( 'data-depth' ) || '0', 10 );
+	}
+
+	function dropIsBefore( e, row ) {
+		var r = row.getBoundingClientRect();
+		return ( e.clientY - r.top ) < ( r.height / 2 );
+	}
+
+	function reorder( node, anchor, before ) {
+		if ( ! cfg.saveUrl || ! node || ! anchor ) {
+			return;
+		}
+		var body = { mode: 'reorder', node: node };
+		if ( before ) {
+			body.before = anchor;
+		} else {
+			body.after = anchor;
+		}
+		fetch( cfg.saveUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce': cfg.nonce || '',
+			},
+			body: JSON.stringify( body ),
+		} )
+			.then( function ( r ) {
+				return r.json().then( function ( respBody ) {
+					return { status: r.status, body: respBody };
+				} );
+			} )
+			.then( function ( res ) {
+				if ( res.body && res.body.ok ) {
+					var w = frameWindow();
+					if ( w ) {
+						w.location.reload();
+					}
+				} else {
+					showReorderError( res.body );
+				}
+			} )
+			.catch( function () {
+				showReorderError( null );
+			} );
+	}
+
+	function showReorderError( body ) {
+		listEl.querySelectorAll( '.s5e-reorder-error' ).forEach( function ( n ) {
+			n.remove();
+		} );
+		var message = ( body && body.message ) || 'Could not reorder — network error.';
+		listEl.insertBefore(
+			el( 'p', { class: 's5e-hint s5e-reorder-error' }, message ),
+			listEl.firstChild
+		);
 	}
 
 	function highlight( node ) {

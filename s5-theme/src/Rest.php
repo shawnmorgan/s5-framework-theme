@@ -147,10 +147,28 @@ final class Rest {
 		}
 
 		$mode = (string) $request->get_param( 'mode' );
-		if ( '' !== $mode && 'canonical' !== $mode ) {
-			return new \WP_Error( 's5_bad_mode', __( 'Template parts save as canonical.', 's5' ), array( 'status' => 400 ) );
+		if ( '' !== $mode && 'canonical' !== $mode && 'insert' !== $mode ) {
+			return new \WP_Error( 's5_bad_mode', __( 'Template parts save as canonical or insert.', 's5' ), array( 'status' => 400 ) );
 		}
-		$canonical = (string) $request->get_param( 'canonical' );
+
+		if ( 'insert' === $mode ) {
+			// Component insert into a template part (defect #8: the palette insert
+			// previously only existed on the page-scoped route — a part had no way
+			// to receive a dropped component at all). Same embed-primitive gate as
+			// the page insert path.
+			$component_name = (string) $request->get_param( 'component' );
+			if ( 'embed' === strtolower( $component_name ) && ! Roles::can( 'editor.embed' ) ) {
+				return new \WP_Error( 's5_role_embed', __( 'Your role cannot insert the Embed primitive.', 's5' ), array( 'status' => 403 ) );
+			}
+			$at        = (string) $request->get_param( 'at' );
+			$expanded  = self::expand_component_into( Templates::read_part( $name ), $component_name, $at, false );
+			if ( $expanded instanceof \WP_Error ) {
+				return $expanded;
+			}
+			$canonical = $expanded;
+		} else {
+			$canonical = (string) $request->get_param( 'canonical' );
+		}
 
 		// SAME vocabulary gate as page canonical saves.
 		try {
@@ -423,10 +441,20 @@ final class Rest {
 					return $canonical;
 				}
 				return self::persist_canonical( $post_id, $canonical );
+			case 'reorder':
+				// R1: reordering is a structure-tree operation, same key as disable.
+				if ( ! Roles::can( 'editor.structure' ) ) {
+					return new \WP_Error( 's5_role_structure', __( 'Your role cannot reorder elements.', 's5' ), array( 'status' => 403 ) );
+				}
+				$canonical = self::build_canonical_from_reorder( $post_id, $request );
+				if ( $canonical instanceof \WP_Error ) {
+					return $canonical;
+				}
+				return self::persist_canonical( $post_id, $canonical );
 			default:
 				return new \WP_Error(
 					's5_bad_mode',
-					__( 'Unknown save mode. Expected slots, canonical, insert, disable, class, or head.', 's5' ),
+					__( 'Unknown save mode. Expected slots, canonical, insert, disable, class, reorder, or head.', 's5' ),
 					array( 'status' => 400 )
 				);
 		}
@@ -564,6 +592,34 @@ final class Rest {
 		$name = (string) $request->get_param( 'component' );
 		$at   = (string) $request->get_param( 'at' );
 
+		$canonical = Storage::get_canonical_html( $post_id );
+		if ( '' === $canonical ) {
+			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		return self::expand_component_into( $canonical, $name, $at, true );
+	}
+
+	/**
+	 * Expand a registered component into a canonical HTML string at an anchor —
+	 * the shared core of both the page palette insert (mode:"insert" on
+	 * /pages/{id}/save) and the template-part insert (mode:"insert" on
+	 * /templates/{name}/save, defect #8's "still can't [insert] in the template
+	 * parts" gap). Server-assigned recursive node ids (ComponentInsert::rekey),
+	 * refusing a locked anchor, byte-surgical splice — identical rules regardless
+	 * of which canonical string (a page's or a part's) is being expanded into.
+	 *
+	 * @param string $canonical      Current canonical HTML (page body or part file).
+	 * @param string $name           Registered component name.
+	 * @param string $at             data-node anchor; '' = append.
+	 * @param bool   $requires_main  Whether an anchor-less append needs a <main>
+	 *                               region to append before (true for pages; a
+	 *                               template part is its own small fragment with
+	 *                               no <main>, so a part caller passes false and
+	 *                               anchor-less means "append at the very end").
+	 * @return string|\WP_Error New canonical, or an error.
+	 */
+	private static function expand_component_into( string $canonical, string $name, string $at, bool $requires_main ) {
 		if ( '' === $name || ! ComponentRegistry::is_registered( $name ) ) {
 			return new \WP_Error( 's5_unknown_component', __( 'Unknown or unregistered component.', 's5' ), array( 'status' => 400 ) );
 		}
@@ -574,11 +630,6 @@ final class Rest {
 			return new \WP_Error( 's5_component_load', $e->getMessage(), array( 'status' => 400 ) );
 		}
 
-		$canonical = Storage::get_canonical_html( $post_id );
-		if ( '' === $canonical ) {
-			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
-		}
-
 		// Structural law (Amendment A): refuse insert on/inside a data-lock subtree.
 		if ( ComponentInsert::anchor_is_locked( $canonical, $at ) ) {
 			return new \WP_Error( 's5_locked', __( 'Cannot insert into a locked (data-lock) region.', 's5' ), array( 'status' => 409 ) );
@@ -587,7 +638,14 @@ final class Rest {
 		// Server-assigned recursive node ids, then byte-surgical splice.
 		$existing = ComponentInsert::existing_ids( $canonical );
 		$rekeyed  = ComponentInsert::rekey( $component['html'], $component['name'], $existing );
-		$spliced  = ComponentInsert::splice( $canonical, $rekeyed['markup'], $at );
+
+		if ( '' === $at && ! $requires_main ) {
+			// A template part is its own small fragment (no <main>) — anchor-less
+			// simply means "append at the end of the part's markup".
+			return rtrim( $canonical ) . "\n" . $rekeyed['markup'] . "\n";
+		}
+
+		$spliced = ComponentInsert::splice( $canonical, $rekeyed['markup'], $at );
 		if ( null === $spliced ) {
 			// Two loud failures collapse here (Item 5d): an anchor-less insert into a
 			// page with no <main> content region, or a named anchor that does not exist.
@@ -660,6 +718,282 @@ final class Rest {
 			$processor->remove_attribute( 'data-disabled' );
 		}
 		return $processor->get_updated_html();
+	}
+
+	/**
+	 * Move a node to become the sibling immediately after (or before) an anchor
+	 * node, both keyed by data-node (Item 5 / defect #8: Structure-panel
+	 * drag-and-drop). Byte-surgical, same philosophy as every other mode here:
+	 * the moved subtree's exact bytes are cut and re-inserted elsewhere;
+	 * everything else in canonical stays byte-identical.
+	 *
+	 * Scoped narrow on purpose: the moved node and the anchor must currently be
+	 * SIBLINGS (same parent). Cross-parent moves (dragging into a different
+	 * section/container) are refused loudly rather than guessed at — that needs
+	 * real re-parenting logic and is out of scope for this pass.
+	 *
+	 * Expects params: `node` (data-node id being moved), and exactly one of
+	 * `after` or `before` (data-node id of the sibling to land next to).
+	 *
+	 * @param int              $post_id Page ID.
+	 * @param \WP_REST_Request $request Request.
+	 * @return string|\WP_Error New canonical, or an error.
+	 */
+	private static function build_canonical_from_reorder( int $post_id, \WP_REST_Request $request ) {
+		$node   = (string) $request->get_param( 'node' );
+		$after  = (string) $request->get_param( 'after' );
+		$before = (string) $request->get_param( 'before' );
+
+		if ( '' === $node || ( '' === $after && '' === $before ) ) {
+			return new \WP_Error( 's5_reorder_args', __( 'node and either after or before are required.', 's5' ), array( 'status' => 400 ) );
+		}
+
+		$anchor = '' !== $after ? $after : $before;
+
+		// Moving a node next to itself is a no-op — not an error. A drag that
+		// dropped back on its own position should not surface a scary diagnostic.
+		if ( $node === $anchor ) {
+			return Storage::get_canonical_html( $post_id );
+		}
+
+		$canonical = Storage::get_canonical_html( $post_id );
+		if ( '' === $canonical ) {
+			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		// Structural law: refuse a move where either end is inside a locked subtree
+		// (same law ComponentInsert enforces for insert).
+		if ( ComponentInsert::anchor_is_locked( $canonical, $node ) || ComponentInsert::anchor_is_locked( $canonical, $anchor ) ) {
+			return new \WP_Error( 's5_locked', __( 'Cannot reorder a locked (data-lock) node.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		$moved_span = self::find_node_span( $canonical, $node );
+		if ( null === $moved_span ) {
+			return new \WP_Error(
+				's5_node_not_found',
+				sprintf( /* translators: %s: data-node id. */ __( 'Node "%s" not found in canonical.', 's5' ), $node ),
+				array( 'status' => 409 )
+			);
+		}
+		$anchor_span = self::find_node_span( $canonical, $anchor );
+		if ( null === $anchor_span ) {
+			return new \WP_Error(
+				's5_node_not_found',
+				sprintf( /* translators: %s: data-node id. */ __( 'Node "%s" not found in canonical.', 's5' ), $anchor ),
+				array( 'status' => 409 )
+			);
+		}
+
+		if ( self::spans_overlap( $moved_span, $anchor_span ) ) {
+			return new \WP_Error( 's5_reorder_nested', __( 'Cannot reorder a node relative to its own ancestor or descendant.', 's5' ), array( 'status' => 409 ) );
+		}
+		if ( ! self::same_parent( $canonical, $moved_span, $anchor_span ) ) {
+			return new \WP_Error( 's5_reorder_siblings_only', __( 'Can only reorder within the same parent — cross-container moves aren\'t supported yet.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		// find_node_span() returns only the element's own open-to-close bytes — the
+		// whitespace/indentation BEFORE it (the gap since the previous sibling's
+		// close tag) is not part of that span. Cutting just the bare span leaves
+		// that leading gap orphaned behind, and re-inserting the bare element
+		// jams it directly against the anchor's tag boundary with no separator
+		// (verified live: a reorder produced "...ships.</p><h1 ..." with zero
+		// bytes between). Extend the cut to include the moved node's leading
+		// whitespace, so the same visual gap it had travels with it.
+		$moved_cut_start = self::leading_whitespace_start( $canonical, $moved_span[0] );
+		$moved_html       = substr( $canonical, $moved_cut_start, $moved_span[1] - $moved_cut_start );
+		$without          = substr( $canonical, 0, $moved_cut_start ) . substr( $canonical, $moved_span[1] );
+		$cut_len          = $moved_span[1] - $moved_cut_start;
+
+		$anchor_start = $anchor_span[0];
+		$anchor_end   = $anchor_span[1];
+		if ( $moved_span[1] <= $anchor_span[0] ) {
+			$anchor_start -= $cut_len;
+			$anchor_end   -= $cut_len;
+		}
+
+		if ( '' !== $after ) {
+			// Insert AFTER the anchor: since $moved_html now carries its own
+			// leading gap, put that gap where the anchor's own trailing gap
+			// already is (right after the anchor's close tag) so the result reads
+			// anchor, gap, moved — matching normal sibling spacing.
+			return substr( $without, 0, $anchor_end ) . $moved_html . substr( $without, $anchor_end );
+		}
+
+		// Insert BEFORE the anchor: the anchor's own leading gap must move to
+		// follow the newly-inserted node, else two gaps collide with none
+		// between the moved node and the anchor. Take the anchor's leading gap
+		// with it conceptually by inserting moved_html at the anchor's own
+		// leading-whitespace start, ahead of the anchor's existing gap.
+		$anchor_insert_at = self::leading_whitespace_start( $without, $anchor_start );
+		return substr( $without, 0, $anchor_insert_at ) . $moved_html . substr( $without, $anchor_insert_at );
+	}
+
+	/**
+	 * Walk backward from a byte offset over pure inter-tag whitespace only
+	 * (spaces, tabs, newlines) to find where that whitespace run began — the
+	 * true start of "this node plus the gap before it". Stops the instant a
+	 * non-whitespace byte is hit (i.e. stops at the previous sibling's `>` or
+	 * the parent's `>`), so it never eats into real content.
+	 *
+	 * @param string $html HTML string.
+	 * @param int    $pos  Offset to walk backward from.
+	 * @return int Offset of the first whitespace byte in the run ending at $pos
+	 *             (== $pos itself if the preceding byte is not whitespace).
+	 */
+	private static function leading_whitespace_start( string $html, int $pos ): int {
+		while ( $pos > 0 && false !== strpos( " \t\n\r", $html[ $pos - 1 ] ) ) {
+			--$pos;
+		}
+		return $pos;
+	}
+
+	/**
+	 * Locate the byte span [start, end) of the element carrying data-node="$node"
+	 * — its full outer HTML, open tag through matching close tag. Shared helper
+	 * for reorder; mirrors the open/close matching already used by replace_inner()
+	 * and ComponentInsert::splice(), factored out since reorder needs the span's
+	 * bounds directly rather than a splice result.
+	 *
+	 * @param string $canonical Canonical HTML.
+	 * @param string $node      data-node id to locate.
+	 * @return array{0:int,1:int}|null [start, end) byte offsets, or null if not found
+	 *                                 or unbalanced.
+	 */
+	private static function find_node_span( string $canonical, string $node ) {
+		$pattern = '/<([a-zA-Z][a-zA-Z0-9]*)\b[^>]*\bdata-node=(["\'])' . preg_quote( $node, '/' ) . '\2[^>]*>/';
+		if ( ! preg_match( $pattern, $canonical, $m, PREG_OFFSET_CAPTURE ) ) {
+			return null;
+		}
+		$tag        = $m[1][0];
+		$open_start = (int) $m[0][1];
+		$open_end   = $open_start + strlen( $m[0][0] );
+
+		if ( '/>' === substr( $m[0][0], -2 ) ) {
+			return array( $open_start, $open_end );
+		}
+
+		$depth  = 1;
+		$offset = $open_end;
+		$len    = strlen( $canonical );
+		$re     = '/<(\/?)' . preg_quote( $tag, '/' ) . '\b[^>]*>/i';
+		while ( $offset < $len && preg_match( $re, $canonical, $tm, PREG_OFFSET_CAPTURE, $offset ) ) {
+			$is_close = '' !== $tm[1][0];
+			$at       = (int) $tm[0][1];
+			$tok_end  = $at + strlen( $tm[0][0] );
+			if ( $is_close ) {
+				--$depth;
+				if ( 0 === $depth ) {
+					return array( $open_start, $tok_end );
+				}
+			} else {
+				++$depth;
+			}
+			$offset = $tok_end;
+		}
+		return null;
+	}
+
+	/**
+	 * Whether two byte spans overlap (one contains the other, or they intersect) —
+	 * used to refuse reordering a node relative to its own ancestor/descendant.
+	 *
+	 * @param array{0:int,1:int} $a First span.
+	 * @param array{0:int,1:int} $b Second span.
+	 * @return bool
+	 */
+	private static function spans_overlap( array $a, array $b ): bool {
+		return $a[0] < $b[1] && $b[0] < $a[1];
+	}
+
+	/**
+	 * Whether the elements at two spans share the same parent element, by walking
+	 * outward from each span's start to the nearest enclosing open tag and
+	 * comparing those enclosing tags' own start offsets. A pragmatic same-depth-
+	 * ancestor check consistent with the byte-surgical approach used throughout
+	 * this file (no DOM round-trip).
+	 *
+	 * @param string              $canonical Canonical HTML.
+	 * @param array{0:int,1:int}  $a First span.
+	 * @param array{0:int,1:int}  $b Second span.
+	 * @return bool
+	 */
+	private static function same_parent( string $canonical, array $a, array $b ): bool {
+		$parent_a = self::enclosing_open_tag_start( $canonical, $a[0] );
+		$parent_b = self::enclosing_open_tag_start( $canonical, $b[0] );
+		return null !== $parent_a && $parent_a === $parent_b;
+	}
+
+	/**
+	 * A small set of void/self-closing HTML tags that never carry a matching
+	 * close tag, so they must never be pushed onto the tag stack {@see
+	 * enclosing_open_tag_start()} walks — an unclosed <img> or <br> would
+	 * otherwise be mistaken for the parent of everything that follows it.
+	 *
+	 * @var array<string, true>
+	 */
+	private const VOID_TAGS = array(
+		'area'   => true,
+		'base'   => true,
+		'br'     => true,
+		'col'    => true,
+		'embed'  => true,
+		'hr'     => true,
+		'img'    => true,
+		'input'  => true,
+		'link'   => true,
+		'meta'   => true,
+		'source' => true,
+		'track'  => true,
+		'wbr'    => true,
+	);
+
+	/**
+	 * The start offset of the nearest open tag that encloses (but is not) the
+	 * element starting at $pos — i.e. the immediate parent's open-tag start.
+	 *
+	 * A single FORWARD pass over canonical up to $pos, maintaining a stack of
+	 * currently-open tags' start offsets (void/self-closing tags never pushed).
+	 * The stack top at $pos is the parent. O(n) and immune to the fragility of
+	 * a backward, re-sliced regex scan.
+	 *
+	 * @param string $canonical Canonical HTML.
+	 * @param int    $pos       Start offset of the child element's open tag.
+	 * @return int|null Parent open-tag start offset, or null if none (top level).
+	 */
+	private static function enclosing_open_tag_start( string $canonical, int $pos ) {
+		$stack  = array();
+		$offset = 0;
+		$re     = '/<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b[^>]*?(\/?)>/';
+		while ( $offset < $pos && preg_match( $re, $canonical, $m, PREG_OFFSET_CAPTURE, $offset ) ) {
+			$start = (int) $m[0][1];
+			if ( $start >= $pos ) {
+				break;
+			}
+			$is_close = '' !== $m[1][0];
+			$tag      = strtolower( $m[2][0] );
+			$is_self  = '' !== $m[3][0] || isset( self::VOID_TAGS[ $tag ] );
+
+			if ( $is_close ) {
+				// Pop until we find the matching open (defensive against malformed
+				// nesting — best-effort, mirrors the rest of this file's approach).
+				for ( $i = count( $stack ) - 1; $i >= 0; $i-- ) {
+					if ( $stack[ $i ]['tag'] === $tag ) {
+						array_splice( $stack, $i );
+						break;
+					}
+				}
+			} elseif ( ! $is_self ) {
+				$stack[] = array(
+					'tag'   => $tag,
+					'start' => $start,
+				);
+			}
+			$offset = $start + strlen( $m[0][0] );
+		}
+		if ( empty( $stack ) ) {
+			return null;
+		}
+		return $stack[ count( $stack ) - 1 ]['start'];
 	}
 
 	/**
