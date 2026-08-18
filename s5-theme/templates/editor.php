@@ -60,7 +60,8 @@ $s5_settings_css_url        = admin_url( 'admin.php?page=s5-settings&screen=css'
 	?>
 	<header class="tb">
 		<div class="tb-group">
-			<a class="tb-logo" href="<?php echo esc_url( $s5_back_url ); ?>" title="<?php esc_attr_e( 'Back to WordPress', 's5' ); ?>" aria-label="<?php esc_attr_e( 'Back to WordPress', 's5' ); ?>">S5</a>
+			<span class="tb-logo" aria-hidden="true">S5</span>
+			<a class="tb-exit" href="<?php echo esc_url( $s5_back_url ); ?>" title="<?php esc_attr_e( 'Exit editor', 's5' ); ?>"><i class="fa-solid fa-arrow-left"></i> <?php esc_html_e( 'Exit', 's5' ); ?></a>
 			<button type="button" class="tb-icon-btn" data-s5-page-settings title="<?php esc_attr_e( 'Page settings', 's5' ); ?>"><i class="fa-solid fa-gear"></i></button>
 			<div class="tools-wrap">
 				<button type="button" class="tb-tools" data-s5-tools-btn aria-expanded="false"><i class="fa-solid fa-screwdriver-wrench" style="font-size:12px"></i> <?php esc_html_e( 'Tools', 's5' ); ?> <i class="fa-solid fa-chevron-down" style="font-size:9px;opacity:.6"></i></button>

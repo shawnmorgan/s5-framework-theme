@@ -143,15 +143,52 @@ final class Settings {
 				continue;
 			}
 			$list[] = array(
-				'id'      => (string) ( $row['id'] ?? '' ),
-				'name'    => '' !== $name ? $name : __( 'Untitled integration', 's5' ),
-				'point'   => (string) ( $row['point'] ?? 'head' ),
-				'enabled' => ! empty( $row['enabled'] ),
-				'code'    => $code,
+				'id'         => (string) ( $row['id'] ?? '' ),
+				'name'       => '' !== $name ? $name : __( 'Untitled integration', 's5' ),
+				'point'      => (string) ( $row['point'] ?? 'head' ),
+				'enabled'    => ! empty( $row['enabled'] ),
+				'code'       => $code,
+				'conditions' => self::shape_conditions( isset( $row['conditions'] ) && is_array( $row['conditions'] ) ? $row['conditions'] : array() ),
 			);
 		}
 		Integrations::save( $list );
 		self::redirect_screen( 'integrations', 'success', __( 'Integrations saved.', 's5' ) );
+	}
+
+	/**
+	 * Shape a posted condition block ({mode, rules[]}) into the stored model that
+	 * Integrations::conditions_pass evaluates: {} for "Entire site" (runs everywhere),
+	 * { include:[…] } for "Only these pages", { exclude:[…] } for "Everywhere except".
+	 * Rules are clamped to the closed vocabulary rule_matches actually supports, so a
+	 * saved condition can never reference a type/op/value the injector won't honor.
+	 *
+	 * @param array<string,mixed> $cond Raw posted conditions.
+	 * @return array<string,mixed>
+	 */
+	private static function shape_conditions( array $cond ): array {
+		$mode = isset( $cond['mode'] ) ? (string) $cond['mode'] : 'all';
+		if ( 'include' !== $mode && 'exclude' !== $mode ) {
+			return array(); // "Entire site" — no rules, runs everywhere.
+		}
+		$raw   = isset( $cond['rules'] ) && is_array( $cond['rules'] ) ? $cond['rules'] : array();
+		$rules = array();
+		foreach ( $raw as $r ) {
+			if ( ! is_array( $r ) ) {
+				continue;
+			}
+			$type = isset( $r['type'] ) ? (string) $r['type'] : '';
+			$op   = ( isset( $r['op'] ) && 'is not' === $r['op'] ) ? 'is not' : 'is';
+			$val  = isset( $r['value'] ) ? (string) $r['value'] : '';
+			if ( 'front_page' === $type ) {
+				$rules[] = array( 'type' => 'front_page', 'op' => $op, 'value' => '' );
+			} elseif ( 'post_type' === $type && in_array( $val, array( 'page', 'post' ), true ) ) {
+				$rules[] = array( 'type' => 'post_type', 'op' => $op, 'value' => $val );
+			}
+		}
+		if ( empty( $rules ) ) {
+			return array(); // mode chosen but no valid rules → treat as everywhere.
+		}
+		return array( $mode => $rules );
 	}
 
 	/**
@@ -1154,7 +1191,7 @@ final class Settings {
 									</select>
 								</div>
 							</div>
-							<?php self::int_conditions(); ?>
+							<?php self::int_conditions( (string) $i, isset( $row['conditions'] ) && is_array( $row['conditions'] ) ? $row['conditions'] : array() ); ?>
 						</div>
 					</div>
 				<?php endforeach; ?>
@@ -1188,7 +1225,7 @@ final class Settings {
 							</select>
 						</div>
 					</div>
-					<?php self::int_conditions(); ?>
+					<?php self::int_conditions( '__i__' ); ?>
 				</div>
 			</div>
 		</template>
@@ -1200,20 +1237,74 @@ final class Settings {
 	 *
 	 * @return void
 	 */
-	private static function int_conditions(): void {
+	private static function int_conditions( string $i, array $conditions = array() ): void {
+		// Backend model (Integrations::conditions_pass): {} = runs everywhere;
+		// { include:[…] } = only where a rule matches; { exclude:[…] } = everywhere
+		// except. We surface that as three radio modes so "Entire site" is the
+		// zero-config default and nobody has to stack rules to cover the whole site.
+		$include = isset( $conditions['include'] ) && is_array( $conditions['include'] ) ? $conditions['include'] : array();
+		$exclude = isset( $conditions['exclude'] ) && is_array( $conditions['exclude'] ) ? $conditions['exclude'] : array();
+		$mode    = ! empty( $include ) ? 'include' : ( ! empty( $exclude ) ? 'exclude' : 'all' );
+		$rules   = 'exclude' === $mode ? $exclude : $include;
+		if ( empty( $rules ) ) {
+			$rules = array( array( 'type' => 'post_type', 'op' => 'is', 'value' => 'page' ) ); // one blank prototype row
+		}
+		$base = 'int[' . $i . '][conditions]';
 		?>
-		<div class="int-cond">
-			<label style="display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--s5e-text-faint);margin-bottom:9px"><?php esc_html_e( 'Show when', 's5' ); ?> <span class="opt" style="text-transform:none;letter-spacing:0;font-weight:400"><?php esc_html_e( 'which pages / posts', 's5' ); ?></span></label>
-			<div class="cond-group">
-				<div class="cond-group-label"><span class="cond-inc"><?php esc_html_e( 'Include', 's5' ); ?></span> <?php esc_html_e( 'when', 's5' ); ?></div>
-				<div class="cond-row">
-					<select class="select cond-sel"><option><?php esc_html_e( 'Post type', 's5' ); ?></option><option><?php esc_html_e( 'Taxonomy', 's5' ); ?></option><option><?php esc_html_e( 'Page', 's5' ); ?></option></select>
-					<select class="select cond-op"><option><?php esc_html_e( 'is', 's5' ); ?></option><option><?php esc_html_e( 'is not', 's5' ); ?></option></select>
-					<select class="select"><option><?php esc_html_e( 'All pages', 's5' ); ?></option><option><?php esc_html_e( 'Post', 's5' ); ?></option><option><?php esc_html_e( 'Page', 's5' ); ?></option><option><?php esc_html_e( 'Homepage', 's5' ); ?></option></select>
-					<button type="button" class="cond-del" title="<?php esc_attr_e( 'Remove', 's5' ); ?>"><i class="fa-solid fa-xmark"></i></button>
-				</div>
-				<button type="button" class="cond-add"><i class="fa-solid fa-plus"></i> <?php esc_html_e( 'Add rule', 's5' ); ?></button>
+		<div class="int-cond" data-s5-cond>
+			<label class="int-cond-label"><?php esc_html_e( 'Show on', 's5' ); ?></label>
+			<div class="cond-modes">
+				<label class="cond-mode"><input type="radio" name="<?php echo esc_attr( $base ); ?>[mode]" value="all" <?php checked( 'all', $mode ); ?> data-s5-cond-mode><i class="fa-solid fa-globe"></i> <?php esc_html_e( 'Entire site', 's5' ); ?></label>
+				<label class="cond-mode"><input type="radio" name="<?php echo esc_attr( $base ); ?>[mode]" value="include" <?php checked( 'include', $mode ); ?> data-s5-cond-mode><i class="fa-solid fa-filter"></i> <?php esc_html_e( 'Only these pages', 's5' ); ?></label>
+				<label class="cond-mode"><input type="radio" name="<?php echo esc_attr( $base ); ?>[mode]" value="exclude" <?php checked( 'exclude', $mode ); ?> data-s5-cond-mode><i class="fa-solid fa-ban"></i> <?php esc_html_e( 'Everywhere except', 's5' ); ?></label>
 			</div>
+			<div class="cond-group" data-s5-cond-rules <?php echo 'all' === $mode ? 'hidden' : ''; ?>>
+				<?php
+				$ri = 0;
+				foreach ( $rules as $r ) :
+					self::int_cond_row( $base, (string) $ri, (array) $r );
+					++$ri;
+				endforeach;
+				?>
+				<button type="button" class="cond-add" data-s5-cond-add data-cond-base="<?php echo esc_attr( $base ); ?>" data-cond-seq="<?php echo (int) $ri; ?>"><i class="fa-solid fa-plus"></i> <?php esc_html_e( 'Add rule', 's5' ); ?></button>
+			</div>
+			<?php /* Prototype row for JS "Add rule" (index token __r__ swapped on clone). */ ?>
+			<template data-s5-cond-template><?php self::int_cond_row( $base, '__r__', array() ); ?></template>
+		</div>
+		<?php
+	}
+
+	/**
+	 * One integration condition rule row (a genuine, name-carrying set of selects so
+	 * the rule actually submits). Value vocabulary is deliberately small — it mirrors
+	 * exactly what Integrations::rule_matches evaluates (post_type is/is not page|post,
+	 * or front_page). $idx is the array index, or the literal '__r__' clone token.
+	 *
+	 * @param string              $base Field-name base, e.g. int[3][conditions].
+	 * @param string              $idx  Numeric index or '__r__'.
+	 * @param array<string,mixed> $r    Stored rule (type/op/value).
+	 * @return void
+	 */
+	private static function int_cond_row( string $base, string $idx, array $r ): void {
+		$rtype = isset( $r['type'] ) ? (string) $r['type'] : 'post_type';
+		$rop   = isset( $r['op'] ) ? (string) $r['op'] : 'is';
+		$rval  = isset( $r['value'] ) ? (string) $r['value'] : 'page';
+		$n     = $base . '[rules][' . $idx . ']';
+		?>
+		<div class="cond-row" data-s5-cond-row>
+			<select class="select cond-sel" name="<?php echo esc_attr( $n ); ?>[type]">
+				<option value="post_type" <?php selected( 'post_type', $rtype ); ?>><?php esc_html_e( 'Post type', 's5' ); ?></option>
+				<option value="front_page" <?php selected( 'front_page', $rtype ); ?>><?php esc_html_e( 'Homepage', 's5' ); ?></option>
+			</select>
+			<select class="select cond-op" name="<?php echo esc_attr( $n ); ?>[op]">
+				<option value="is" <?php selected( 'is', $rop ); ?>><?php esc_html_e( 'is', 's5' ); ?></option>
+				<option value="is not" <?php selected( 'is not', $rop ); ?>><?php esc_html_e( 'is not', 's5' ); ?></option>
+			</select>
+			<select class="select" name="<?php echo esc_attr( $n ); ?>[value]">
+				<option value="page" <?php selected( 'page', $rval ); ?>><?php esc_html_e( 'Page', 's5' ); ?></option>
+				<option value="post" <?php selected( 'post', $rval ); ?>><?php esc_html_e( 'Post', 's5' ); ?></option>
+			</select>
+			<button type="button" class="cond-del" title="<?php esc_attr_e( 'Remove', 's5' ); ?>"><i class="fa-solid fa-xmark"></i></button>
 		</div>
 		<?php
 	}
@@ -1480,8 +1571,17 @@ final class Settings {
 		}
 		$type  = sanitize_key( wp_unslash( (string) $_GET['s5_notice'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only.
 		$text  = sanitize_text_field( wp_unslash( (string) $_GET['s5_notice_text'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display-only.
-		$class = 'success' === $type ? 'notice-success' : ( 'warning' === $type ? 'notice-warning' : 'notice-error' );
-		printf( '<div class="notice %s is-dismissible"><p>%s</p></div>', esc_attr( $class ), esc_html( $text ) );
+		// A bare WP .notice renders in the normal admin flow — but .s5set-page is a
+		// position:fixed layer covering the viewport, so the notice paints BEHIND the
+		// app and the user never sees it (reads as "saved with no feedback"). Emit it
+		// as a self-dismissing toast pinned INSIDE the app's stacking context instead.
+		$kind = in_array( $type, array( 'success', 'warning', 'error' ), true ) ? $type : 'success';
+		printf(
+			'<div class="s5set-toast %s" role="status" data-s5-toast><i class="fa-solid %s"></i><span>%s</span></div>',
+			esc_attr( $kind ),
+			esc_attr( 'success' === $kind ? 'fa-circle-check' : ( 'warning' === $kind ? 'fa-triangle-exclamation' : 'fa-circle-xmark' ) ),
+			esc_html( $text )
+		);
 	}
 
 	/**

@@ -160,6 +160,17 @@ body.s5-editor-fullscreen .s5-editor {
   font-weight:800;font-size:15px;flex-shrink:0;
   text-decoration:none;
 }
+/* Labeled exit control — the way out of the chromeless editor (there is no
+ * WP admin bar/menu here by design). Reads as a button, not branding, so
+ * users don't fall back to the browser Back button. */
+.tb-exit{
+  display:flex;align-items:center;gap:7px;height:32px;padding:0 12px;flex-shrink:0;
+  border-radius:var(--s5e-radius-sm);border:1px solid var(--s5e-line);
+  background:transparent;color:var(--s5e-text-dim);
+  font-size:13px;font-weight:500;text-decoration:none;transition:.12s;
+}
+.tb-exit:hover{border-color:var(--s5e-accent);color:var(--s5e-text);background:var(--s5e-bg-3);}
+.tb-exit i{font-size:11px;}
 .tb-icon-btn{
   width:32px;height:32px;border-radius:var(--s5e-radius-sm);
   background:transparent;border:1px solid transparent;color:var(--s5e-text-dim);

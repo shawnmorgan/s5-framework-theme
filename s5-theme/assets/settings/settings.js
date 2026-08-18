@@ -16,6 +16,24 @@
 		return;
 	}
 
+	/* ---- save-feedback toast: auto-dismiss after a beat (it lives outside
+	 * [data-s5-settings], pinned above the fixed app), so a save shows a visible
+	 * confirmation instead of a silent full-page-reload "flash". ---- */
+	( function () {
+		var toast = document.querySelector( '[data-s5-toast]' );
+		if ( ! toast ) {
+			return;
+		}
+		window.setTimeout( function () {
+			toast.classList.add( 's5set-toast-out' );
+			window.setTimeout( function () {
+				if ( toast.parentNode ) {
+					toast.parentNode.removeChild( toast );
+				}
+			}, 320 );
+		}, 2600 );
+	}() );
+
 	/* ---- left sub-nav screen toggle (mockup .snav / .screen) ---- */
 	var navs = root.querySelectorAll( '.snav' );
 	var screens = root.querySelectorAll( '.screen' );
@@ -164,30 +182,47 @@
 			}
 		} );
 	}
-	function bindConditions( scope ) {
-		scope.querySelectorAll( '.cond-del' ).forEach( function ( b ) {
-			b.addEventListener( 'click', function () {
-				var r = b.closest( '.cond-row' );
-				if ( r ) {
-					r.parentNode.removeChild( r );
-				}
-			} );
+	function bindCondDel( btn ) {
+		btn.addEventListener( 'click', function () {
+			var r = btn.closest( '.cond-row' );
+			if ( r ) {
+				r.parentNode.removeChild( r );
+			}
 		} );
-		scope.querySelectorAll( '.cond-add' ).forEach( function ( b ) {
-			b.addEventListener( 'click', function () {
-				var g = b.closest( '.cond-group' );
-				var proto = g && g.querySelector( '.cond-row' );
-				if ( proto ) {
-					var clone = proto.cloneNode( true );
-					var del = clone.querySelector( '.cond-del' );
-					if ( del ) {
-						del.addEventListener( 'click', function () {
-							clone.parentNode.removeChild( clone );
-						} );
+	}
+	function bindConditions( scope ) {
+		// Each integration has one [data-s5-cond] block: three mode radios (all /
+		// include / exclude) that show or hide the rule builder, plus an Add-rule
+		// button that clones the server-rendered prototype with a fresh index.
+		scope.querySelectorAll( '[data-s5-cond]' ).forEach( function ( cond ) {
+			var rules = cond.querySelector( '[data-s5-cond-rules]' );
+			var tpl = cond.querySelector( '[data-s5-cond-template]' );
+			cond.querySelectorAll( '[data-s5-cond-mode]' ).forEach( function ( radio ) {
+				radio.addEventListener( 'change', function () {
+					if ( rules ) {
+						rules.hidden = ( 'all' === radio.value );
 					}
-					g.insertBefore( clone, b );
-				}
+				} );
 			} );
+			cond.querySelectorAll( '.cond-del' ).forEach( bindCondDel );
+			var add = cond.querySelector( '[data-s5-cond-add]' );
+			if ( add && tpl && rules ) {
+				add.addEventListener( 'click', function () {
+					var seq = parseInt( add.getAttribute( 'data-cond-seq' ) || '0', 10 );
+					add.setAttribute( 'data-cond-seq', String( seq + 1 ) );
+					// The template's field names carry the __r__ index token; swap it
+					// for a unique index so the new rule submits as its own array entry.
+					var html = tpl.innerHTML.replace( /__r__/g, String( seq ) );
+					var wrap = document.createElement( 'div' );
+					wrap.innerHTML = html.trim();
+					var row = wrap.firstChild;
+					var del = row.querySelector( '.cond-del' );
+					if ( del ) {
+						bindCondDel( del );
+					}
+					rules.insertBefore( row, add );
+				} );
+			}
 		} );
 	}
 	if ( intList ) {

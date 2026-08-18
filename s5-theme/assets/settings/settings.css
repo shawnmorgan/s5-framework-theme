@@ -85,6 +85,27 @@
 .folded .s5set-page{left:36px;}
 @media(max-width:960px){.s5set-page{left:0;}}
 
+/* Save-feedback toast. The WP .notice this replaces rendered behind the fixed
+ * .s5set-page and was never seen. This is pinned above the app (z 9996 > the
+ * app's 9995) but still below #wpadminbar (99999). Auto-dismisses via JS. */
+.s5set-toast{
+  position:fixed;top:calc(var(--wp-admin--admin-bar--height,32px) + 16px);right:24px;z-index:9996;
+  display:flex;align-items:center;gap:10px;max-width:420px;
+  padding:12px 16px;border-radius:var(--s5e-radius-md);
+  background:var(--s5e-bg-2);border:1px solid var(--s5e-line);
+  color:var(--s5e-text);font-size:13.5px;font-weight:500;
+  box-shadow:0 8px 28px rgba(0,0,0,.45);
+  animation:s5set-toast-in .18s ease-out;
+}
+.s5set-toast.success{border-left:3px solid var(--s5e-brand);}
+.s5set-toast.success i{color:var(--s5e-brand);}
+.s5set-toast.warning{border-left:3px solid var(--s5e-accent,#e0b341);}
+.s5set-toast.warning i{color:var(--s5e-accent,#e0b341);}
+.s5set-toast.error{border-left:3px solid var(--s5e-danger);}
+.s5set-toast.error i{color:var(--s5e-danger);}
+.s5set-toast.s5set-toast-out{opacity:0;transform:translateY(-6px);transition:opacity .3s,transform .3s;}
+@keyframes s5set-toast-in{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+
 .s5set .page-head{
   display:flex;align-items:center;gap:14px;padding:16px 24px;border-bottom:1px solid var(--s5e-line);
   background:var(--s5e-bg-2);
@@ -257,13 +278,15 @@
  * Styleguide" button); the cards now lay out in a normal responsive grid
  * across the full screen width instead of a fixed narrow column. */
 .s5set .sg-screen-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;}
-.s5set .sg-cards-full{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;align-items:start;}
+.s5set .sg-cards-full{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;align-items:start;}
+@media(max-width:900px){.s5set .sg-cards-full{grid-template-columns:1fr;}}
 
 /* top offset (not inset:0) for the SAME reason as .s5set-page's fix earlier
  * this session: WP core's #wpadminbar sits at z-index 99999, above every
  * settings-app z-index on purpose. Starting this modal at y:0 hid its own
  * "Back to StyleGuide" bar underneath the admin bar instead of clearing it. */
-.s5set .sg-modal{position:fixed;top:var(--wp-admin--admin-bar--height,32px);left:0;right:0;bottom:0;z-index:9995;background:var(--s5e-canvas);display:none;flex-direction:column;}
+.s5set .sg-modal{position:fixed;top:var(--wp-admin--admin-bar--height,32px);left:50%;transform:translateX(-50%);width:70%;bottom:0;z-index:9995;background:var(--s5e-canvas);border-left:1px solid var(--s5e-line);border-right:1px solid var(--s5e-line);box-shadow:0 0 40px rgba(0,0,0,.5);display:none;flex-direction:column;}
+@media(max-width:900px){.s5set .sg-modal{width:100%;}}
 .s5set .sg-modal.open{display:flex;}
 .s5set .sg-modal-bar{display:flex;align-items:center;gap:14px;height:48px;padding:0 16px;background:var(--s5e-bg-2);border-bottom:1px solid var(--s5e-line);flex-shrink:0;}
 .s5set .sg-modal-stage{flex:1;min-height:0;overflow-y:auto;}
@@ -395,6 +418,16 @@
 .s5set .int-ctrl{min-width:180px;}
 .s5set .int-ctrl > label{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--s5e-text-faint);margin-bottom:7px;}
 .s5set .int-cond{margin-top:16px;padding-top:14px;border-top:1px solid var(--s5e-line-soft);}
+.s5set .int-cond-label{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--s5e-text-faint);margin-bottom:10px;}
+/* Show-on mode: Entire site (default) / Only these pages / Everywhere except.
+ * "Entire site" hides the rule builder — no more stacking rules to cover a site. */
+.s5set .cond-modes{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.s5set .cond-mode{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text-dim);font-size:12.5px;cursor:pointer;transition:.12s;}
+.s5set .cond-mode i{font-size:11px;opacity:.75;}
+.s5set .cond-mode:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
+.s5set .cond-mode input{accent-color:var(--s5e-brand);margin:0;}
+.s5set .cond-mode:has(input:checked){border-color:var(--s5e-brand);color:var(--s5e-text);background:var(--s5e-bg-3);}
+.s5set .cond-mode:has(input:checked) i{opacity:1;color:var(--s5e-brand);}
 
 /* condition rule builder (shared by integrations) */
 .s5set .cond-group{margin-bottom:8px;}
@@ -480,7 +513,12 @@
 /* ============================================================================
    COMPONENT BUILDER — full-screen modal (real driver in components.js)
    ============================================================================ */
-.s5set .cb-modal{position:fixed;inset:0;z-index:999999;background:var(--s5e-canvas);display:none;flex-direction:column;}
+/* top offset (not inset:0): WP core's #wpadminbar sits at z-index 99999, above
+ * this settings-app subtree on purpose. Starting the modal at y:0 hid its own
+ * .cb-top header — the back/close/save controls — underneath the admin bar,
+ * which read to users as "there is no close button". Clearing the admin-bar
+ * height (same fix as .sg-modal) puts the header back in view. */
+.s5set .cb-modal{position:fixed;top:var(--wp-admin--admin-bar--height,32px);left:0;right:0;bottom:0;z-index:999999;background:var(--s5e-canvas);display:none;flex-direction:column;}
 .s5set .cb-modal.open{display:flex;}
 .s5set .cb-top{display:flex;align-items:center;justify-content:space-between;gap:12px;height:56px;padding:0 16px;background:var(--s5e-bg-2);border-bottom:1px solid var(--s5e-line);flex-shrink:0;}
 .s5set .cb-top-l,.s5set .cb-top-r{display:flex;align-items:center;gap:10px;}
