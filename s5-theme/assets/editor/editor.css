@@ -259,6 +259,11 @@ body.s5-editor-fullscreen .s5-editor {
 .body{
   display:grid;
   grid-template-columns:var(--left-w,264px) 1fr var(--right-w,270px);
+  /* One full-height row: without an explicit track the implicit row is auto-sized
+     to its tallest content, so the center column (and its Code lens) collapse to
+     content height and leave black canvas below. minmax(0,1fr) fills the body
+     height while preserving inner overflow scrolling. */
+  grid-template-rows:minmax(0,1fr);
   height:calc(100vh - var(--s5e-topbar-h));
   min-height:0;
 }
