@@ -99,6 +99,26 @@ final class Settings {
 	public const ACTION_SAVE_REDIRECTS = 's5_save_redirects';
 
 	/**
+	 * Admin-post action: save one CSS layer file + recompile the bundle.
+	 */
+	public const ACTION_SAVE_CSS = 's5_save_css';
+
+	/**
+	 * The editable CSS files, keyed by the short name the form posts. Each maps to a
+	 * real file under site/styles/. This is the ALLOW-LIST — a save is refused for any
+	 * name not in here, so the surface can never write outside the design-system dir.
+	 *
+	 * @var array<string, string>
+	 */
+	private const CSS_FILES = array(
+		'tokens'     => 'tokens.css',
+		'scales'     => 'scales.css',
+		'components' => 'components.css',
+		'utilities'  => 'utilities.css',
+		'custom'     => 'custom.css',
+	);
+
+	/**
 	 * Register hooks. The menu entry itself is added by {@see Admin::register_menu}
 	 * (so the S5 menu stays the single owner of its children); this class owns the
 	 * render + asset enqueue + token-save handler for the settings screen only.
@@ -111,6 +131,7 @@ final class Settings {
 		add_action( 'admin_post_' . self::ACTION_SAVE_ROLES, array( self::class, 'handle_save_roles' ) );
 		add_action( 'admin_post_' . self::ACTION_SAVE_INTEGRATIONS, array( self::class, 'handle_save_integrations' ) );
 		add_action( 'admin_post_' . self::ACTION_SAVE_REDIRECTS, array( self::class, 'handle_save_redirects' ) );
+		add_action( 'admin_post_' . self::ACTION_SAVE_CSS, array( self::class, 'handle_save_css' ) );
 	}
 
 	/**
@@ -291,6 +312,12 @@ final class Settings {
 
 		$res = Styles::update_token( $name, $value );
 		if ( is_wp_error( $res ) ) {
+			// A no-op (value identical to what's stored) is not a failure — don't
+			// scare the user with a red error toast. Treat it as an informational
+			// success and return without recompiling.
+			if ( 's5_token_noop' === $res->get_error_code() ) {
+				self::redirect_styleguide( 'success', __( 'No change — that token already has this value.', 's5' ) );
+			}
 			self::redirect_styleguide( 'error', $res->get_error_message() );
 		}
 
@@ -300,6 +327,71 @@ final class Settings {
 		} catch ( \Throwable $e ) {
 			self::redirect_styleguide( 'warning', __( 'Token saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
 		}
+	}
+
+	/**
+	 * Save one CSS layer file (Tokens / Scales / Classes / Utilities / Custom).
+	 *
+	 * Every layer is directly editable — the CSS screen is the design-system source and
+	 * the developer owns it. The write is allow-listed to the known files under
+	 * site/styles/ (never an arbitrary path), then the bundle is recompiled so the edit
+	 * takes effect. Capability + Roles gated (settings.css), nonce-checked.
+	 *
+	 * @return void
+	 */
+	public static function handle_save_css(): void {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'settings.css' ) ) {
+			wp_die( esc_html__( 'You do not have permission to edit CSS.', 's5' ) );
+		}
+		check_admin_referer( self::ACTION_SAVE_CSS );
+
+		$which = isset( $_POST['css_file'] ) ? sanitize_key( wp_unslash( (string) $_POST['css_file'] ) ) : '';
+		if ( ! isset( self::CSS_FILES[ $which ] ) ) {
+			self::redirect_css( 'error', __( 'Unknown CSS file — nothing was written.', 's5' ) );
+		}
+
+		// Raw CSS by design (this IS the stylesheet source). Only unslash — no HTML
+		// sanitizer, which would corrupt selectors like a[href] or content:"\201C".
+		$code = isset( $_POST['css_code'] ) ? (string) wp_unslash( $_POST['css_code'] ) : ''; // phpcs:ignore WordPress.Security.ValidationSanitization.InputNotSanitized -- verbatim stylesheet source, developer-authored, allow-listed target file.
+		$code = str_replace( "\r\n", "\n", $code );
+
+		$dir  = trailingslashit( get_stylesheet_directory() ) . 'site/styles/';
+		$path = $dir . self::CSS_FILES[ $which ];
+
+		if ( file_exists( $path ) && ! is_writable( $path ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- theme-local declared stylesheet, not an upload.
+			self::redirect_css( 'error', __( 'That stylesheet is not writable on disk.', 's5' ) );
+		}
+
+		$written = file_put_contents( $path, $code ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- writing a local declared stylesheet (allow-listed).
+		if ( false === $written ) {
+			self::redirect_css( 'error', __( 'Could not write the stylesheet.', 's5' ) );
+		}
+
+		try {
+			StyleBundle::build();
+			self::redirect_css( 'success', __( 'CSS saved and design system recompiled.', 's5' ) );
+		} catch ( \Throwable $e ) {
+			self::redirect_css( 'warning', __( 'CSS saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Redirect back to the CSS screen with a one-shot notice.
+	 *
+	 * @param string $type    'success' | 'error' | 'warning'.
+	 * @param string $message Human-readable message.
+	 * @return void
+	 */
+	private static function redirect_css( string $type, string $message ): void {
+		$url = add_query_arg(
+			array(
+				's5_notice'      => rawurlencode( $type ),
+				's5_notice_text' => rawurlencode( $message ),
+			),
+			self::screen_url( 'css' )
+		);
+		wp_safe_redirect( $url );
+		exit;
 	}
 
 	/**
@@ -1438,21 +1530,36 @@ final class Settings {
 	 */
 	private static function render_css(): void {
 		$dir    = trailingslashit( get_stylesheet_directory() ) . 'site/styles/';
-		$tokens = self::css_read_file( $dir . 'tokens.css' ) . "\n" . self::css_read_file( $dir . 'scales.css' );
-		$classes = self::css_read_file( $dir . 'components.css' ) . "\n" . self::css_read_file( $dir . 'utilities.css' );
 		$custom = self::css_read_file( $dir . 'custom.css' );
-		if ( '' === trim( $custom ) ) {
-			$custom = "/* Custom CSS — the escape hatch. Site-authored, NOT vocabulary.\n   Kept out of the validator; use sparingly. No custom.css authored yet. */";
-		}
-		// Layer payload: path · tag · read-only · code. Tokens locked; Classes editable
-		// (the closed vocabulary); Custom is the escape hatch. TRANSCRIBED from the mockup
-		// LAYERS map — values are the REAL file contents (data stays real).
-		$layers = array(
-			'tokens'  => array( 'path' => 'site/styles/tokens.css + scales.css', 'tag' => __( 'read-only · values', 's5' ), 'ro' => true, 'code' => $tokens, 'lock' => true ),
-			'classes' => array( 'path' => 'site/styles/components.css + utilities.css', 'tag' => __( 'closed vocabulary', 's5' ), 'ro' => false, 'code' => $classes, 'lock' => false ),
-			'custom'  => array( 'path' => 'site/styles/custom.css', 'tag' => __( 'escape hatch · site-scoped', 's5' ), 'ro' => false, 'code' => $custom, 'lock' => false ),
+		// Every layer is fully editable — the CSS screen is the design-system source and
+		// the developer owns it. Each layer groups its real file(s); each file gets its own
+		// editable textarea + Save (writing back to exactly that file — no lossy blob split).
+		$can_edit = Roles::can( 'settings.css' );
+		$layers   = array(
+			'tokens'  => array(
+				'tab'   => array( 'icon' => 'fa-palette', 'label' => __( 'Tokens', 's5' ) ),
+				'note'  => __( 'Design-system values (colors, spacing, type scale). Editing a token updates every primitive built from it.', 's5' ),
+				'files' => array( 'tokens', 'scales' ),
+			),
+			'classes' => array(
+				'tab'   => array( 'icon' => 'fa-shapes', 'label' => __( 'Classes', 's5' ) ),
+				'note'  => __( 'The class vocabulary. Pages may use any class defined here; the validator rejects classes that are not.', 's5' ),
+				'files' => array( 'components', 'utilities' ),
+			),
+			'custom'  => array(
+				'tab'   => array( 'icon' => 'fa-pen-nib', 'label' => __( 'Custom CSS', 's5' ) ),
+				'note'  => __( 'The escape hatch — site-scoped CSS kept out of the validator. Use sparingly.', 's5' ),
+				'files' => array( 'custom' ),
+			),
 		);
-		$first = $layers['tokens'];
+		// Real file contents keyed by short name (the allow-list keys).
+		$file_code = array(
+			'tokens'     => self::css_read_file( $dir . 'tokens.css' ),
+			'scales'     => self::css_read_file( $dir . 'scales.css' ),
+			'components' => self::css_read_file( $dir . 'components.css' ),
+			'utilities'  => self::css_read_file( $dir . 'utilities.css' ),
+			'custom'     => '' !== trim( $custom ) ? $custom : "/* Custom CSS — the escape hatch. Site-authored, NOT vocabulary.\n   Kept out of the validator; use sparingly. */\n",
+		);
 		?>
 		<div class="screen-head css-head">
 			<div>
@@ -1466,41 +1573,38 @@ final class Settings {
 			</div>
 		</div>
 
-		<?php /* LAYER TABS — Tokens (lock) · Classes · Custom CSS. */ ?>
+		<?php /* LAYER TABS — Tokens · Classes · Custom CSS (all editable). */ ?>
 		<div class="layer-tabs" data-s5-layer-tabs>
-			<button type="button" class="layer-tab active" data-layer="tokens"><i class="fa-solid fa-palette"></i> <?php esc_html_e( 'Tokens', 's5' ); ?> <i class="fa-solid fa-lock lock"></i></button>
-			<button type="button" class="layer-tab" data-layer="classes"><i class="fa-solid fa-shapes"></i> <?php esc_html_e( 'Classes', 's5' ); ?></button>
-			<button type="button" class="layer-tab" data-layer="custom"><i class="fa-solid fa-pen-nib"></i> <?php esc_html_e( 'Custom CSS', 's5' ); ?></button>
+			<?php $ti = 0; foreach ( $layers as $key => $L ) : ?>
+				<button type="button" class="layer-tab<?php echo 0 === $ti ? ' active' : ''; ?>" data-layer="<?php echo esc_attr( $key ); ?>"><i class="fa-solid <?php echo esc_attr( $L['tab']['icon'] ); ?>"></i> <?php echo esc_html( $L['tab']['label'] ); ?></button>
+			<?php ++$ti; endforeach; ?>
 		</div>
 
-		<?php /* Per-layer payload for settings.js (real file contents). */ ?>
-		<?php foreach ( $layers as $key => $L ) : ?>
-			<script type="application/json" data-s5-layer="<?php echo esc_attr( $key ); ?>"><?php
-				echo wp_json_encode(
-					array(
-						'path' => $L['path'],
-						'tag'  => $L['tag'],
-						'ro'   => (bool) $L['ro'],
-						'code' => $L['code'],
-					)
-				);
-			?></script>
-		<?php endforeach; ?>
-
-		<div class="code-panel">
-			<div class="code-panel-head">
-				<span class="path" data-s5-layer-path><?php echo esc_html( $first['path'] ); ?></span>
-				<span class="tag readonly" data-s5-layer-tag><?php echo esc_html( $first['tag'] ); ?></span>
+		<?php /* One editable panel per layer; each layer holds a Save-able form per real file. */ ?>
+		<?php $pi = 0; foreach ( $layers as $key => $L ) : ?>
+			<div class="css-layer-panel" data-s5-css-layer="<?php echo esc_attr( $key ); ?>"<?php echo 0 === $pi ? '' : ' hidden'; ?>>
+				<p class="css-layer-note"><?php echo esc_html( $L['note'] ); ?></p>
+				<?php foreach ( $L['files'] as $fkey ) : ?>
+					<form class="code-panel css-file-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_CSS ); ?>">
+						<input type="hidden" name="css_file" value="<?php echo esc_attr( $fkey ); ?>">
+						<?php wp_nonce_field( self::ACTION_SAVE_CSS ); ?>
+						<div class="code-panel-head">
+							<span class="path"><i class="fa-solid fa-file-code"></i> site/styles/<?php echo esc_html( self::CSS_FILES[ $fkey ] ); ?></span>
+							<button type="submit" class="button button-primary code-btn"<?php echo $can_edit ? '' : ' disabled'; ?>><i class="fa-solid fa-floppy-disk"></i> <?php esc_html_e( 'Save', 's5' ); ?></button>
+						</div>
+						<div class="code-body">
+							<label class="screen-reader-text" for="s5-css-<?php echo esc_attr( $fkey ); ?>"><?php echo esc_html( self::CSS_FILES[ $fkey ] ); ?></label>
+							<textarea id="s5-css-<?php echo esc_attr( $fkey ); ?>" class="code-area css-area" name="css_code" spellcheck="false"<?php echo $can_edit ? '' : ' readonly'; ?>><?php echo esc_textarea( $file_code[ $fkey ] ); ?></textarea>
+						</div>
+					</form>
+				<?php endforeach; ?>
 			</div>
-			<div class="code-body">
-				<div class="code-gutter" data-s5-layer-gutter></div>
-				<pre class="code-pre" data-s5-layer-pre><?php echo esc_html( $first['code'] ); ?></pre>
-			</div>
-		</div>
+		<?php ++$pi; endforeach; ?>
 
 		<div class="vocab-note">
 			<i class="fa-solid fa-triangle-exclamation"></i>
-			<div><?php echo wp_kses_post( __( '<strong>Closed vocabulary.</strong> The <strong>Classes</strong> layer is the complete set of class names any page may use. The validator rejects anything outside it on save — this is what keeps agent-authored and human-authored HTML in lockstep, and what makes the canvas editor safe to hand to a client.', 's5' ) ); ?></div>
+			<div><?php echo wp_kses_post( __( '<strong>Every layer is editable.</strong> Saving recompiles the bundle. The <strong>Classes</strong> layer is the closed vocabulary the validator enforces on page save — keep class names in lockstep with what pages actually use.', 's5' ) ); ?></div>
 		</div>
 		<?php
 	}

@@ -100,60 +100,24 @@
 		rdrHost.querySelectorAll( '[data-s5-rdr-del]' ).forEach( bindRdrDel );
 	}
 
-	/* ---- CSS / Tailwind: layer tabs fed the REAL file contents ---- */
+	/* ---- CSS / Tailwind: layer tabs switch between editable panels ----
+	 * Each layer (Tokens / Classes / Custom) is a [data-s5-css-layer] panel holding one
+	 * editable <textarea> form per real file; the tabs just show/hide the active panel.
+	 * The textareas POST to the CSS save handler on their own Save button (no JS save). */
 	var layerTabs = root.querySelector( '[data-s5-layer-tabs]' );
 	if ( layerTabs ) {
-		var layerData = {};
-		root.querySelectorAll( '[data-s5-layer]' ).forEach( function ( node ) {
-			try {
-				layerData[ node.getAttribute( 'data-s5-layer' ) ] = JSON.parse( node.textContent || '{}' );
-			} catch ( err ) { /* skip malformed */ }
-		} );
-		var lpath = root.querySelector( '[data-s5-layer-path]' );
-		var ltag = root.querySelector( '[data-s5-layer-tag]' );
-		var lpre = root.querySelector( '[data-s5-layer-pre]' );
-		var lgut = root.querySelector( '[data-s5-layer-gutter]' );
-
-		function fillGutter( code ) {
-			if ( ! lgut ) {
-				return;
-			}
-			var n = ( code || '' ).split( '\n' ).length;
-			var out = '';
-			for ( var i = 1; i <= n; i++ ) {
-				out += '<span>' + i + '</span>';
-			}
-			lgut.innerHTML = out;
-		}
-		function showLayer( key ) {
-			var L = layerData[ key ];
-			if ( ! L ) {
-				return;
-			}
-			if ( lpath ) {
-				lpath.textContent = L.path || '';
-			}
-			if ( ltag ) {
-				ltag.textContent = L.tag || '';
-				ltag.className = 'tag ' + ( L.ro ? 'readonly' : 'editable' );
-			}
-			if ( lpre ) {
-				lpre.textContent = L.code || '';
-			}
-			fillGutter( L.code || '' );
-		}
+		var cssPanels = root.querySelectorAll( '[data-s5-css-layer]' );
 		layerTabs.querySelectorAll( '.layer-tab' ).forEach( function ( tab ) {
 			tab.addEventListener( 'click', function () {
+				var key = tab.getAttribute( 'data-layer' );
 				layerTabs.querySelectorAll( '.layer-tab' ).forEach( function ( t ) {
 					t.classList.toggle( 'active', t === tab );
 				} );
-				showLayer( tab.getAttribute( 'data-layer' ) );
+				cssPanels.forEach( function ( panel ) {
+					panel.hidden = ( panel.getAttribute( 'data-s5-css-layer' ) !== key );
+				} );
 			} );
 		} );
-		// initial gutter for the server-rendered first layer
-		if ( lpre ) {
-			fillGutter( lpre.textContent || '' );
-		}
 	}
 
 	/* ---- Integrations: add / remove / toggle / conditions ---- */
