@@ -209,6 +209,9 @@ final class Integrations {
 			$matches = ( get_post_type() === $value );
 		} elseif ( 'front_page' === $type ) {
 			$matches = is_front_page();
+		} elseif ( 'post' === $type ) {
+			// A specific page/post by ID (value is the numeric post ID).
+			$matches = ( is_singular() && get_the_ID() === (int) $value );
 		}
 		return ( 'is not' === $op ) ? ! $matches : $matches;
 	}

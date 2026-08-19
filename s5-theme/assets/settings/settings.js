@@ -154,6 +154,29 @@
 			}
 		} );
 	}
+	function bindCondType( row ) {
+		// A rule row has two value selects sharing name="…[value]": one for post_type
+		// (page/post), one listing specific pages. Only the select matching the chosen
+		// type is enabled + visible; the other is hidden AND disabled so it never submits.
+		var typeSel = row.querySelector( '[data-s5-cond-type]' );
+		if ( ! typeSel ) {
+			return;
+		}
+		function sync() {
+			var t = typeSel.value;
+			// front_page has no value control — treat it like post_type (the type select
+			// alone is meaningful; the value select is harmless/ignored server-side).
+			var want = ( 'post' === t ) ? 'post' : 'post_type';
+			row.querySelectorAll( '[data-s5-cond-val]' ).forEach( function ( sel ) {
+				var on = ( sel.getAttribute( 'data-s5-cond-val' ) === want );
+				sel.hidden = ! on;
+				sel.disabled = ! on;
+			} );
+		}
+		typeSel.addEventListener( 'change', sync );
+		sync();
+	}
+
 	function bindConditions( scope ) {
 		// Each integration has one [data-s5-cond] block: three mode radios (all /
 		// include / exclude) that show or hide the rule builder, plus an Add-rule
@@ -169,6 +192,7 @@
 				} );
 			} );
 			cond.querySelectorAll( '.cond-del' ).forEach( bindCondDel );
+			cond.querySelectorAll( '[data-s5-cond-row]' ).forEach( bindCondType );
 			var add = cond.querySelector( '[data-s5-cond-add]' );
 			if ( add && tpl && rules ) {
 				add.addEventListener( 'click', function () {
@@ -184,6 +208,7 @@
 					if ( del ) {
 						bindCondDel( del );
 					}
+					bindCondType( row );
 					rules.insertBefore( row, add );
 				} );
 			}

@@ -204,6 +204,9 @@ final class Settings {
 				$rules[] = array( 'type' => 'front_page', 'op' => $op, 'value' => '' );
 			} elseif ( 'post_type' === $type && in_array( $val, array( 'page', 'post' ), true ) ) {
 				$rules[] = array( 'type' => 'post_type', 'op' => $op, 'value' => $val );
+			} elseif ( 'post' === $type && (int) $val > 0 ) {
+				// A specific page/post by ID (value is the post ID as a string).
+				$rules[] = array( 'type' => 'post', 'op' => $op, 'value' => (string) (int) $val );
 			}
 		}
 		if ( empty( $rules ) ) {
@@ -1374,23 +1377,57 @@ final class Settings {
 		$rop   = isset( $r['op'] ) ? (string) $r['op'] : 'is';
 		$rval  = isset( $r['value'] ) ? (string) $r['value'] : 'page';
 		$n     = $base . '[rules][' . $idx . ']';
+		// 'post' = a specific page/post by ID; its value select lists real pages. Only the
+		// value control matching the chosen type submits (the other is disabled), so a rule
+		// is always one clean {type, op, value}. JS (bindConditions) toggles them on change.
+		$is_specific = ( 'post' === $rtype );
 		?>
 		<div class="cond-row" data-s5-cond-row>
-			<select class="select cond-sel" name="<?php echo esc_attr( $n ); ?>[type]">
+			<select class="select cond-sel" name="<?php echo esc_attr( $n ); ?>[type]" data-s5-cond-type>
 				<option value="post_type" <?php selected( 'post_type', $rtype ); ?>><?php esc_html_e( 'Post type', 's5' ); ?></option>
+				<option value="post" <?php selected( 'post', $rtype ); ?>><?php esc_html_e( 'Specific page', 's5' ); ?></option>
 				<option value="front_page" <?php selected( 'front_page', $rtype ); ?>><?php esc_html_e( 'Homepage', 's5' ); ?></option>
 			</select>
 			<select class="select cond-op" name="<?php echo esc_attr( $n ); ?>[op]">
 				<option value="is" <?php selected( 'is', $rop ); ?>><?php esc_html_e( 'is', 's5' ); ?></option>
 				<option value="is not" <?php selected( 'is not', $rop ); ?>><?php esc_html_e( 'is not', 's5' ); ?></option>
 			</select>
-			<select class="select" name="<?php echo esc_attr( $n ); ?>[value]">
+			<?php /* Post-type value (page/post) — active unless the type is a specific page. */ ?>
+			<select class="select cond-val cond-val-type" name="<?php echo esc_attr( $n ); ?>[value]" data-s5-cond-val="post_type"<?php echo $is_specific ? ' hidden disabled' : ''; ?>>
 				<option value="page" <?php selected( 'page', $rval ); ?>><?php esc_html_e( 'Page', 's5' ); ?></option>
 				<option value="post" <?php selected( 'post', $rval ); ?>><?php esc_html_e( 'Post', 's5' ); ?></option>
+			</select>
+			<?php /* Specific-page value — a real list of pages by title → ID. */ ?>
+			<select class="select cond-val cond-val-page" name="<?php echo esc_attr( $n ); ?>[value]" data-s5-cond-val="post"<?php echo $is_specific ? '' : ' hidden disabled'; ?>>
+				<?php foreach ( self::condition_pages() as $pid => $ptitle ) : ?>
+					<option value="<?php echo (int) $pid; ?>" <?php selected( (string) $pid, $rval ); ?>><?php echo esc_html( $ptitle ); ?></option>
+				<?php endforeach; ?>
 			</select>
 			<button type="button" class="cond-del" title="<?php esc_attr_e( 'Remove', 's5' ); ?>"><i class="fa-solid fa-xmark"></i></button>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Published pages as id => title, for the "Specific page" condition value select.
+	 * Cached per-request; titles are trimmed for the compact select.
+	 *
+	 * @return array<int, string>
+	 */
+	private static function condition_pages(): array {
+		static $cache = null;
+		if ( null !== $cache ) {
+			return $cache;
+		}
+		$cache = array();
+		$pages = get_pages( array( 'sort_column' => 'post_title', 'number' => 200 ) );
+		if ( is_array( $pages ) ) {
+			foreach ( $pages as $p ) {
+				$title = trim( (string) $p->post_title );
+				$cache[ (int) $p->ID ] = '' !== $title ? $title : sprintf( '#%d', (int) $p->ID );
+			}
+		}
+		return $cache;
 	}
 
 	/**
