@@ -164,6 +164,16 @@
 .s5set .edit-btn.add{color:var(--s5e-accent);border-color:rgba(91,140,255,.3);}
 .s5set .card.editing .card-head{background:var(--s5e-bg-3);}
 
+/* per-token inline editor (native <details>): the pencil summary IS the trigger, so
+   when open we swap it for the value input + save — the pencil must not linger above
+   the field (that stray floating icon read as janky). Hide the summary marker and the
+   summary itself once open; show only the revealed form inline. */
+.s5set .s5set-tokenedit{margin-left:auto;}
+.s5set .s5set-tokenedit > summary{list-style:none;}
+.s5set .s5set-tokenedit > summary::-webkit-details-marker{display:none;}
+.s5set .s5set-tokenedit[open] > summary{display:none;}
+.s5set .s5set-tokenedit[open]{display:flex;align-items:center;}
+
 /* editable token inputs (shown only in edit mode) */
 .s5set .token-hex-input,.s5set .scale-val-input{
   font-family:var(--s5e-mono);font-size:12px;color:var(--s5e-text);

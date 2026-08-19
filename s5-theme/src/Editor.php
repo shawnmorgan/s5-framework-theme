@@ -577,12 +577,27 @@ final class Editor {
 			return;
 		}
 
+		// Exit target: the classic post editor for THIS page. get_edit_post_link() can't
+		// be used here — filter_edit_post_link() rewrites it back to the S5 editor for
+		// framework pages, so Exit would just reopen this editor ("nothing happens").
+		// Build the native post.php edit URL directly and add the WP-edit escape flag,
+		// which both the edit-link filter and redirect_block_editor() honor as the
+		// deliberate "let this one through to the WP editor" opt-in.
+		$back_url = add_query_arg(
+			array(
+				'post'                  => $post_id,
+				'action'                => 'edit',
+				self::WP_EDIT_QUERY_VAR => '1',
+			),
+			admin_url( 'post.php' )
+		);
+
 		// Values consumed by the template.
 		$s5_editor = array(
 			'post_id'     => $post_id,
 			'title'       => get_the_title( $post_id ),
 			'preview_url' => self::preview_url( $post_id ),
-			'back_url'    => (string) get_edit_post_link( $post_id, 'raw' ),
+			'back_url'    => $back_url,
 		);
 
 		$template = S5_PLUGIN_DIR . 'templates/editor.php';
@@ -717,11 +732,21 @@ final class Editor {
 			);
 		} else {
 			// Template data, identical to render_screen().
+			// back_url must be the native post.php edit URL with the WP-edit escape flag,
+			// NOT get_edit_post_link() (which filter_edit_post_link rewrites back to the S5
+			// editor, making Exit loop). Mirrors the render_screen() page-mode target.
 			$s5_editor = array(
 				'post_id'     => $post_id,
 				'title'       => get_the_title( $post_id ),
 				'preview_url' => self::preview_url( $post_id ),
-				'back_url'    => (string) get_edit_post_link( $post_id, 'raw' ),
+				'back_url'    => add_query_arg(
+					array(
+						'post'                  => $post_id,
+						'action'                => 'edit',
+						self::WP_EDIT_QUERY_VAR => '1',
+					),
+					admin_url( 'post.php' )
+				),
 			);
 		}
 

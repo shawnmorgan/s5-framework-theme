@@ -799,13 +799,9 @@ final class Settings {
 	private static function sg_color_card( string $title, array $tokens, bool $can_edit = false ): void {
 		?>
 		<div class="card" data-tokencard="colors">
-			<div class="card-head"><i class="fa-solid fa-palette"></i><h3><?php echo esc_html( $title ); ?></h3>
-				<?php if ( $can_edit ) : ?>
-					<div class="edit-tools">
-						<button type="button" class="edit-btn pencil" title="<?php esc_attr_e( 'Edit colors', 's5' ); ?>"><i class="fa-solid fa-pen"></i></button>
-					</div>
-				<?php endif; ?>
-			</div>
+			<?php /* No card-level pencil — each token row carries its own inline edit
+			 * pencil (sg_edit_form); a header button here did nothing but confuse. */ ?>
+			<div class="card-head"><i class="fa-solid fa-palette"></i><h3><?php echo esc_html( $title ); ?></h3></div>
 			<div class="card-body" id="colorTokens">
 				<?php if ( empty( $tokens ) ) : ?>
 					<p class="field-hint"><?php esc_html_e( 'No colour tokens declared.', 's5' ); ?></p>
@@ -846,13 +842,9 @@ final class Settings {
 		$max = 4.0;
 		?>
 		<div class="card" data-tokencard="<?php echo esc_attr( $card[ $kind ] ); ?>">
-			<div class="card-head"><i class="fa-solid <?php echo esc_attr( $icons[ $kind ] ); ?>"></i><h3><?php echo esc_html( $title ); ?></h3>
-				<?php if ( $can_edit ) : ?>
-					<div class="edit-tools">
-						<button type="button" class="edit-btn pencil" title="<?php esc_attr_e( 'Edit scale', 's5' ); ?>"><i class="fa-solid fa-pen"></i></button>
-					</div>
-				<?php endif; ?>
-			</div>
+			<?php /* No card-level pencil — each scale row carries its own inline edit
+			 * pencil (sg_edit_form); a header button here did nothing but confuse. */ ?>
+			<div class="card-head"><i class="fa-solid <?php echo esc_attr( $icons[ $kind ] ); ?>"></i><h3><?php echo esc_html( $title ); ?></h3></div>
 			<div class="card-body">
 				<?php if ( empty( $tokens ) ) : ?>
 					<p class="field-hint"><?php esc_html_e( 'No tokens declared.', 's5' ); ?></p>
