@@ -491,25 +491,42 @@ body.s5-editor-fullscreen .s5-editor {
 .code-btn:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
 .code-body{flex:1;overflow:auto;display:flex;font-family:var(--s5e-mono);font-size:12.5px;line-height:1.65;}
 /* editable canonical source: full-width mono textarea on the code-view surface */
-.code-area{flex:1;min-height:0;width:100%;background:#0c0d11;border:0;outline:none;resize:none;color:#cfd3dc;font-family:var(--s5e-mono);font-size:12.5px;line-height:1.65;padding:16px 20px;white-space:pre;}
+.code-area{flex:1;min-height:0;width:100%;background:#2a2a2a;border:0;outline:none;resize:none;color:#e6e6e6;font-family:var(--s5e-mono);font-size:12.5px;line-height:1.65;padding:16px 20px;white-space:pre;}
 
 /* Dark theme for WP-core CodeMirror mounted over the canonical <textarea>. WP ships
-   it light by default (white page + gutter), which clashed with the dark editor — this
-   repaints the surface, gutter, cursor, selection and syntax tokens to match. */
-.codeview .CodeMirror{background:#0c0d11;color:#cfd3dc;height:100%;font-family:var(--s5e-mono);font-size:12.5px;line-height:1.65;}
-.codeview .CodeMirror-scroll{background:#0c0d11;}
-.codeview .CodeMirror-gutters{background:#0c0d11;border-right:1px solid var(--s5e-line);}
-.codeview .CodeMirror-linenumber{color:#454b59;}
-.codeview .CodeMirror-cursor{border-left:1px solid #cfd3dc;}
-.codeview .CodeMirror-selected{background:rgba(91,140,255,.22);}
-.codeview .CodeMirror-focused .CodeMirror-selected{background:rgba(91,140,255,.30);}
-.codeview .CodeMirror-activeline-background{background:rgba(255,255,255,.03);}
-.codeview .CodeMirror-matchingbracket{color:#7fd6a3;font-weight:600;}
-.codeview .cm-tag{color:#7ea6ff;}
-.codeview .cm-attribute{color:#c9a9ff;}
-.codeview .cm-string{color:#7fd6a3;}
-.codeview .cm-comment{color:#5a6070;font-style:italic;}
-.codeview .cm-bracket,.codeview .cm-keyword{color:#e5c07b;}
+   it light by default (white page + gutter). The surface is a soft charcoal (#2a2a2a)
+   and the token palette is a high-contrast dark-mode set — chained with .cm-s-default
+   so these win over CodeMirror's own default (light) theme rules. */
+.codeview .CodeMirror{background:#2a2a2a;color:#e6e6e6;height:100%;font-family:var(--s5e-mono);font-size:12.5px;line-height:1.65;}
+.codeview .CodeMirror-scroll{background:#2a2a2a;}
+.codeview .CodeMirror-gutters{background:#242424;border-right:1px solid #3a3a3a;}
+.codeview .CodeMirror-linenumber{color:#6b6b6b;}
+.codeview .CodeMirror-cursor{border-left:1px solid #e6e6e6;}
+.codeview .CodeMirror-selected,
+.codeview .CodeMirror-line::selection,
+.codeview .CodeMirror-line > span::selection{background:rgba(97,175,239,.28);}
+.codeview .CodeMirror-focused .CodeMirror-selected{background:rgba(97,175,239,.34);}
+.codeview .CodeMirror-activeline-background{background:rgba(255,255,255,.04);}
+.codeview .CodeMirror-matchingbracket{color:#98c379 !important;font-weight:600;outline:1px solid rgba(152,195,121,.5);}
+/* Syntax palette (One-Dark-inspired, tuned for #2a2a2a). Chained with .cm-s-default
+   to out-specify CodeMirror's bundled light theme. */
+.codeview .cm-s-default .cm-tag,
+.codeview .CodeMirror .cm-tag{color:#e06c75;}                 /* HTML tag names — soft red */
+.codeview .cm-s-default .cm-bracket,
+.codeview .CodeMirror .cm-bracket{color:#abb2bf;}            /* < > / = — muted grey */
+.codeview .cm-s-default .cm-attribute,
+.codeview .CodeMirror .cm-attribute{color:#d19a66;}         /* attributes — warm amber */
+.codeview .cm-s-default .cm-string,
+.codeview .CodeMirror .cm-string{color:#98c379;}            /* attr values / strings — green */
+.codeview .cm-s-default .cm-comment,
+.codeview .CodeMirror .cm-comment{color:#7f848e;font-style:italic;}
+.codeview .cm-s-default .cm-keyword,
+.codeview .CodeMirror .cm-keyword{color:#c678dd;}           /* keywords — purple */
+.codeview .cm-s-default .cm-atom,
+.codeview .CodeMirror .cm-atom{color:#56b6c2;}              /* entities — cyan */
+.codeview .cm-s-default .cm-variable,
+.codeview .cm-s-default .cm-variable-2,
+.codeview .CodeMirror .cm-variable{color:#e6e6e6;}          /* text content — near-white */
 .code-foot{
   display:flex;align-items:center;gap:16px;padding:8px 18px;border-top:1px solid var(--s5e-line);background:var(--s5e-bg-2);font-size:12px;color:var(--s5e-text-dim);
 }
