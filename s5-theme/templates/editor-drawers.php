@@ -67,10 +67,8 @@ $s5_is_template = isset( $s5_is_template ) ? (bool) $s5_is_template : false;
 				<label class="field-label"><?php esc_html_e( 'Parent', 's5' ); ?></label>
 				<select class="select"><option><?php esc_html_e( '— none (top level) —', 's5' ); ?></option></select>
 			</div>
-			<div class="switch-row">
-				<div class="switch-label"><?php esc_html_e( 'Set as homepage', 's5' ); ?> <span class="opt"><?php esc_html_e( 'this page is the front page', 's5' ); ?></span></div>
-				<button type="button" class="switch" role="switch" aria-checked="false"><span class="knob"></span></button>
-			</div>
+			<?php /* "Set as homepage" intentionally omitted — the front page is controlled by
+			 * WP Admin → Settings → Reading, not per-page here, so a toggle would be a lie. */ ?>
 			<div class="switch-row">
 				<div class="switch-label"><?php esc_html_e( 'Show in navigation', 's5' ); ?></div>
 				<button type="button" class="switch on" role="switch" aria-checked="true"><span class="knob"></span></button>

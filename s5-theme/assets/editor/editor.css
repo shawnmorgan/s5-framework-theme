@@ -356,6 +356,17 @@ body.s5-editor-fullscreen .s5-editor {
 .seg.wide .seg-opt{flex:1;text-align:center;padding:7px 6px;}
 .field-label .opt{font-weight:400;text-transform:none;letter-spacing:0;color:var(--s5e-text-faint);font-size:10.5px;margin-left:6px;}
 
+/* ordinal-scale slider (size / spacing) — replaces the cramped 8-button row */
+.s5e-slider{display:block;}
+.s5e-slider-head{display:flex;justify-content:flex-end;margin-bottom:4px;}
+.s5e-slider-val{font-size:12px;font-weight:600;color:var(--s5e-text);font-family:var(--s5e-mono);
+  background:var(--s5e-bg-3);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);padding:2px 8px;min-width:38px;text-align:center;}
+.s5e-range{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:var(--s5e-line);outline:none;margin:6px 0;cursor:pointer;}
+.s5e-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--s5e-accent);border:2px solid var(--s5e-bg);box-shadow:0 0 0 1px var(--s5e-accent);cursor:pointer;}
+.s5e-range::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--s5e-accent);border:2px solid var(--s5e-bg);cursor:pointer;}
+.s5e-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px rgba(99,102,241,.4);}
+.s5e-slider-ticks{display:flex;justify-content:space-between;font-size:10px;color:var(--s5e-text-faint);font-family:var(--s5e-mono);margin-top:2px;}
+
 /* tab panels */
 .ptab-panel{display:none;}
 .ptab-panel.active{display:block;}
@@ -522,6 +533,12 @@ body.s5-editor-fullscreen .s5-editor {
 .trow.drop-before{box-shadow:inset 0 2px 0 var(--s5e-accent);}
 .trow.drop-after{box-shadow:inset 0 -2px 0 var(--s5e-accent);}
 .s5e-reorder-error{color:var(--s5e-danger);}
+/* section / container rows: structural headers marking where a section starts */
+.trow-section{font-weight:600;color:var(--s5e-text);}
+.trow-section .tico{opacity:.9;color:var(--s5e-accent);}
+.trow-section .tlabel{text-transform:none;letter-spacing:.1px;}
+.trow .tgrip-empty{cursor:default;}
+.trow-section:hover .tgrip-empty{opacity:.5;}
 
 /* ============================================================================
    PAGE SETTINGS / TEMPLATE DRAWER (opened by the toolbar gear)

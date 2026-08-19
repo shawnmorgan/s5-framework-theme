@@ -81,24 +81,33 @@
 			var kind = n.kind || n.type || 'editable';
 			var ico = KIND_ICON[ kind ] || KIND_ICON[ n.type ] || 'fa-cube';
 			var depth = n.depth || 0;
+			// Container rows (sections / the page root) are structural headers: they
+			// mark where a section starts, are selectable, but are NOT drag-reorderable
+			// (reorder is a same-parent leaf operation) — so they carry no grip.
+			var isContainer = ( 'section' === kind || 'group' === kind );
 
-			var node = el( 'div', { class: 'tnode leaf' + ( n.disabled ? ' ' : '' ) } );
+			var node = el( 'div', { class: 'tnode' + ( isContainer ? ' branch' : ' leaf' ) } );
 			var row = el( 'div', {
-				class: 'trow' + ( n.disabled ? ' row-disabled' : '' ),
+				class: 'trow' + ( n.disabled ? ' row-disabled' : '' ) + ( isContainer ? ' trow-section' : '' ),
 				'data-node': n.node,
 				'data-depth': String( depth ),
 				style: depth ? 'margin-left:' + depth * 14 + 'px' : '',
 				tabindex: '0',
 				role: 'button',
-				draggable: n.node ? 'true' : 'false',
+				draggable: ( n.node && ! isContainer ) ? 'true' : 'false',
 			} );
 			// drag handle (Item 5 / defect #8): grip icon, drag-and-drop reorder
 			// through the existing mode:reorder save door (Rest::build_canonical_
 			// from_reorder — server-side already handled same-parent/locked-node
 			// guards; this wiring only needs to supply node + after|before).
-			var grip = el( 'span', { class: 'tgrip', title: 'Drag to reorder' } );
-			grip.appendChild( el( 'i', { class: 'fa-solid fa-grip-vertical' } ) );
-			row.appendChild( grip );
+			// Container rows omit the grip (not reorderable).
+			if ( ! isContainer ) {
+				var grip = el( 'span', { class: 'tgrip', title: 'Drag to reorder' } );
+				grip.appendChild( el( 'i', { class: 'fa-solid fa-grip-vertical' } ) );
+				row.appendChild( grip );
+			} else {
+				row.appendChild( el( 'span', { class: 'tgrip tgrip-empty' } ) );
+			}
 			// twist (leaf → hidden via .leaf .twist), kind icon, label + type tag.
 			row.appendChild( el( 'span', { class: 'twist' } ) );
 			var tico = el( 'span', { class: 'tico' } );
@@ -127,7 +136,9 @@
 					select();
 				}
 			} );
-			wireDrag( row, n, depth );
+			if ( ! isContainer ) {
+				wireDrag( row, n, depth );
+			}
 			if ( n.node ) {
 				rowsByNode[ n.node ] = row;
 			}

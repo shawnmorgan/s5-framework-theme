@@ -44,6 +44,48 @@
 			.replace( /^.*-/, '' );
 	}
 
+	function sliderControl( axis, chosen ) {
+		// Ladder: index 0 = None, 1..N = axis.classes in order. The slider position maps
+		// to a class (or '' for None) and posts the same class-swap the buttons would.
+		var wrap = el( 'div', 's5e-slider' );
+		var ladder = [ '' ].concat( axis.classes );
+		var idx = Math.max( 0, ladder.indexOf( chosen ) );
+
+		var head = el( 'div', 's5e-slider-head' );
+		var val = el( 'span', 's5e-slider-val', 0 === idx ? 'None' : shortLabel( ladder[ idx ], axis.key ) );
+		head.appendChild( val );
+		wrap.appendChild( head );
+
+		var input = document.createElement( 'input' );
+		input.type = 'range';
+		input.className = 's5e-range';
+		input.min = '0';
+		input.max = String( ladder.length - 1 );
+		input.step = '1';
+		input.value = String( idx );
+		input.setAttribute( 'aria-label', axis.label );
+
+		function label( i ) {
+			return 0 === i ? 'None' : shortLabel( ladder[ i ], axis.key );
+		}
+		// Live label while dragging; commit the swap only on release (fewer saves).
+		input.addEventListener( 'input', function () {
+			val.textContent = label( parseInt( input.value, 10 ) );
+		} );
+		input.addEventListener( 'change', function () {
+			postSwap( axis.key, ladder[ parseInt( input.value, 10 ) ] );
+		} );
+		wrap.appendChild( input );
+
+		// End-cap ticks so the ladder's range is legible (None … max step).
+		var ticks = el( 'div', 's5e-slider-ticks' );
+		ticks.appendChild( el( 'span', null, 'None' ) );
+		ticks.appendChild( el( 'span', null, shortLabel( ladder[ ladder.length - 1 ], axis.key ) ) );
+		wrap.appendChild( ticks );
+
+		return wrap;
+	}
+
 	function postSwap( axisKey, cls ) {
 		if ( ! selectedNode || ! cfg.saveUrl ) {
 			return;
@@ -115,8 +157,7 @@
 				return;
 			}
 
-			// Segmented control over the axis's sanctioned set (+ a "None" option).
-			var segEl = el( 'div', 'seg wide' );
+			// Which sanctioned class (if any) is currently on the element.
 			var chosen = '';
 			axis.classes.forEach( function ( cls ) {
 				if ( present.indexOf( cls ) !== -1 ) {
@@ -124,6 +165,16 @@
 				}
 			} );
 
+			if ( 'slider' === axis.control && axis.classes.length > 2 ) {
+				// Ordinal scale (size / spacing) — a slider is far less cramped than a
+				// long button row. Position 0 = None, 1..N = each class in ladder order.
+				field.appendChild( sliderControl( axis, chosen ) );
+				host.appendChild( field );
+				return;
+			}
+
+			// Segmented control over the axis's sanctioned set (+ a "None" option).
+			var segEl = el( 'div', 'seg wide' );
 			var none = el( 'div', 'seg-opt' + ( '' === chosen ? ' is-active' : '' ), 'None' );
 			none.addEventListener( 'click', function () {
 				postSwap( axis.key, '' );

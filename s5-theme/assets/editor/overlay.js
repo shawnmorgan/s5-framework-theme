@@ -329,6 +329,36 @@
 
 	/* --- structure map: report the page's structural nodes (Item 5) ---------- */
 
+	// True for the structural containers that give the tree its skeleton: the page
+	// root (<main>), its sections, and registered components. These are what a client
+	// reasons about ("where does the Hero start?"), so they must appear as rows even
+	// when they carry no data-edit of their own.
+	function isStructural( el ) {
+		if ( el.nodeType !== 1 ) {
+			return false;
+		}
+		if ( el.hasAttribute( 'data-s5-component' ) || el.hasAttribute( 'data-edit' ) ) {
+			return true;
+		}
+		var tag = el.tagName.toLowerCase();
+		return 'main' === tag || 'section' === tag || 'header' === tag || 'footer' === tag;
+	}
+
+	// Humanize a container class/tag into a section label: "page-hero" → "Hero",
+	// "features" → "Features". Falls back to the tag name.
+	function sectionLabel( el ) {
+		var tag = el.tagName.toLowerCase();
+		if ( 'main' === tag ) {
+			return 'Page';
+		}
+		var cls = ( el.getAttribute( 'class' ) || '' ).split( /\s+/ )[ 0 ] || '';
+		cls = cls.replace( /^(page|site)-/, '' ).replace( /[-_]+/g, ' ' ).trim();
+		var label = cls
+			? cls.charAt( 0 ).toUpperCase() + cls.slice( 1 )
+			: tag.charAt( 0 ).toUpperCase() + tag.slice( 1 );
+		return 'section' === tag ? label + ' section' : label;
+	}
+
 	// A short human label for a node: prefer its component name, else its tag +
 	// a snippet of text. Keeps the right-panel list readable without a full tree.
 	function nodeLabel( el ) {
@@ -343,31 +373,70 @@
 		return t || el.tagName.toLowerCase();
 	}
 
-	// Walk every node the page exposes as structure: components (data-s5-component)
-	// and editables (data-edit). Report a FLAT list (a demo bar, not a full tree)
-	// with a depth hint so the parent can indent visually.
+	// Ensure a structural container is selectable: leaf editables/components already
+	// carry a data-node; a bare <section>/<main> gets a transient one assigned here so
+	// the tree row can select it and (later) anchor an insert. This annotation lives
+	// only on the in-preview DOM — it is never written back to the canonical HTML.
+	var structSeq = 0;
+	function ensureNode( el ) {
+		var id = el.getAttribute( 'data-node' );
+		if ( ! id ) {
+			id = 's5-struct-' + ( ++structSeq );
+			el.setAttribute( 'data-node', id );
+			el.setAttribute( 'data-s5-transient-node', '' );
+		}
+		return id;
+	}
+
+	// Walk the page's structural nodes as a REAL tree: containers (main / sections /
+	// components) and the editables nested inside them, in document order, each with a
+	// depth so the parent panel can indent and show where every section starts + ends.
 	function reportStructure() {
-		var nodes = document.querySelectorAll( '[data-s5-component],[data-edit]' );
-		var list = Array.prototype.map.call( nodes, function ( el ) {
-			var kind = el.hasAttribute( 'data-s5-component' ) ? 'component'
-				: ( el.hasAttribute( 'data-s5-dynamic' ) ? 'dynamic' : 'editable' );
-			// Depth = count of structural ancestors, for a light indent.
-			var depth = 0, p = el.parentNode;
-			while ( p && p !== document.body ) {
-				if ( p.nodeType === 1 && ( p.hasAttribute( 'data-s5-component' ) || p.hasAttribute( 'data-edit' ) ) ) {
-					depth++;
+		var main = document.querySelector( 'main[data-s5], main' ) || document.body;
+		var list = [];
+
+		function walk( el, depth ) {
+			for ( var child = el.firstElementChild; child; child = child.nextElementSibling ) {
+				if ( isStructural( child ) ) {
+					var isContainer = ! child.hasAttribute( 'data-edit' ) ||
+						'main' === child.tagName.toLowerCase() ||
+						'section' === child.tagName.toLowerCase();
+					var kind = child.hasAttribute( 'data-s5-component' ) ? 'component'
+						: ( isContainer ? 'section'
+							: ( child.hasAttribute( 'data-s5-dynamic' ) ? 'dynamic' : 'editable' ) );
+					list.push( {
+						node: ensureNode( child ),
+						type: child.getAttribute( 'data-edit' ) || '',
+						kind: kind,
+						label: ( 'section' === kind && ! child.hasAttribute( 'data-s5-component' ) )
+							? sectionLabel( child ) : nodeLabel( child ),
+						depth: depth,
+						disabled: 'true' === child.getAttribute( 'data-disabled' ),
+					} );
+					walk( child, depth + 1 );
+				} else {
+					// Non-structural wrapper (e.g. a layout div): descend without adding a
+					// row, so its editables still attach to the nearest structural depth.
+					walk( child, depth );
 				}
-				p = p.parentNode;
 			}
-			return {
-				node: el.getAttribute( 'data-node' ) || '',
-				type: el.getAttribute( 'data-edit' ) || '',
-				kind: kind,
-				label: nodeLabel( el ),
-				depth: depth,
-				disabled: 'true' === el.getAttribute( 'data-disabled' ),
-			};
-		} );
+		}
+
+		// Report <main> itself as the root row, then everything beneath it.
+		if ( main && main !== document.body && isStructural( main ) ) {
+			list.push( {
+				node: ensureNode( main ),
+				type: '',
+				kind: 'section',
+				label: sectionLabel( main ),
+				depth: 0,
+				disabled: false,
+			} );
+			walk( main, 1 );
+		} else {
+			walk( main, 0 );
+		}
+
 		parent.postMessage( { s5: 's5-structure', nodes: list }, ORIGIN );
 	}
 

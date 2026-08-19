@@ -158,8 +158,10 @@ $s5_settings_css_url        = admin_url( 'admin.php?page=s5-settings&screen=css'
 						</div>
 					</div>
 
-					<?php /* GAP: read-only token specimen (proves swatches never drift) — light cards. */ ?>
-					<div class="s5e-styletab" data-s5-styletab></div>
+					<?php /* The full token specimen (swatches / type ramp) lives on the Settings
+					 * → StyleGuide screen, not the per-element Style tab. Rendering the whole
+					 * design system here buried the element's own controls, so it's removed
+					 * from this panel — the tab now shows only the selection's controls. */ ?>
 
 					<?php /* GAP: compiled-stylesheet disclosure (read-only). */ ?>
 					<div class="s5e-stylesheet">
