@@ -110,12 +110,19 @@ final class Compiler {
 
 		// Byte-range excision, NOT a DOM round-trip. A full DOMDocument re-serialize
 		// lowercases attribute names, corrupting inline SVGs (viewBox -> viewbox) and any
-		// other camelCase attributes elsewhere on the page. Here we only locate each
-		// data-disabled="true" element's open tag, walk tag depth over the ORIGINAL bytes
-		// to find its matching close, and cut that exact span — every surviving byte (SVG
-		// casing included) is preserved verbatim. A nested disabled node inside an
+		// other camelCase attributes elsewhere on the page. Here we only LOCATE each
+		// data-disabled="true" element's open tag, walk tag depth to find its matching
+		// close, and cut that exact span from the ORIGINAL bytes — every surviving byte
+		// (SVG casing included) is preserved verbatim. A nested disabled node inside an
 		// already-removed subtree is dropped with its ancestor; we resume scanning at the
 		// cut point so inner matches aren't double-processed.
+		//
+		// CRITICAL: all tag/attribute matching runs against a MASKED copy (comments and
+		// raw-text element interiors — <script>/<style>/<textarea>/<title> — blanked to
+		// spaces, byte-for-byte aligned). Otherwise a `<div>` inside a comment or a
+		// `</div>` inside a <script> string would move the depth counter and either leak
+		// the subtree or cut the wrong span. We compute offsets on the mask, slice the
+		// original, and re-mask after each cut (positions shift).
 		$void = array(
 			'area' => 1, 'base' => 1, 'br' => 1, 'col' => 1, 'embed' => 1, 'hr' => 1,
 			'img' => 1, 'input' => 1, 'link' => 1, 'meta' => 1, 'param' => 1,
@@ -123,7 +130,8 @@ final class Compiler {
 		);
 
 		$offset = 0;
-		while ( preg_match( '/<([a-zA-Z][a-zA-Z0-9:-]*)\b[^>]*\bdata-disabled\s*=\s*(["\'])true\2[^>]*>/s', $html, $m, PREG_OFFSET_CAPTURE, $offset ) ) {
+		$mask   = self::mask_raw_regions( $html );
+		while ( preg_match( '/<([a-zA-Z][a-zA-Z0-9:-]*)\b[^>]*\bdata-disabled\s*=\s*(["\'])true\2[^>]*>/s', $mask, $m, PREG_OFFSET_CAPTURE, $offset ) ) {
 			$open_start = $m[0][1];
 			$open_end   = $open_start + strlen( $m[0][0] );
 			$tag        = strtolower( $m[1][0] );
@@ -134,17 +142,18 @@ final class Compiler {
 
 			if ( $self_closed ) {
 				$html   = substr( $html, 0, $open_start ) . substr( $html, $open_end );
+				$mask   = self::mask_raw_regions( $html );
 				$offset = $open_start; // continue scanning from the cut point
 				continue;
 			}
 
-			// Walk matching open/close tags of the SAME name over the original bytes to
-			// find the end of this element's subtree, honoring nesting.
+			// Walk matching open/close tags of the SAME name over the MASKED bytes to find
+			// the end of this element's subtree, honoring nesting.
 			$depth = 1;
 			$pos   = $open_end;
 			$pat   = '#<(/?)' . preg_quote( $tag, '#' ) . '\b[^>]*?(/?)>#is';
 			$end   = false;
-			while ( $depth > 0 && preg_match( $pat, $html, $tm, PREG_OFFSET_CAPTURE, $pos ) ) {
+			while ( $depth > 0 && preg_match( $pat, $mask, $tm, PREG_OFFSET_CAPTURE, $pos ) ) {
 				$is_close = ( '/' === $tm[1][0] );
 				$is_self  = ( '/' === $tm[2][0] );
 				$tag_end  = $tm[0][1] + strlen( $tm[0][0] );
@@ -160,17 +169,51 @@ final class Compiler {
 			}
 
 			if ( false === $end ) {
-				// Unbalanced (malformed) — remove just the open tag to avoid an infinite
-				// loop, and continue past it.
+				// Truly unbalanced (no matching close anywhere) — remove just the open tag
+				// to avoid an infinite loop, and continue past it.
 				$html   = substr( $html, 0, $open_start ) . substr( $html, $open_end );
+				$mask   = self::mask_raw_regions( $html );
 				$offset = $open_start;
 				continue;
 			}
 
 			$html   = substr( $html, 0, $open_start ) . substr( $html, $end );
+			$mask   = self::mask_raw_regions( $html );
 			$offset = $open_start;
 		}
 
+		return $html;
+	}
+
+	/**
+	 * Return a byte-for-byte length-preserving copy of $html with the CONTENTS of HTML
+	 * comments and raw-text elements (<script>/<style>/<textarea>/<title>) replaced by
+	 * spaces. Tag boundaries and every other byte keep their exact offsets, so a regex
+	 * run against the mask yields positions valid in the original — while `<tag>` bytes
+	 * that live inside a comment or a script string can no longer be mistaken for real
+	 * markup. Used only to LOCATE spans; the original bytes are what get cut.
+	 *
+	 * @param string $html Source HTML.
+	 * @return string Masked copy of identical length.
+	 */
+	private static function mask_raw_regions( string $html ): string {
+		// 1. HTML comments <!-- ... -->
+		$html = (string) preg_replace_callback(
+			'/<!--.*?-->/s',
+			static function ( $m ) {
+				return '<!--' . str_repeat( ' ', max( 0, strlen( $m[0] ) - 7 ) ) . '-->';
+			},
+			$html
+		);
+		// 2. Raw-text / escapable-raw-text element interiors. Blank only the inner text so
+		// the open/close tags themselves still register in the depth walk.
+		$html = (string) preg_replace_callback(
+			'#(<(script|style|textarea|title)\b[^>]*>)(.*?)(</\2\s*>)#is',
+			static function ( $m ) {
+				return $m[1] . str_repeat( ' ', strlen( $m[3] ) ) . $m[4];
+			},
+			$html
+		);
 		return $html;
 	}
 
