@@ -349,25 +349,14 @@ final class Settings {
 		check_admin_referer( self::ACTION_SAVE_CSS );
 
 		$which = isset( $_POST['css_file'] ) ? sanitize_key( wp_unslash( (string) $_POST['css_file'] ) ) : '';
-		if ( ! isset( self::CSS_FILES[ $which ] ) ) {
-			self::redirect_css( 'error', __( 'Unknown CSS file — nothing was written.', 's5' ) );
-		}
 
 		// Raw CSS by design (this IS the stylesheet source). Only unslash — no HTML
 		// sanitizer, which would corrupt selectors like a[href] or content:"\201C".
 		$code = isset( $_POST['css_code'] ) ? (string) wp_unslash( $_POST['css_code'] ) : ''; // phpcs:ignore WordPress.Security.ValidationSanitization.InputNotSanitized -- verbatim stylesheet source, developer-authored, allow-listed target file.
-		$code = str_replace( "\r\n", "\n", $code );
 
-		$dir  = trailingslashit( get_stylesheet_directory() ) . 'site/styles/';
-		$path = $dir . self::CSS_FILES[ $which ];
-
-		if ( file_exists( $path ) && ! is_writable( $path ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- theme-local declared stylesheet, not an upload.
-			self::redirect_css( 'error', __( 'That stylesheet is not writable on disk.', 's5' ) );
-		}
-
-		$written = file_put_contents( $path, $code ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- writing a local declared stylesheet (allow-listed).
-		if ( false === $written ) {
-			self::redirect_css( 'error', __( 'Could not write the stylesheet.', 's5' ) );
+		$res = self::write_css_layer( $which, $code );
+		if ( is_wp_error( $res ) ) {
+			self::redirect_css( 'error', $res->get_error_message() );
 		}
 
 		try {
@@ -376,6 +365,33 @@ final class Settings {
 		} catch ( \Throwable $e ) {
 			self::redirect_css( 'warning', __( 'CSS saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
 		}
+	}
+
+	/**
+	 * Write one allow-listed CSS layer file verbatim. Shared by the admin-post UI door
+	 * and the headless REST door (B1) so both write identically. Does NOT recompile —
+	 * the caller rebuilds the bundle. Returns true or a WP_Error.
+	 *
+	 * @param string $which Short file key (see CSS_FILES).
+	 * @param string $code  Raw CSS source.
+	 * @return true|\WP_Error
+	 */
+	public static function write_css_layer( string $which, string $code ) {
+		if ( ! isset( self::CSS_FILES[ $which ] ) ) {
+			return new \WP_Error( 's5_css_unknown', __( 'Unknown CSS file — nothing was written.', 's5' ), array( 'status' => 400 ) );
+		}
+		$code = str_replace( "\r\n", "\n", $code );
+		$dir  = trailingslashit( get_stylesheet_directory() ) . 'site/styles/';
+		$path = $dir . self::CSS_FILES[ $which ];
+
+		if ( file_exists( $path ) && ! is_writable( $path ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_is_writable -- theme-local declared stylesheet, not an upload.
+			return new \WP_Error( 's5_css_readonly', __( 'That stylesheet is not writable on disk.', 's5' ), array( 'status' => 500 ) );
+		}
+		$written = file_put_contents( $path, $code ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- writing a local declared stylesheet (allow-listed).
+		if ( false === $written ) {
+			return new \WP_Error( 's5_css_write', __( 'Could not write the stylesheet.', 's5' ), array( 'status' => 500 ) );
+		}
+		return true;
 	}
 
 	/**

@@ -110,19 +110,43 @@ final class Stylesheet {
 		// 1. Remove /* ... */ comments.
 		$css = (string) preg_replace( '#/\*.*?\*/#s', '', $css );
 
-		// 2. Remove declaration blocks so values can't be mistaken for selectors.
-		$css = (string) preg_replace( '/\{[^{}]*\}/s', ' ', $css );
-		// Run again to catch simple nesting (at-rule wrappers, etc.).
-		$css = (string) preg_replace( '/\{[^{}]*\}/s', ' ', $css );
-
-		// 3. What remains is selector text (plus any leftover at-rule prelude).
-		$found = array();
-		if ( preg_match_all( '/\.(-?[A-Za-z_][A-Za-z0-9_-]*)/', $css, $m ) ) {
-			foreach ( $m[1] as $name ) {
-				$found[ $name ] = true;
+		// 2. Collect class names from SELECTOR context only — the text that precedes each
+		// `{`. Walking brace depth (rather than regex-stripping declaration blocks) means a
+		// selector nested inside an at-rule wrapper, e.g. `@media (...) { .foo { ... } }`,
+		// is still seen: `.foo` is the prelude of the inner `{`, not swallowed with the
+		// wrapper. The old two-pass block strip lost exactly those responsive classes.
+		// An @media/@supports condition prelude has no `.class` tokens, so scanning it is
+		// harmless; declaration values sit between `{` and `}` and are never scanned.
+		$found   = array();
+		$len     = strlen( $css );
+		$prelude = '';
+		for ( $i = 0; $i < $len; $i++ ) {
+			$ch = $css[ $i ];
+			if ( '{' === $ch || '}' === $ch ) {
+				if ( '{' === $ch ) {
+					self::collect_class_names( $prelude, $found );
+				}
+				$prelude = '';
+			} else {
+				$prelude .= $ch;
 			}
 		}
 
 		return array_keys( $found );
+	}
+
+	/**
+	 * Pull `.class-name` tokens out of a selector-context string into $found (as keys).
+	 *
+	 * @param string              $selector Selector or at-rule prelude text.
+	 * @param array<string, bool> $found    Accumulator (class name => true).
+	 * @return void
+	 */
+	private static function collect_class_names( string $selector, array &$found ): void {
+		if ( preg_match_all( '/\.(-?[A-Za-z_][A-Za-z0-9_-]*)/', $selector, $m ) ) {
+			foreach ( $m[1] as $name ) {
+				$found[ $name ] = true;
+			}
+		}
 	}
 }

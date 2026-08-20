@@ -124,6 +124,133 @@ final class Rest {
 				'permission_callback' => array( self::class, 'can_save' ),
 			)
 		);
+
+		// HEADLESS AUTHORING DOORS (audit blocker B1). Tokens, the class-vocabulary CSS,
+		// and tracking-script integrations were only writable through admin-post nonce
+		// handlers a login session must satisfy — an Application-Password / CLI / MCP agent
+		// could not reach them, so the agent could not self-provision the design system its
+		// own pages depend on. These REST routes expose the SAME writes, capability-gated
+		// (Application Passwords satisfy current_user_can without a cookie nonce).
+		register_rest_route(
+			self::NAMESPACE,
+			'/tokens',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'handle_rest_save_token' ),
+				'permission_callback' => static function () {
+					return current_user_can( Editor::CAPABILITY ) && Roles::can( 'settings.styleguide_edit' );
+				},
+			)
+		);
+		register_rest_route(
+			self::NAMESPACE,
+			'/css',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'handle_rest_save_css' ),
+				'permission_callback' => static function () {
+					return current_user_can( Editor::CAPABILITY ) && Roles::can( 'settings.css' );
+				},
+			)
+		);
+		register_rest_route(
+			self::NAMESPACE,
+			'/integrations',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( self::class, 'handle_rest_get_integrations' ),
+					'permission_callback' => static function () {
+						return current_user_can( Editor::CAPABILITY ) && Roles::can( 'settings.integrations' );
+					},
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( self::class, 'handle_rest_save_integrations' ),
+					'permission_callback' => static function () {
+						return current_user_can( Editor::CAPABILITY ) && Roles::can( 'settings.integrations' );
+					},
+				),
+			)
+		);
+	}
+
+	/**
+	 * Headless token save (B1). Body: { name: "--s5-color-brand", value: "#123456" }.
+	 * Reuses Styles::update_token + a bundle rebuild — identical effect to the UI door.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_rest_save_token( \WP_REST_Request $request ) {
+		$name  = (string) $request->get_param( 'name' );
+		$value = (string) $request->get_param( 'value' );
+
+		$res = Styles::update_token( $name, $value );
+		if ( is_wp_error( $res ) ) {
+			// A no-op (unchanged value) is a success for an idempotent agent write.
+			if ( 's5_token_noop' === $res->get_error_code() ) {
+				return new \WP_REST_Response( array( 'ok' => true, 'changed' => false ), 200 );
+			}
+			return $res;
+		}
+
+		try {
+			StyleBundle::build();
+		} catch ( \Throwable $e ) {
+			return new \WP_REST_Response( array( 'ok' => true, 'changed' => true, 'recompiled' => false, 'message' => $e->getMessage() ), 200 );
+		}
+		return new \WP_REST_Response( array( 'ok' => true, 'changed' => true, 'recompiled' => true ), 200 );
+	}
+
+	/**
+	 * Headless CSS-layer save (B1). Body: { file: "components"|"utilities"|"tokens"|
+	 * "scales"|"custom", code: "..." }. Writes the allow-listed site style file + rebuilds.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_rest_save_css( \WP_REST_Request $request ) {
+		$which = sanitize_key( (string) $request->get_param( 'file' ) );
+		$code  = (string) $request->get_param( 'code' );
+
+		$res = Settings::write_css_layer( $which, $code );
+		if ( is_wp_error( $res ) ) {
+			return $res;
+		}
+		try {
+			StyleBundle::build();
+		} catch ( \Throwable $e ) {
+			return new \WP_REST_Response( array( 'ok' => true, 'recompiled' => false, 'message' => $e->getMessage() ), 200 );
+		}
+		return new \WP_REST_Response( array( 'ok' => true, 'recompiled' => true ), 200 );
+	}
+
+	/**
+	 * Headless integrations read (B1) — the current list, so an agent can diff/patch.
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response
+	 */
+	public static function handle_rest_get_integrations( \WP_REST_Request $request ) {
+		unset( $request );
+		return new \WP_REST_Response( array( 'ok' => true, 'integrations' => Integrations::all() ), 200 );
+	}
+
+	/**
+	 * Headless integrations save (B1). Body: { integrations: [ { id?, name, enabled,
+	 * point, code, conditions? }, ... ] }. Persists the full list verbatim (raw scripts).
+	 *
+	 * @param \WP_REST_Request $request Request.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_rest_save_integrations( \WP_REST_Request $request ) {
+		$rows = $request->get_param( 'integrations' );
+		if ( ! is_array( $rows ) ) {
+			return new \WP_Error( 's5_bad_integrations', __( 'Body must include an "integrations" array.', 's5' ), array( 'status' => 400 ) );
+		}
+		Integrations::save( $rows );
+		return new \WP_REST_Response( array( 'ok' => true, 'integrations' => Integrations::all() ), 200 );
 	}
 
 	/**
@@ -147,9 +274,17 @@ final class Rest {
 		}
 
 		$mode = (string) $request->get_param( 'mode' );
-		if ( '' !== $mode && 'canonical' !== $mode && 'insert' !== $mode ) {
-			return new \WP_Error( 's5_bad_mode', __( 'Template parts save as canonical or insert.', 's5' ), array( 'status' => 400 ) );
+		// A template part is canonical HTML edited in the SAME canvas as a page, so it must
+		// accept the SAME granular edit modes — otherwise text/class/disable/reorder edits
+		// in template mode fail with a blank "Save rejected" (audit blocker B3). Every
+		// structural mode runs the shared page builder against the PART's canonical
+		// (passed as $source) instead of a post's, then validates + writes the part file.
+		$allowed = array( '', 'canonical', 'insert', 'slots', 'class', 'disable', 'reorder' );
+		if ( ! in_array( $mode, $allowed, true ) ) {
+			return new \WP_Error( 's5_bad_mode', __( 'Unsupported template save mode.', 's5' ), array( 'status' => 400 ) );
 		}
+
+		$part_source = Templates::read_part( $name );
 
 		if ( 'insert' === $mode ) {
 			// Component insert into a template part (defect #8: the palette insert
@@ -161,11 +296,41 @@ final class Rest {
 				return new \WP_Error( 's5_role_embed', __( 'Your role cannot insert the Embed primitive.', 's5' ), array( 'status' => 403 ) );
 			}
 			$at        = (string) $request->get_param( 'at' );
-			$expanded  = self::expand_component_into( Templates::read_part( $name ), $component_name, $at, false );
+			$expanded  = self::expand_component_into( $part_source, $component_name, $at, false );
 			if ( $expanded instanceof \WP_Error ) {
 				return $expanded;
 			}
 			$canonical = $expanded;
+		} elseif ( 'slots' === $mode ) {
+			$built = self::build_canonical_from_slots( 0, $request, $part_source );
+			if ( $built instanceof \WP_Error ) {
+				return $built;
+			}
+			$canonical = $built;
+		} elseif ( 'class' === $mode ) {
+			$built = self::build_canonical_from_class_swap( 0, $request, $part_source );
+			if ( $built instanceof \WP_Error ) {
+				return $built;
+			}
+			$canonical = $built;
+		} elseif ( 'disable' === $mode ) {
+			if ( ! Roles::can( 'editor.structure' ) ) {
+				return new \WP_Error( 's5_role_structure', __( 'Your role cannot disable elements.', 's5' ), array( 'status' => 403 ) );
+			}
+			$built = self::build_canonical_from_disable( 0, $request, $part_source );
+			if ( $built instanceof \WP_Error ) {
+				return $built;
+			}
+			$canonical = $built;
+		} elseif ( 'reorder' === $mode ) {
+			if ( ! Roles::can( 'editor.structure' ) ) {
+				return new \WP_Error( 's5_role_structure', __( 'Your role cannot reorder elements.', 's5' ), array( 'status' => 403 ) );
+			}
+			$built = self::build_canonical_from_reorder( 0, $request, $part_source );
+			if ( $built instanceof \WP_Error ) {
+				return $built;
+			}
+			$canonical = $built;
 		} else {
 			$canonical = (string) $request->get_param( 'canonical' );
 		}
@@ -518,13 +683,15 @@ final class Rest {
 	 * @param \WP_REST_Request $request The request.
 	 * @return string|\WP_Error New canonical, or an error.
 	 */
-	private static function build_canonical_from_slots( int $post_id, \WP_REST_Request $request ) {
+	private static function build_canonical_from_slots( int $post_id, \WP_REST_Request $request, ?string $source = null ) {
 		$slots = $request->get_param( 'slots' );
 		if ( ! is_array( $slots ) || empty( $slots ) ) {
 			return new \WP_Error( 's5_no_slots', __( 'No slot edits supplied.', 's5' ), array( 'status' => 400 ) );
 		}
 
-		$canonical = Storage::get_canonical_html( $post_id );
+		// $source lets a template-part save reuse this builder on the part's canonical
+		// (not a post's). null = page mode, fetch the post's stored canonical.
+		$canonical = null !== $source ? $source : Storage::get_canonical_html( $post_id );
 		if ( '' === $canonical ) {
 			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical HTML.', 's5' ), array( 'status' => 409 ) );
 		}
@@ -588,11 +755,11 @@ final class Rest {
 	 * @param \WP_REST_Request $request Request.
 	 * @return string|\WP_Error New canonical, or an error.
 	 */
-	private static function build_canonical_from_insert( int $post_id, \WP_REST_Request $request ) {
+	private static function build_canonical_from_insert( int $post_id, \WP_REST_Request $request, ?string $source = null ) {
 		$name = (string) $request->get_param( 'component' );
 		$at   = (string) $request->get_param( 'at' );
 
-		$canonical = Storage::get_canonical_html( $post_id );
+		$canonical = null !== $source ? $source : Storage::get_canonical_html( $post_id );
 		if ( '' === $canonical ) {
 			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
 		}
@@ -682,7 +849,7 @@ final class Rest {
 	 * @param \WP_REST_Request $request Request.
 	 * @return string|\WP_Error New canonical, or an error.
 	 */
-	private static function build_canonical_from_disable( int $post_id, \WP_REST_Request $request ) {
+	private static function build_canonical_from_disable( int $post_id, \WP_REST_Request $request, ?string $source = null ) {
 		$node     = (string) $request->get_param( 'node' );
 		$disabled = (bool) $request->get_param( 'disabled' );
 
@@ -690,7 +857,7 @@ final class Rest {
 			return new \WP_Error( 's5_no_node', __( 'No node supplied to disable.', 's5' ), array( 'status' => 400 ) );
 		}
 
-		$canonical = Storage::get_canonical_html( $post_id );
+		$canonical = null !== $source ? $source : Storage::get_canonical_html( $post_id );
 		if ( '' === $canonical ) {
 			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
 		}
@@ -739,7 +906,7 @@ final class Rest {
 	 * @param \WP_REST_Request $request Request.
 	 * @return string|\WP_Error New canonical, or an error.
 	 */
-	private static function build_canonical_from_reorder( int $post_id, \WP_REST_Request $request ) {
+	private static function build_canonical_from_reorder( int $post_id, \WP_REST_Request $request, ?string $source = null ) {
 		$node   = (string) $request->get_param( 'node' );
 		$after  = (string) $request->get_param( 'after' );
 		$before = (string) $request->get_param( 'before' );
@@ -748,15 +915,16 @@ final class Rest {
 			return new \WP_Error( 's5_reorder_args', __( 'node and either after or before are required.', 's5' ), array( 'status' => 400 ) );
 		}
 
-		$anchor = '' !== $after ? $after : $before;
+		$anchor  = '' !== $after ? $after : $before;
+		$current = null !== $source ? $source : Storage::get_canonical_html( $post_id );
 
 		// Moving a node next to itself is a no-op — not an error. A drag that
 		// dropped back on its own position should not surface a scary diagnostic.
 		if ( $node === $anchor ) {
-			return Storage::get_canonical_html( $post_id );
+			return $current;
 		}
 
-		$canonical = Storage::get_canonical_html( $post_id );
+		$canonical = $current;
 		if ( '' === $canonical ) {
 			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
 		}
@@ -1017,7 +1185,7 @@ final class Rest {
 	 * @param \WP_REST_Request $request Request.
 	 * @return string|\WP_Error New canonical, or an error.
 	 */
-	private static function build_canonical_from_class_swap( int $post_id, \WP_REST_Request $request ) {
+	private static function build_canonical_from_class_swap( int $post_id, \WP_REST_Request $request, ?string $source = null ) {
 		$node   = (string) $request->get_param( 'node' );
 		$axis   = (string) $request->get_param( 'axis' );
 		$chosen = (string) $request->get_param( 'class' );
@@ -1057,7 +1225,7 @@ final class Rest {
 			);
 		}
 
-		$canonical = Storage::get_canonical_html( $post_id );
+		$canonical = null !== $source ? $source : Storage::get_canonical_html( $post_id );
 		if ( '' === $canonical ) {
 			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
 		}

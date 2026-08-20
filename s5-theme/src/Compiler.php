@@ -108,39 +108,70 @@ final class Compiler {
 			return $html; // Fast path: nothing to drop, bytes untouched.
 		}
 
-		$prev = libxml_use_internal_errors( true );
-		$dom  = new \DOMDocument();
-		$dom->loadHTML(
-			'<?xml encoding="UTF-8"><html><body>' . $html . '</body></html>',
-			LIBXML_NOERROR | LIBXML_NOWARNING
+		// Byte-range excision, NOT a DOM round-trip. A full DOMDocument re-serialize
+		// lowercases attribute names, corrupting inline SVGs (viewBox -> viewbox) and any
+		// other camelCase attributes elsewhere on the page. Here we only locate each
+		// data-disabled="true" element's open tag, walk tag depth over the ORIGINAL bytes
+		// to find its matching close, and cut that exact span — every surviving byte (SVG
+		// casing included) is preserved verbatim. A nested disabled node inside an
+		// already-removed subtree is dropped with its ancestor; we resume scanning at the
+		// cut point so inner matches aren't double-processed.
+		$void = array(
+			'area' => 1, 'base' => 1, 'br' => 1, 'col' => 1, 'embed' => 1, 'hr' => 1,
+			'img' => 1, 'input' => 1, 'link' => 1, 'meta' => 1, 'param' => 1,
+			'source' => 1, 'track' => 1, 'wbr' => 1,
 		);
-		libxml_clear_errors();
-		libxml_use_internal_errors( $prev );
 
-		$xpath = new \DOMXPath( $dom );
-		$nodes = $xpath->query( '//*[@data-disabled="true"]' );
-		if ( $nodes instanceof \DOMNodeList ) {
-			// Snapshot then remove (live NodeList mutates during removal).
-			$to_remove = array();
-			foreach ( $nodes as $n ) {
-				$to_remove[] = $n;
+		$offset = 0;
+		while ( preg_match( '/<([a-zA-Z][a-zA-Z0-9:-]*)\b[^>]*\bdata-disabled\s*=\s*(["\'])true\2[^>]*>/s', $html, $m, PREG_OFFSET_CAPTURE, $offset ) ) {
+			$open_start = $m[0][1];
+			$open_end   = $open_start + strlen( $m[0][0] );
+			$tag        = strtolower( $m[1][0] );
+			$open_tag   = $m[0][0];
+
+			// Self-closing or void element: the open tag IS the whole element.
+			$self_closed = ( isset( $void[ $tag ] ) || (bool) preg_match( '#/\s*>$#', $open_tag ) );
+
+			if ( $self_closed ) {
+				$html   = substr( $html, 0, $open_start ) . substr( $html, $open_end );
+				$offset = $open_start; // continue scanning from the cut point
+				continue;
 			}
-			foreach ( $to_remove as $n ) {
-				if ( $n->parentNode ) {
-					$n->parentNode->removeChild( $n );
+
+			// Walk matching open/close tags of the SAME name over the original bytes to
+			// find the end of this element's subtree, honoring nesting.
+			$depth = 1;
+			$pos   = $open_end;
+			$pat   = '#<(/?)' . preg_quote( $tag, '#' ) . '\b[^>]*?(/?)>#is';
+			$end   = false;
+			while ( $depth > 0 && preg_match( $pat, $html, $tm, PREG_OFFSET_CAPTURE, $pos ) ) {
+				$is_close = ( '/' === $tm[1][0] );
+				$is_self  = ( '/' === $tm[2][0] );
+				$tag_end  = $tm[0][1] + strlen( $tm[0][0] );
+				if ( $is_close ) {
+					--$depth;
+					if ( 0 === $depth ) {
+						$end = $tag_end;
+					}
+				} elseif ( ! $is_self ) {
+					++$depth;
 				}
+				$pos = $tag_end;
 			}
+
+			if ( false === $end ) {
+				// Unbalanced (malformed) — remove just the open tag to avoid an infinite
+				// loop, and continue past it.
+				$html   = substr( $html, 0, $open_start ) . substr( $html, $open_end );
+				$offset = $open_start;
+				continue;
+			}
+
+			$html   = substr( $html, 0, $open_start ) . substr( $html, $end );
+			$offset = $open_start;
 		}
 
-		$body = $dom->getElementsByTagName( 'body' )->item( 0 );
-		if ( ! $body ) {
-			return $html;
-		}
-		$out = '';
-		foreach ( $body->childNodes as $child ) {
-			$out .= $dom->saveHTML( $child );
-		}
-		return $out;
+		return $html;
 	}
 
 	/**

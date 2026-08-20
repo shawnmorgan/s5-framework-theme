@@ -65,6 +65,7 @@ if ( \S5\Storage::is_dynamic( (int) $s5_post_id ) ) {
 <?php wp_head(); ?>
 </head>
 <body <?php body_class(); ?>>
+<?php wp_body_open(); // fires the wp_body_open hook — the "After <body>" integration injection point (GTM noscript / consent). ?>
 <?php
 // Byte-clean: the stored fragment is written exactly as authored.
 echo $s5_fragment; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- canonical authored HTML, served verbatim by design (Build Order Step 1).

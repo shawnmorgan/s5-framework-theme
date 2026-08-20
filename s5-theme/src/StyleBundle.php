@@ -76,6 +76,22 @@ final class StyleBundle {
 			unset( $e ); // No components dir yet — bundle is just the design system.
 		}
 
+		// 3. Custom CSS — the site-scoped escape hatch, LAST so it wins the cascade.
+		// Deliberately outside the vocabulary arrays (it must not join the closed class
+		// vocabulary the validator enforces), but it MUST reach the bundle or the CSS
+		// screen's Custom layer is a silent no-op. Path from config, with a default.
+		$custom_rel = isset( $config['styles']['custom'] ) && is_string( $config['styles']['custom'] )
+			? $config['styles']['custom']
+			: 'styles/custom.css';
+		$custom_path = $root . '/' . ltrim( $custom_rel, '/' );
+		if ( is_readable( $custom_path ) ) {
+			$custom_css = trim( self::read( $custom_path ) );
+			if ( '' !== $custom_css ) {
+				$parts[] = "/* --- custom (escape hatch) --- */";
+				$parts[] = rtrim( $custom_css, "\n" );
+			}
+		}
+
 		$css     = "/* Compiled by S5 (StyleBundle). Do not edit — regenerated on recompile. */\n"
 			. implode( "\n", $parts ) . "\n";
 		$dist    = $root . '/dist';
