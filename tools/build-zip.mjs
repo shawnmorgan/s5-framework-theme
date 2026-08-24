@@ -43,11 +43,36 @@ const EXCLUDE = [
 	'composer.lock',
 	'.gitignore',
 	'node_modules',
+	'.git',
+	'.github',
+	'__MACOSX',
 ];
+
+// Cruft filenames to prune RECURSIVELY anywhere in the staged tree (macOS/editor
+// droppings that cpSync copies verbatim). A single top-level rm can't catch these —
+// a .DS_Store inside the zip broke `wp theme install` (only copy-install worked).
+const CRUFT_NAMES = new Set(['.DS_Store', '__MACOSX', '.git', 'Thumbs.db', '.svn', 'ehthumbs.db', 'desktop.ini']);
 
 const log = (m) => process.stdout.write(`• ${m}\n`);
 const ok = (m) => process.stdout.write(`✔ ${m}\n`);
 const die = (m) => { process.stderr.write(`✘ ${m}\n`); process.exit(1); };
+
+// Recursively remove cruft files/dirs (by basename) anywhere under `dir`.
+function pruneCruft(dir) {
+	let removed = 0;
+	for (const entry of readdirSync(dir, { withFileTypes: true })) {
+		const full = join(dir, entry.name);
+		if (CRUFT_NAMES.has(entry.name)) {
+			rmSync(full, { recursive: true, force: true });
+			removed++;
+			continue;
+		}
+		if (entry.isDirectory()) {
+			removed += pruneCruft(full);
+		}
+	}
+	return removed;
+}
 
 /* ------------------------------------------------------------------ */
 /* 1. Fresh staging copy of the theme.                                */
@@ -147,6 +172,9 @@ log('Removing dev-only files from the staged theme…');
 for (const rel of EXCLUDE) {
 	rmSync(join(STAGE_THEME, rel), { recursive: true, force: true });
 }
+// Belt-and-braces: prune macOS/editor cruft recursively (cpSync copied it verbatim).
+const cruftRemoved = pruneCruft(STAGE_THEME);
+log(`Pruned ${cruftRemoved} cruft file(s)/dir(s) (.DS_Store/__MACOSX/.git/…).`);
 
 /* ------------------------------------------------------------------ */
 /* 5. Zip it (top-level dir must be s5-theme/).                       */
@@ -154,7 +182,13 @@ for (const rel of EXCLUDE) {
 rmSync(ZIP_OUT, { force: true });
 log('Creating dist/s5-theme.zip…');
 try {
-	execFileSync('zip', ['-r', '-q', '-X', ZIP_OUT, 's5-theme'], { cwd: STAGE, stdio: 'inherit' });
+	// -X drops extra file attributes; -x excludes cruft by pattern as a final guard
+	// (the staged tree is already pruned, so this is defense-in-depth).
+	execFileSync(
+		'zip',
+		['-r', '-q', '-X', ZIP_OUT, 's5-theme', '-x', '*.DS_Store', '-x', '*/__MACOSX/*', '-x', '*/.git/*'],
+		{ cwd: STAGE, stdio: 'inherit' }
+	);
 } catch (e) {
 	die(`zip failed: ${e.message}`);
 }
@@ -191,6 +225,15 @@ for (const m of must) {
 }
 for (const m of mustNot) {
 	if (entries.some((e) => e.startsWith(m))) { process.stderr.write(`  should not ship: ${m}\n`); bad = true; }
+}
+// Cruft assertion: NO .DS_Store / __MACOSX / .git anywhere in the archive. A single
+// such entry can break `wp theme install`, so this fails the build loudly.
+const cruftEntries = entries.filter((e) =>
+	/(^|\/)\.DS_Store$/.test(e) || /(^|\/)__MACOSX(\/|$)/.test(e) || /(^|\/)\.git(\/|$)/.test(e)
+);
+if (cruftEntries.length) {
+	for (const e of cruftEntries) process.stderr.write(`  cruft in zip: ${e}\n`);
+	bad = true;
 }
 if (bad) die('release verification failed.');
 
