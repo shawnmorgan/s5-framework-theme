@@ -36,7 +36,7 @@ $WP_ENV run cli wp s5 import wp-content/s5-pages >/dev/null 2>&1 || info "corpus
 
 # wp-env serves the dev site on :8888 by default.
 SITE_URL="${SITE_URL:-http://localhost:8888}"
-info "1/1  Running viewport matrix against $SITE_URL…"
+info "1/1  Running viewport matrix against ${SITE_URL} ..."
 if SITE_URL="$SITE_URL" node tests/playwright/viewport-matrix.mjs; then
 	pass "viewport matrix passed — pages reflow at 375/768/1440 (innerWidth verified)"
 else
