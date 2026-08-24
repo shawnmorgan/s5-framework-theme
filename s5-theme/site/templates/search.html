@@ -1,0 +1,23 @@
+<s5-part name="site-header"></s5-part>
+<main class="s5-template" data-s5-template="search">
+  <header class="page-hero">
+    <p class="eyebrow">Search results</p>
+    <h1 class="page-hero_title"><s5-search-query></s5-search-query></h1>
+  </header>
+  <div class="post-list">
+    <s5-loop>
+      <article class="post-card">
+        <a class="post-card-link" href='<s5-field name="permalink"></s5-field>'>
+          <p class="eyebrow"><s5-field name="date"></s5-field></p>
+          <h2 class="post-card-title"><s5-field name="title"></s5-field></h2>
+          <p class="post-card-excerpt"><s5-field name="excerpt"></s5-field></p>
+        </a>
+      </article>
+      <s5-empty>
+        <p class="post-list-empty">No results found. Try another search.</p>
+      </s5-empty>
+    </s5-loop>
+  </div>
+  <s5-pagination></s5-pagination>
+</main>
+<s5-part name="site-footer"></s5-part>

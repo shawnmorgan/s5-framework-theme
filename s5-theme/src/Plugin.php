@@ -47,6 +47,7 @@ final class Plugin {
 
 		Storage::register();
 		Render::register();
+		TemplateRouter::register();
 		Revisions::register();
 		Islands::register();
 		Admin::register();
