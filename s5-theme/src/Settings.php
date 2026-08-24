@@ -938,20 +938,20 @@ final class Settings {
 		</div>
 
 		<?php
-		/* TEMPLATE HIERARCHY — the standard WP hierarchy. GAP: this theme renders through
-		 * the canvas path and ships no per-template files, so each row reports "Using
-		 * default" (data unavailable), rendered in the mockup's .tpl-row markup. Logged in
-		 * FIDELITY-EXCEPTIONS.md. Custom/CPT template registration lands with the template
-		 * authoring work. */
+		/* TEMPLATE HIERARCHY — the standard WP hierarchy resolved to S5 canonical-HTML
+		 * templates (TemplateRouter, S5-TEMPLATES-SPEC v0.1). Each row's `key` maps to a
+		 * site/templates/<key>.html file; when that file exists the row is ACTIVE (S5
+		 * renders it), else it reports "Using default" (WordPress renders it). `page` is a
+		 * framework PAGE (canvas), and category/tag/date/author all resolve through the
+		 * shared `archive` template. */
 		$hierarchy = array(
-			array( 'name' => __( 'Front Page', 's5' ), 'file' => 'templates/front-page.html', 'ico' => 'fa-house', 'applies' => __( 'The site homepage', 's5' ) ),
-			array( 'name' => __( 'Single Post', 's5' ), 'file' => 'templates/single.html', 'ico' => 'fa-file-lines', 'applies' => __( 'All blog posts', 's5' ) ),
-			array( 'name' => __( 'Page', 's5' ), 'file' => 'templates/page.html', 'ico' => 'fa-file', 'applies' => __( 'All standard pages', 's5' ) ),
-			array( 'name' => __( 'Archive', 's5' ), 'file' => 'templates/archive.html', 'ico' => 'fa-box-archive', 'applies' => __( 'Date, author & CPT archives', 's5' ) ),
-			array( 'name' => __( 'Category', 's5' ), 'file' => 'templates/category.html', 'ico' => 'fa-folder-tree', 'applies' => __( 'Category term archives', 's5' ) ),
-			array( 'name' => __( 'Search Results', 's5' ), 'file' => 'templates/search.html', 'ico' => 'fa-magnifying-glass', 'applies' => __( 'The search results page', 's5' ) ),
-			array( 'name' => __( '404 Not Found', 's5' ), 'file' => 'templates/404.html', 'ico' => 'fa-triangle-exclamation', 'applies' => __( 'Missing / unresolved URLs', 's5' ) ),
-			array( 'name' => __( 'Blog / Index', 's5' ), 'file' => 'templates/index.html', 'ico' => 'fa-list', 'applies' => __( 'Posts index & catch-all fallback', 's5' ) ),
+			array( 'key' => 'front-page', 'name' => __( 'Front Page', 's5' ), 'ico' => 'fa-house', 'applies' => __( 'The site homepage', 's5' ) ),
+			array( 'key' => 'single', 'name' => __( 'Single Post', 's5' ), 'ico' => 'fa-file-lines', 'applies' => __( 'All blog posts', 's5' ) ),
+			array( 'key' => 'page', 'name' => __( 'Page', 's5' ), 'ico' => 'fa-file', 'applies' => __( 'Framework pages (canvas)', 's5' ) ),
+			array( 'key' => 'archive', 'name' => __( 'Archive', 's5' ), 'ico' => 'fa-box-archive', 'applies' => __( 'Date, author & category/tag archives', 's5' ) ),
+			array( 'key' => 'search', 'name' => __( 'Search Results', 's5' ), 'ico' => 'fa-magnifying-glass', 'applies' => __( 'The search results page', 's5' ) ),
+			array( 'key' => '404', 'name' => __( '404 Not Found', 's5' ), 'ico' => 'fa-triangle-exclamation', 'applies' => __( 'Missing / unresolved URLs', 's5' ) ),
+			array( 'key' => 'index', 'name' => __( 'Blog / Index', 's5' ), 'ico' => 'fa-list', 'applies' => __( 'Posts index & catch-all fallback', 's5' ) ),
 		);
 		?>
 		<div class="card">
@@ -959,15 +959,29 @@ final class Settings {
 				<span class="card-note"><?php esc_html_e( 'WordPress resolves top → bottom', 's5' ); ?></span>
 			</div>
 			<div class="card-body" data-s5-tpl-hierarchy>
-				<?php foreach ( $hierarchy as $t ) : ?>
+				<?php
+				foreach ( $hierarchy as $t ) :
+					$key    = (string) $t['key'];
+					// `page` is a framework-page canvas (always active, not a template file).
+					$active = ( 'page' === $key ) || ( '' !== TemplateRouter::template_path( $key ) );
+					$file   = 'page' === $key ? __( 'canvas (framework pages)', 's5' ) : 'templates/' . $key . '.html';
+					?>
 					<div class="tpl-row">
 						<div class="tpl-ico"><i class="fa-solid <?php echo esc_attr( $t['ico'] ); ?>"></i></div>
 						<div class="tpl-meta">
-							<div class="tpl-name"><?php echo esc_html( $t['name'] ); ?><span class="tpl-file"><?php echo esc_html( $t['file'] ); ?></span></div>
+							<div class="tpl-name"><?php echo esc_html( $t['name'] ); ?><span class="tpl-file"><?php echo esc_html( $file ); ?></span></div>
 							<div class="tpl-applies"><?php echo esc_html( $t['applies'] ); ?></div>
 						</div>
-						<span class="tpl-status default"><span class="d"></span><?php esc_html_e( 'Using default', 's5' ); ?></span>
-						<a class="tpl-edit" href="<?php echo esc_url( self::template_editor_url( basename( (string) $t['file'], '.html' ) ) ); ?>" title="<?php esc_attr_e( 'Edit in canvas editor', 's5' ); ?>"><i class="fa-solid fa-pen"></i></a>
+						<?php if ( $active ) : ?>
+							<span class="tpl-status active"><span class="d"></span><?php esc_html_e( 'Active', 's5' ); ?></span>
+						<?php else : ?>
+							<span class="tpl-status default"><span class="d"></span><?php esc_html_e( 'Using default', 's5' ); ?></span>
+						<?php endif; ?>
+						<?php /* Canvas editing of hierarchy templates (as opposed to parts) is v1.x —
+						 * the ?template= editor mode currently authors PARTS. Until it extends to
+						 * site/templates/*.html, these render but are edited as files, so no pencil
+						 * here (a pencil pointing at a non-part would dead-end). Parts remain
+						 * editable via the parts card below. */ ?>
 					</div>
 				<?php endforeach; ?>
 			</div>
