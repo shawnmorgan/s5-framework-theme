@@ -65,6 +65,8 @@ SUITES=(
 	"tests/acceptance-classswap.sh|Phase B — Style class-swap (R3): axis-swap-only, loud, no free-form"
 	"tests/acceptance-roles.sh|Phase C — Roles (R1) logic only: Roles::can() resolution — demoted, does NOT prove entrances are wired (post-sweep v2 item 1)"
 	"tests/acceptance-roles-login.sh|Phase C+ — Roles & Access, REAL BROWSER LOGINS (the actual standing gate — post-sweep v2 item 1)"
+	"tests/acceptance-preflight-guards.sh|Preflight guards — bare-import (fix #5) · beforeunload (fix #4) · responsive bundle (fix #3), locked into the gate (Amin handoff §4)"
+	"tests/acceptance-viewports.sh|Viewport matrix — real-browser responsive proof across breakpoints (fix #3 live)"
 )
 
 fail_count=0

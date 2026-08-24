@@ -36,7 +36,8 @@
     "test:classswap": "bash tests/acceptance-classswap.sh",
     "test:roles": "bash tests/acceptance-roles.sh",
     "test:roles-login": "bash tests/acceptance-roles-login.sh",
-    "test:viewports": "node tests/playwright/viewport-matrix.mjs",
+    "test:preflight-guards": "bash tests/acceptance-preflight-guards.sh",
+    "test:viewports": "bash tests/acceptance-viewports.sh",
     "test:webkit": "node tests/playwright/webkit-parity.mjs",
     "test:network": "node tests/playwright/network-sweep.mjs"
   },
