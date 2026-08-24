@@ -87,7 +87,13 @@ final class TemplateRouter {
 		if ( is_archive() ) {
 			return 'archive';
 		}
-		// Blog home (posts index) and the catch-all fallback.
+		// The posts index. is_home() is TRUE for both configurations that show the post
+		// loop: the dedicated "Posts page", AND a site set to "Your latest posts" (where
+		// is_home() && is_front_page() are both true). It is FALSE for a static page front
+		// page, so a non-framework static front page correctly does NOT get the blog loop
+		// here (it falls through to WordPress's page template). Framework PAGES — including
+		// a framework page set as the static front page — never reach resolve_key(): route()
+		// defers them to Render first.
 		if ( is_home() ) {
 			return 'index';
 		}
