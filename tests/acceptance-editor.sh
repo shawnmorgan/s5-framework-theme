@@ -89,11 +89,15 @@ PROBE_OUT="$($WP_ENV run cli wp eval-file "$PROBE_C" 2>/dev/null | tr -d '\r')"
 echo "$PROBE_OUT" | grep -q 'SLOT_OK=YES'            || { printf '%s\n' "$PROBE_OUT" >&2; fail "slot save did not round-trip through persist_page"; }
 pass "slot save persisted; canonical+render updated; data-node preserved"
 
-info "4/8  Invalid Code-lens save is rejected; canonical unchanged…"
-echo "$PROBE_OUT" | grep -q 'INVALID_REJECTED=YES'   || fail "invalid canonical was not rejected"
-echo "$PROBE_OUT" | grep -q 'CANON_UNCHANGED=YES'    || fail "canonical changed after a rejected save"
-echo "$PROBE_OUT" | grep -q 'DIAGNOSTICS=YES'        || fail "no diagnostics returned on rejected save"
-pass "invalid save rejected with diagnostics; canonical left unchanged"
+info "4/8  Unknown class is role-aware: dev warns+proceeds, non-dev rejected…"
+# Role-aware validator (v0.18.0): the Developer defines the vocabulary, so an unknown
+# class is a WARNING (the save proceeds) for a developer, but a hard ERROR (rejected)
+# for a marketer/client. Security rules (section 5) still reject for everyone.
+echo "$PROBE_OUT" | grep -q 'DEV_UNKNOWN_ALLOWED=YES'     || fail "a Developer's unknown class was blocked (should warn + proceed)"
+echo "$PROBE_OUT" | grep -q 'NONDEV_UNKNOWN_REJECTED=YES' || fail "a non-developer's unknown class was NOT rejected (closed vocabulary must hold for them)"
+echo "$PROBE_OUT" | grep -q 'CANON_UNCHANGED=YES'         || fail "canonical changed after a non-developer's rejected save"
+echo "$PROBE_OUT" | grep -q 'DIAGNOSTICS=YES'             || fail "no diagnostics returned on the non-developer's rejected save"
+pass "unknown class: developer warns + proceeds; non-developer rejected with diagnostics (canonical unchanged)"
 
 # ---------------------------------------------------------------------------
 # 5. D-fix #6 regression guard: the save door independently rejects the same

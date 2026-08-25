@@ -53,17 +53,68 @@ $slot_ok = $slot_ok
 	&& false !== strpos( $canon, 'about-hero-title' );
 echo 'SLOT_OK=' . ( $slot_ok ? 'YES' : 'NO' ) . "\n";
 
-/* --- 2. invalid canonical save is rejected; canonical unchanged -------- */
-$before  = S5\Storage::get_canonical_html( $post_id );
-$bad     = str_replace( '<main', '<main class="zzz-not-a-real-vocab-class"', $before );
-$badreq  = $make( $post_id );
-$badreq->set_param( 'mode', 'canonical' );
-$badreq->set_param( 'canonical', $bad );
-$badresp = S5\Rest::handle_save( $badreq );
-$baddata = is_wp_error( $badresp ) ? array() : $badresp->get_data();
-echo 'INVALID_REJECTED=' . ( empty( $baddata['ok'] ) ? 'YES' : 'NO' ) . "\n";
-echo 'DIAGNOSTICS=' . ( ! empty( $baddata['diagnostics'] ) ? 'YES' : 'NO' ) . "\n";
-echo 'CANON_UNCHANGED=' . ( S5\Storage::get_canonical_html( $post_id ) === $before ? 'YES' : 'NO' ) . "\n";
+/* --- 2. Unknown class is ROLE-AWARE (role-aware validator, v0.18.0) -------
+ * The Developer defines the vocabulary, so an unknown class in the code lens is a
+ * WARNING (proceeds), NOT a hard error — the closed-vocabulary wall protects
+ * marketers/clients, not the dev who owns the stylesheet. So:
+ *   - a DEVELOPER save with an unknown class is ACCEPTED (with a warning diagnostic);
+ *   - a NON-DEVELOPER (Author→client) save with the same class is REJECTED, unchanged.
+ * Security rules (section 5) still reject for EVERYONE regardless of role. */
+$bad_class = 'zzz-not-a-real-vocab-class';
+
+// (a) Developer (user 1) — unknown class WARNS and proceeds; canonical changes.
+wp_set_current_user( 1 );
+$dev_before = S5\Storage::get_canonical_html( $post_id );
+$dev_bad    = str_replace( '<main', '<main class="' . $bad_class . '"', $dev_before );
+$dev_req    = $make( $post_id );
+$dev_req->set_param( 'mode', 'canonical' );
+$dev_req->set_param( 'canonical', $dev_bad );
+$dev_resp   = S5\Rest::handle_save( $dev_req );
+$dev_data   = is_wp_error( $dev_resp ) ? array() : $dev_resp->get_data();
+$dev_ok     = ! empty( $dev_data['ok'] );
+$dev_changed = S5\Storage::get_canonical_html( $post_id ) !== $dev_before;
+echo 'DEV_UNKNOWN_ALLOWED=' . ( $dev_ok && $dev_changed ? 'YES' : 'NO' ) . "\n";
+
+// Restore the good canonical for the rest of the probe.
+S5\Compiler::persist_page( $post_id, $dev_before );
+
+// (b) Non-developer who CAN reach a canonical save — a MARKETER (WP Editor → S5
+// marketer). A marketer holds editor.advanced (so the canonical save is not blocked
+// by the role gate), which is exactly the role that must still hit the closed-
+// vocabulary wall: the unknown class is REJECTED with diagnostics, canonical
+// unchanged. (A client/author can't reach a canonical save at all — a role gate, not
+// a vocabulary rejection — so a marketer is the correct role to prove the boundary.)
+$mkt_id = username_exists( 's5probe_marketer' );
+if ( ! $mkt_id ) {
+	$mkt_id = wp_insert_user(
+		array(
+			'user_login' => 's5probe_marketer',
+			'user_pass'  => wp_generate_password( 20 ),
+			'role'       => 'editor',
+		)
+	);
+}
+if ( ! is_wp_error( $mkt_id ) ) {
+	wp_set_current_user( (int) $mkt_id );
+	$mkt_before = S5\Storage::get_canonical_html( $post_id );
+	$mkt_bad    = str_replace( '<main', '<main class="' . $bad_class . '"', $mkt_before );
+	$mkt_req    = $make( $post_id );
+	$mkt_req->set_param( 'mode', 'canonical' );
+	$mkt_req->set_param( 'canonical', $mkt_bad );
+	$mkt_resp   = S5\Rest::handle_save( $mkt_req );
+	$mkt_data   = is_wp_error( $mkt_resp ) ? array() : $mkt_resp->get_data();
+	$mkt_rejected  = empty( $mkt_data['ok'] );
+	$mkt_diag      = ! empty( $mkt_data['diagnostics'] );
+	$mkt_unchanged = S5\Storage::get_canonical_html( $post_id ) === $mkt_before;
+	echo 'NONDEV_UNKNOWN_REJECTED=' . ( $mkt_rejected ? 'YES' : 'NO' ) . "\n";
+	echo 'DIAGNOSTICS=' . ( $mkt_diag ? 'YES' : 'NO' ) . "\n";
+	echo 'CANON_UNCHANGED=' . ( $mkt_unchanged ? 'YES' : 'NO' ) . "\n";
+} else {
+	echo "NONDEV_UNKNOWN_REJECTED=NO\nDIAGNOSTICS=NO\nCANON_UNCHANGED=NO\n";
+}
+// Back to admin for the remaining sections (security probes run as developer;
+// security rules reject for every role, so the role here does not matter).
+wp_set_current_user( 1 );
 
 /* --- 3. head save updates _s5_head ------------------------------------ */
 $headreq = $make( $post_id );
