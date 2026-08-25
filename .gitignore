@@ -16,6 +16,13 @@ node_modules/
 # generated from pages/ + parts/ and is never the source of truth.
 dist/
 
+# Per-install custom-element registry, written when a Developer clicks "New element"
+# in the Styles tab. It is runtime state of a given install (like uploads), not theme
+# source: a fresh install starts with only the built-in primitives. The element CSS
+# itself lives in components.css (which IS tracked); only this identity registry is
+# per-install. Excluded from the release zip too (tools/build-zip.mjs).
+s5-theme/site/atoms/
+
 # Local environment
 .env
 .env.local

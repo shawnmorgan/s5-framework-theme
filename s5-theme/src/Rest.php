@@ -111,6 +111,19 @@ final class Rest {
 			)
 		);
 
+		// Component CREATE (collection-level): POST /components with { name } mints a new
+		// components/<name>/ with a valid starter, so it is registered + openable in the
+		// builder. Separate from the per-name save route (which only EDITS existing).
+		register_rest_route(
+			self::NAMESPACE,
+			'/components',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( self::class, 'handle_component_create' ),
+				'permission_callback' => array( self::class, 'can_save' ),
+			)
+		);
+
 		// Template PART source save (Phase C §3.3): a part is canonical HTML edited in
 		// the canvas in template mode. Its own route (not page-scoped); same
 		// manage_options + wp_rest nonce discipline. The body's `canonical` is validated
@@ -447,6 +460,53 @@ final class Rest {
 				'css'      => $c['css'],
 			),
 			200
+		);
+	}
+
+	/**
+	 * POST-create a NEW component (collection route): mint components/<name>/ with a
+	 * valid starter, rebuild the bundle, and return the new name so the UI can open it
+	 * in the builder. Same role gate as editing (settings.components).
+	 *
+	 * @param \WP_REST_Request $request Request. Body: { name, description? }.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public static function handle_component_create( \WP_REST_Request $request ) {
+		if ( ! Roles::can( 'settings.components' ) ) {
+			return new \WP_Error( 's5_role_components', __( 'Your role cannot add components.', 's5' ), array( 'status' => 403 ) );
+		}
+		$name = trim( (string) $request->get_param( 'name' ) );
+		$desc = (string) $request->get_param( 'description' );
+
+		if ( '' === $name ) {
+			return new \WP_REST_Response( array( 'ok' => false, 'diagnostics' => array( array( 'message' => __( 'Give the component a name.', 's5' ) ) ) ), 400 );
+		}
+		if ( ! ComponentRegistry::is_safe_name( $name ) ) {
+			return new \WP_REST_Response( array( 'ok' => false, 'diagnostics' => array( array( 'message' => __( 'Use letters, numbers, - or _ only (e.g. pricing-card).', 's5' ) ) ) ), 400 );
+		}
+		if ( ComponentRegistry::is_registered( $name ) ) {
+			return new \WP_REST_Response( array( 'ok' => false, 'diagnostics' => array( array( 'message' => __( 'A component with that name already exists.', 's5' ) ) ) ), 409 );
+		}
+
+		try {
+			ComponentRegistry::create_component( $name, $desc );
+			StyleBundle::build();
+		} catch ( \RuntimeException $e ) {
+			return new \WP_REST_Response(
+				array(
+					'ok'          => false,
+					'diagnostics' => array( array( 'message' => $e->getMessage() ) ),
+				),
+				422
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'ok'   => true,
+				'name' => $name,
+			),
+			201
 		);
 	}
 

@@ -631,3 +631,13 @@
 .s5set .sg-el-actions .field-hint{margin:0;}
 .s5set .sg-el-readonly{background:var(--s5e-canvas,#111318);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm,6px);padding:10px 12px;overflow:auto;}
 .s5set .sg-el-readonly code{font-family:var(--s5e-mono);font-size:12px;color:var(--s5e-text-dim);white-space:pre;}
+
+/* "New element" — the toggle sits in the part head (pushed right); the form is a
+ * full-width card that reveals above the element grid. */
+.s5set .sg-part-head{position:relative;}
+.s5set .sg-new-el-toggle{margin-left:auto;align-self:center;}
+.s5set .sg-new-el-form{margin:0 0 16px;}
+.s5set .sg-new-el-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.s5set .sg-new-el-grid .sg-new-el-css{grid-column:1 / -1;}
+.s5set .sg-new-el-grid .sg-el-actions{grid-column:1 / -1;}
+@media (max-width:720px){.s5set .sg-new-el-grid{grid-template-columns:1fr;}}

@@ -46,6 +46,13 @@ const EXCLUDE = [
 	'.git',
 	'.github',
 	'__MACOSX',
+	// Per-install runtime state, not shipped source: the custom-element registry is
+	// written when a Developer clicks "New element" on THIS install. A fresh install
+	// starts with only the built-in primitives (ElementStyles falls back to [] when
+	// the file is absent), so shipping one install's customs to every install would
+	// leak dev/test state. The element CSS itself lives in components.css (which DOES
+	// ship); only the identity registry is per-install.
+	'site/atoms',
 ];
 
 // Cruft filenames to prune RECURSIVELY anywhere in the staged tree (macOS/editor

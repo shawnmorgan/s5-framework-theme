@@ -77,25 +77,222 @@ final class ElementStyles {
 	);
 
 	/**
+	 * Custom-element registry file, relative to the SITE root (site/). Holds the
+	 * elements a Developer adds through the UI ("New element"), as a JSON array of
+	 * {key,label,selector,icon,sample}. This is the seed of the v2 element-atom
+	 * registry (ATOMIC-SPEC §5) — v1.x stores identity + selector; prop capabilities
+	 * arrive in v2. The CSS itself lives in components.css like the built-ins, so a
+	 * custom element is real closed-vocabulary the validator sees.
+	 */
+	private const REGISTRY_REL = 'atoms/elements.json';
+
+	/**
+	 * The full registry: the built-in primitives plus any Developer-added custom
+	 * elements (custom entries carry `custom => true`). Deduped by key — a custom
+	 * entry can never shadow a built-in key.
+	 *
+	 * @return array<int, array{key:string,label:string,selector:string,icon:string,sample:string,custom:bool}>
+	 */
+	public static function registry(): array {
+		$out  = array();
+		$keys = array();
+		foreach ( self::REGISTERED as $el ) {
+			$el['custom'] = false;
+			$out[]        = $el;
+			$keys[]       = $el['key'];
+		}
+		foreach ( self::read_custom_registry() as $el ) {
+			if ( in_array( $el['key'], $keys, true ) ) {
+				continue; // never shadow a built-in.
+			}
+			$el['custom'] = true;
+			$out[]        = $el;
+			$keys[]       = $el['key'];
+		}
+		return $out;
+	}
+
+	/**
 	 * The registered elements, each with its CURRENT rule text read from the file.
 	 *
-	 * Every REGISTERED entry is returned; entries whose selector has no rule in the
-	 * file carry `rule => ''` and `defined => false` so the UI can show them as
-	 * "not yet defined" (a real, discoverable state — the developer can author it)
-	 * rather than dropping them silently.
+	 * Every registry entry (built-in + custom) is returned; entries whose selector
+	 * has no rule in the file carry `rule => ''` and `defined => false` so the UI can
+	 * show them as "not yet defined" rather than dropping them silently.
 	 *
-	 * @return array<int, array{key:string,label:string,selector:string,icon:string,sample:string,rule:string,defined:bool}>
+	 * @return array<int, array{key:string,label:string,selector:string,icon:string,sample:string,custom:bool,rule:string,defined:bool}>
 	 */
 	public static function list_elements(): array {
 		$css = self::read_layer_css();
 		$out = array();
-		foreach ( self::REGISTERED as $el ) {
+		foreach ( self::registry() as $el ) {
 			$rule          = self::extract_rule( $css, $el['selector'] );
 			$el['rule']    = $rule;
 			$el['defined'] = ( '' !== $rule );
 			$out[]         = $el;
 		}
 		return $out;
+	}
+
+	/**
+	 * Register a NEW custom element from the UI: validate identity, append it to the
+	 * registry file, and seed its CSS rule in components.css. The caller recompiles
+	 * the bundle. Idempotency + collision are enforced (a key/selector already in the
+	 * built-in set or the custom registry is refused).
+	 *
+	 * @param string $label     Human label (e.g. "Badge").
+	 * @param string $selector  CSS class selector (e.g. ".badge") — a single class.
+	 * @param string $css       Starting declarations (no braces); may be '' to seed a stub.
+	 * @param string $icon      Optional FontAwesome glyph (e.g. "fa-tag"); defaulted if empty.
+	 * @return array{key:string}|\WP_Error The new element key, or a WP_Error.
+	 */
+	public static function create_element( string $label, string $selector, string $css = '', string $icon = '' ) {
+		$label    = trim( wp_strip_all_tags( $label ) );
+		$selector = trim( $selector );
+		$icon     = trim( $icon );
+
+		if ( '' === $label ) {
+			return new \WP_Error( 's5_el_label', __( 'Give the element a name.', 's5' ), array( 'status' => 400 ) );
+		}
+		// Selector must be a SINGLE class selector (.foo or .foo-bar or .block__el /
+		// .block--mod) — no descendant/compound/tag selectors, so it stays a clean
+		// vocabulary entry the validator can enforce.
+		if ( ! preg_match( '/^\.[a-z][a-z0-9]*(?:[-_]{1,2}[a-z0-9]+)*$/i', $selector ) ) {
+			return new \WP_Error( 's5_el_selector', __( 'Selector must be a single class, e.g. .badge or .price-tag.', 's5' ), array( 'status' => 400 ) );
+		}
+
+		$key = self::selector_to_key( $selector );
+
+		// Collision: never duplicate a built-in or an existing custom key/selector.
+		foreach ( self::registry() as $existing ) {
+			if ( $existing['key'] === $key || strcasecmp( $existing['selector'], $selector ) === 0 ) {
+				return new \WP_Error( 's5_el_exists', __( 'An element with that name or selector already exists.', 's5' ), array( 'status' => 409 ) );
+			}
+		}
+
+		// Seed CSS: a stub if none given, so the element is immediately "defined" and
+		// visibly stylable. Validated by the SAME rules as an edit (no braces/markup,
+		// no dangerous values, well-formed) so the create path is not a weaker door.
+		$decls = trim( str_replace( "\r\n", "\n", $css ) );
+		if ( '' === $decls ) {
+			$decls = 'display: inline-block;';
+		}
+		$invalid = self::validate_declarations( $decls );
+		if ( null !== $invalid ) {
+			return $invalid;
+		}
+
+		// Two writes must both land or neither: the CSS rule and the registry entry.
+		// Do the CSS write FIRST (the failure-prone one — the file may be read-only),
+		// and only record the registry entry once the CSS is safely on disk. If the CSS
+		// write fails, nothing was recorded, so the name stays free to retry (no
+		// orphaned, un-recreatable half-element).
+		$css_before = self::read_layer_css();
+		$rebuilt    = self::replace_rule( $css_before, $selector, $decls );
+		if ( is_wp_error( $rebuilt ) ) {
+			return $rebuilt;
+		}
+		$written = Settings::write_css_layer( self::LAYER_KEY, $rebuilt );
+		if ( is_wp_error( $written ) ) {
+			return $written; // CSS not written → registry untouched → name recreatable.
+		}
+
+		$entry = array(
+			'key'      => $key,
+			'label'    => $label,
+			'selector' => $selector,
+			'icon'     => '' !== $icon ? $icon : 'fa-shapes',
+			'sample'   => $label,
+		);
+		$saved = self::write_custom_registry( array_merge( self::read_custom_registry(), array( $entry ) ) );
+		if ( is_wp_error( $saved ) ) {
+			// Registry write failed AFTER the CSS landed — roll the CSS back so the two
+			// stores stay consistent and the name is recreatable.
+			Settings::write_css_layer( self::LAYER_KEY, $css_before );
+			return $saved;
+		}
+
+		return array( 'key' => $key );
+	}
+
+	/**
+	 * A stable registry key from a class selector ('.price-tag' → 'price-tag',
+	 * '.btn--ghost' → 'btn-ghost').
+	 *
+	 * @param string $selector Class selector.
+	 * @return string
+	 */
+	private static function selector_to_key( string $selector ): string {
+		$k = strtolower( ltrim( $selector, '.' ) );
+		$k = (string) preg_replace( '/[^a-z0-9]+/', '-', $k );
+		return trim( $k, '-' );
+	}
+
+	/**
+	 * Read the custom-element registry (validated, safe entries only). Returns [] if
+	 * the file is absent or unreadable — custom elements are purely additive.
+	 *
+	 * @return array<int, array{key:string,label:string,selector:string,icon:string,sample:string}>
+	 */
+	private static function read_custom_registry(): array {
+		$path = self::registry_path();
+		if ( '' === $path || ! is_readable( $path ) ) {
+			return array();
+		}
+		$decoded = json_decode( (string) file_get_contents( $path ), true ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local registry file.
+		if ( ! is_array( $decoded ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $decoded as $row ) {
+			if ( ! is_array( $row ) || empty( $row['key'] ) || empty( $row['selector'] ) ) {
+				continue;
+			}
+			$out[] = array(
+				'key'      => (string) $row['key'],
+				'label'    => (string) ( $row['label'] ?? $row['key'] ),
+				'selector' => (string) $row['selector'],
+				'icon'     => (string) ( $row['icon'] ?? 'fa-shapes' ),
+				'sample'   => (string) ( $row['sample'] ?? ( $row['label'] ?? $row['key'] ) ),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Write the custom-element registry (creates site/atoms/ if needed).
+	 *
+	 * @param array<int, array<string,string>> $entries Registry entries.
+	 * @return true|\WP_Error
+	 */
+	private static function write_custom_registry( array $entries ) {
+		$path = self::registry_path();
+		if ( '' === $path ) {
+			return new \WP_Error( 's5_el_registry', __( 'Could not resolve the element registry path.', 's5' ), array( 'status' => 500 ) );
+		}
+		$dir = dirname( $path );
+		if ( ! is_dir( $dir ) && ! wp_mkdir_p( $dir ) ) {
+			return new \WP_Error( 's5_el_registry_dir', __( 'Could not create the element registry directory.', 's5' ), array( 'status' => 500 ) );
+		}
+		$json = wp_json_encode( array_values( $entries ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		if ( false === $json ) {
+			return new \WP_Error( 's5_el_registry_json', __( 'Could not encode the element registry.', 's5' ), array( 'status' => 500 ) );
+		}
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- local registry file, admin-gated.
+		if ( false === file_put_contents( $path, $json . "\n" ) ) {
+			return new \WP_Error( 's5_el_registry_write', __( 'Could not write the element registry.', 's5' ), array( 'status' => 500 ) );
+		}
+		return true;
+	}
+
+	/**
+	 * Absolute path to the custom-element registry file (or '' if the site root can't
+	 * be resolved).
+	 *
+	 * @return string
+	 */
+	private static function registry_path(): string {
+		$base = trailingslashit( get_stylesheet_directory() ) . 'site/';
+		return $base . self::REGISTRY_REL;
 	}
 
 	/**
@@ -130,7 +327,7 @@ final class ElementStyles {
 	 */
 	public static function update_element( string $key, string $declarations ) {
 		$el = null;
-		foreach ( self::REGISTERED as $candidate ) {
+		foreach ( self::registry() as $candidate ) {
 			if ( $candidate['key'] === $key ) {
 				$el = $candidate;
 				break;
@@ -141,24 +338,9 @@ final class ElementStyles {
 		}
 
 		$declarations = trim( str_replace( "\r\n", "\n", $declarations ) );
-
-		// The body is DECLARATIONS ONLY: no braces (which would smuggle a second rule
-		// or close this one early) and no '<' (markup). An empty body is refused — an
-		// element with no declarations is a mistake, not a valid save (delete is a
-		// different, deliberate operation not offered here).
-		if ( '' === $declarations ) {
-			return new \WP_Error( 's5_el_empty', __( 'The element has no CSS. Add at least one declaration.', 's5' ), array( 'status' => 400 ) );
-		}
-		if ( false !== strpos( $declarations, '{' ) || false !== strpos( $declarations, '}' ) ) {
-			return new \WP_Error( 's5_el_braces', __( 'Remove the braces — edit only the declarations inside the rule.', 's5' ), array( 'status' => 400 ) );
-		}
-		if ( false !== strpos( $declarations, '<' ) ) {
-			return new \WP_Error( 's5_el_markup', __( 'That is not valid CSS.', 's5' ), array( 'status' => 400 ) );
-		}
-		// Each non-empty line-or-segment must look like `prop: value` — a light
-		// well-formedness check so a typo does not silently produce a broken bundle.
-		if ( ! self::declarations_well_formed( $declarations ) ) {
-			return new \WP_Error( 's5_el_malformed', __( 'Each line must be a `property: value;` declaration.', 's5' ), array( 'status' => 400 ) );
+		$invalid      = self::validate_declarations( $declarations );
+		if ( null !== $invalid ) {
+			return $invalid;
 		}
 
 		$css     = self::read_layer_css();
@@ -307,6 +489,45 @@ final class ElementStyles {
 			$lines[] = "\t" . $line;
 		}
 		return implode( "\n", $lines );
+	}
+
+	/**
+	 * Validate a declaration body for BOTH create and edit (one door, one policy).
+	 * Returns null when safe, or a WP_Error naming the first problem. This is the
+	 * single place the element-CSS safety rules live so the create and edit paths can
+	 * never diverge (the audit found create was the weaker door).
+	 *
+	 * Refuses, in order: empty; braces (rule smuggling / early close); markup ('<');
+	 * CSS comments ('/*' or '*' + '/', which can hide a smuggled construct past the
+	 * line-wise well-formedness check); dangerous URL schemes and expression() inside
+	 * a value (javascript:/vbscript:/data: script vectors, IE expression()); then the
+	 * line-wise `property: value` well-formedness check.
+	 *
+	 * @param string $declarations Trimmed declaration body (no braces expected).
+	 * @return \WP_Error|null Null when safe.
+	 */
+	private static function validate_declarations( string $declarations ) {
+		if ( '' === $declarations ) {
+			return new \WP_Error( 's5_el_empty', __( 'The element has no CSS. Add at least one declaration.', 's5' ), array( 'status' => 400 ) );
+		}
+		if ( false !== strpos( $declarations, '{' ) || false !== strpos( $declarations, '}' ) ) {
+			return new \WP_Error( 's5_el_braces', __( 'Remove the braces — edit only the declarations inside the rule.', 's5' ), array( 'status' => 400 ) );
+		}
+		if ( false !== strpos( $declarations, '<' ) ) {
+			return new \WP_Error( 's5_el_markup', __( 'That is not valid CSS.', 's5' ), array( 'status' => 400 ) );
+		}
+		// CSS comments could hide a smuggled construct from the line-wise check below.
+		if ( false !== strpos( $declarations, '/*' ) || false !== strpos( $declarations, '*/' ) ) {
+			return new \WP_Error( 's5_el_comment', __( 'Remove CSS comments from element declarations.', 's5' ), array( 'status' => 400 ) );
+		}
+		// Dangerous value vectors: script-bearing URL schemes and IE expression().
+		if ( preg_match( '/(?:javascript|vbscript|data)\s*:/i', $declarations ) || preg_match( '/expression\s*\(/i', $declarations ) ) {
+			return new \WP_Error( 's5_el_danger', __( 'That value is not allowed (script/expression URLs are blocked).', 's5' ), array( 'status' => 400 ) );
+		}
+		if ( ! self::declarations_well_formed( $declarations ) ) {
+			return new \WP_Error( 's5_el_malformed', __( 'Each line must be a `property: value;` declaration.', 's5' ), array( 'status' => 400 ) );
+		}
+		return null;
 	}
 
 	/**

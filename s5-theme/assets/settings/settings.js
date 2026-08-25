@@ -270,4 +270,36 @@
 
 	/* ---- StyleGuide: token edit pencils are native <details> (no JS needed);
 	   the per-token form POSTs through the one-door token save. Nothing to bind. */
+
+	/* ---- Styles → Element styles: "New element" form reveal/hide. The form works
+	   without JS (it is a normal POST form); JS just keeps it collapsed until asked,
+	   and focuses the first field on open. */
+	( function () {
+		var toggle = root.querySelector( '[data-s5-new-element-toggle]' );
+		var form = root.querySelector( '[data-s5-new-element-form]' );
+		if ( ! toggle || ! form ) {
+			return;
+		}
+		var cancel = form.querySelector( '[data-s5-new-element-cancel]' );
+		function open() {
+			form.hidden = false;
+			var first = form.querySelector( 'input[name="label"]' );
+			if ( first ) {
+				first.focus();
+			}
+		}
+		function close() {
+			form.hidden = true;
+		}
+		toggle.addEventListener( 'click', function () {
+			if ( form.hidden ) {
+				open();
+			} else {
+				close();
+			}
+		} );
+		if ( cancel ) {
+			cancel.addEventListener( 'click', close );
+		}
+	}() );
 }() );

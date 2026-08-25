@@ -247,6 +247,68 @@ final class ComponentRegistry {
 	 *
 	 * @throws \RuntimeException On an invalid name, missing dir, bad manifest, or write failure.
 	 */
+	/**
+	 * Create a NEW component from the UI: mint components/<name>/ with a valid starter
+	 * component.html + manifest.json + style.css, so it is immediately registered
+	 * (registration is by presence) and openable in the builder. Refuses an unsafe or
+	 * already-existing name. The caller rebuilds the CSS bundle.
+	 *
+	 * The starter HTML is deliberately minimal and vocabulary-clean (a single card
+	 * using registered classes) so the new component validates on its first save and
+	 * gives the author a real, editable shape rather than a blank box.
+	 *
+	 * @param string $name        Component name (path-safe, not already registered).
+	 * @param string $description Optional human description for the manifest.
+	 * @return true
+	 *
+	 * @throws \RuntimeException On an invalid name, a name collision, or write failure.
+	 */
+	public static function create_component( string $name, string $description = '' ): bool {
+		$name = trim( $name );
+		if ( ! self::is_safe_name( $name ) ) {
+			throw new \RuntimeException( esc_html( sprintf( 'invalid component name "%s" — use letters, numbers, - or _', $name ) ) );
+		}
+		$base = self::components_dir() . '/' . $name;
+		if ( is_dir( $base ) ) {
+			throw new \RuntimeException( esc_html( sprintf( 'component "%s" already exists', $name ) ) );
+		}
+		if ( ! wp_mkdir_p( $base ) ) {
+			throw new \RuntimeException( esc_html( sprintf( 'could not create component dir for "%s"', $name ) ) );
+		}
+
+		$desc = '' !== trim( $description ) ? trim( $description ) : sprintf( 'The %s component.', $name );
+
+		// Starter HTML: a registered-vocabulary card with a {{ title }} prop, so the
+		// new component is valid on first save and demonstrates the prop convention.
+		$html = "<div class=\"card\">\n\t<h3 class=\"page-hero_title\">{{ title }}</h3>\n</div>\n";
+
+		// Starter manifest: version + one text prop the HTML references.
+		$manifest = wp_json_encode(
+			array(
+				'version'     => '0.1.0',
+				'description' => $desc,
+				'props'       => array(
+					'title' => array(
+						'label' => 'Title',
+						'type'  => 'Text',
+					),
+				),
+			),
+			JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+		);
+		if ( false === $manifest ) {
+			throw new \RuntimeException( 'could not encode the starter manifest' );
+		}
+
+		$css = sprintf( "/* %s component styles. Scoped design-system CSS lives in the CSS tab; this ships with the component. */\n", $name );
+
+		self::write_file( $base . '/' . self::HTML_FILE, $html );
+		self::write_file( $base . '/' . self::MANIFEST_FILE, rtrim( $manifest, "\n" ) . "\n" );
+		self::write_file( $base . '/' . self::CSS_FILE, $css );
+
+		return true;
+	}
+
 	public static function save_component( string $name, string $html, string $manifest, string $css ): bool {
 		if ( ! self::is_safe_name( $name ) ) {
 			throw new \RuntimeException( esc_html( sprintf( 'invalid component name "%s"', $name ) ) );

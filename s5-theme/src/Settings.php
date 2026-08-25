@@ -110,6 +110,12 @@ final class Settings {
 	public const ACTION_SAVE_ELEMENT = 's5_save_element';
 
 	/**
+	 * Admin-post action: register a NEW custom element (Styles tab, "New element")
+	 * + recompile the bundle.
+	 */
+	public const ACTION_NEW_ELEMENT = 's5_new_element';
+
+	/**
 	 * The editable CSS files, keyed by the short name the form posts. Each maps to a
 	 * real file under site/styles/. This is the ALLOW-LIST — a save is refused for any
 	 * name not in here, so the surface can never write outside the design-system dir.
@@ -139,6 +145,7 @@ final class Settings {
 		add_action( 'admin_post_' . self::ACTION_SAVE_REDIRECTS, array( self::class, 'handle_save_redirects' ) );
 		add_action( 'admin_post_' . self::ACTION_SAVE_CSS, array( self::class, 'handle_save_css' ) );
 		add_action( 'admin_post_' . self::ACTION_SAVE_ELEMENT, array( self::class, 'handle_save_element' ) );
+		add_action( 'admin_post_' . self::ACTION_NEW_ELEMENT, array( self::class, 'handle_new_element' ) );
 	}
 
 	/**
@@ -410,6 +417,39 @@ final class Settings {
 			self::redirect_screen( 'styleguide', 'success', __( 'Element style saved and design system recompiled.', 's5' ) );
 		} catch ( \Throwable $e ) {
 			self::redirect_screen( 'styleguide', 'warning', __( 'Element style saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Handle a NEW element registration (Styles tab → "New element"): register the
+	 * primitive (identity + selector in the atoms registry, starting CSS in
+	 * components.css) via {@see ElementStyles::create_element}, then recompile so it
+	 * is immediately live and editable. Developer-tier (settings.css), nonce-checked.
+	 *
+	 * @return void
+	 */
+	public static function handle_new_element(): void {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'settings.css' ) ) {
+			wp_die( esc_html__( 'You do not have permission to add elements.', 's5' ) );
+		}
+		check_admin_referer( self::ACTION_NEW_ELEMENT );
+
+		$label    = isset( $_POST['label'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['label'] ) ) : '';
+		$selector = isset( $_POST['selector'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['selector'] ) ) : '';
+		$icon     = isset( $_POST['icon'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['icon'] ) ) : '';
+		// Raw CSS declarations (verbatim source); validated in ElementStyles.
+		$css = isset( $_POST['declarations'] ) ? (string) wp_unslash( $_POST['declarations'] ) : ''; // phpcs:ignore WordPress.Security.ValidationSanitization.InputNotSanitized -- verbatim CSS declarations, validated + allow-listed in ElementStyles.
+
+		$res = ElementStyles::create_element( $label, $selector, $css, $icon );
+		if ( is_wp_error( $res ) ) {
+			self::redirect_screen( 'styleguide', 'error', $res->get_error_message() );
+		}
+
+		try {
+			StyleBundle::build();
+			self::redirect_screen( 'styleguide', 'success', __( 'Element registered and design system recompiled.', 's5' ) );
+		} catch ( \Throwable $e ) {
+			self::redirect_screen( 'styleguide', 'warning', __( 'Element registered, but the recompile failed: ', 's5' ) . $e->getMessage() );
 		}
 	}
 
@@ -878,7 +918,47 @@ final class Settings {
 					<h3 class="sg-part-title"><?php esc_html_e( 'Element styles', 's5' ); ?></h3>
 					<p class="sg-part-sub"><?php esc_html_e( 'The registered primitives and their real CSS. Edit any property — use var(--s5-…) to pull from the tokens and scales above. Saved edits recompile the site and every page that uses the element.', 's5' ); ?></p>
 				</div>
+				<?php if ( $can_edit_elements ) : ?>
+					<button type="button" class="btn btn--primary sg-new-el-toggle" data-s5-new-element-toggle>
+						<i class="fa-solid fa-plus"></i> <?php esc_html_e( 'New element', 's5' ); ?>
+					</button>
+				<?php endif; ?>
 			</div>
+
+			<?php if ( $can_edit_elements ) : ?>
+				<?php /* NEW ELEMENT form — hidden until "New element" is clicked (JS toggles
+				 * [hidden]); works without JS too (it is a normal form, just visible). */ ?>
+				<form class="card sg-new-el-form" data-s5-new-element-form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" hidden>
+					<?php wp_nonce_field( self::ACTION_NEW_ELEMENT ); ?>
+					<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_NEW_ELEMENT ); ?>">
+					<div class="card-head"><i class="fa-solid fa-plus"></i><h3><?php esc_html_e( 'Register a new element', 's5' ); ?></h3></div>
+					<div class="card-body sg-new-el-grid">
+						<div class="field">
+							<label class="field-label"><?php esc_html_e( 'Name', 's5' ); ?></label>
+							<input class="input" name="label" placeholder="<?php esc_attr_e( 'Badge', 's5' ); ?>" required>
+						</div>
+						<div class="field">
+							<label class="field-label"><?php esc_html_e( 'Class selector', 's5' ); ?></label>
+							<input class="input" name="selector" placeholder=".badge" pattern="\.[A-Za-z].*" required style="font-family:var(--s5e-mono)">
+							<p class="field-hint"><?php esc_html_e( 'A single class, e.g. .badge or .price-tag.', 's5' ); ?></p>
+						</div>
+						<div class="field">
+							<label class="field-label"><?php esc_html_e( 'Icon', 's5' ); ?> <span class="opt"><?php esc_html_e( 'optional', 's5' ); ?></span></label>
+							<input class="input" name="icon" placeholder="fa-tag" style="font-family:var(--s5e-mono)">
+							<p class="field-hint"><?php esc_html_e( 'A FontAwesome name (defaults to fa-shapes).', 's5' ); ?></p>
+						</div>
+						<div class="field sg-new-el-css">
+							<label class="field-label"><?php esc_html_e( 'Starting CSS', 's5' ); ?> <span class="opt"><?php esc_html_e( 'optional', 's5' ); ?></span></label>
+							<textarea class="input sg-el-code" name="declarations" rows="4" spellcheck="false" placeholder="display: inline-block;&#10;padding: .2em .6em;&#10;border-radius: var(--s5-radius-sm);"></textarea>
+						</div>
+						<div class="sg-el-actions">
+							<button type="submit" class="btn btn--primary"><i class="fa-solid fa-check"></i> <?php esc_html_e( 'Register element', 's5' ); ?></button>
+							<button type="button" class="btn btn--ghost" data-s5-new-element-cancel><?php esc_html_e( 'Cancel', 's5' ); ?></button>
+						</div>
+					</div>
+				</form>
+			<?php endif; ?>
+
 			<div class="sg-elements">
 				<?php foreach ( ElementStyles::list_elements() as $el ) : ?>
 					<?php self::sg_element_card( $el, $can_edit_elements ); ?>
@@ -1190,9 +1270,17 @@ final class Settings {
 			'embed'        => 'fa-code',
 		);
 		?>
-		<div class="screen-head">
-			<h2><?php esc_html_e( 'Components', 's5' ); ?></h2>
-			<p><?php esc_html_e( 'The registered library — these are the only elements the canvas editor can drop onto a page. Enabling something here makes it available to non-dev authors; disabling removes it from their palette. Each ships with its own registered variants.', 's5' ); ?></p>
+		<?php $can_add_components = Roles::can( 'settings.components' ); ?>
+		<div class="screen-head sg-screen-head">
+			<div>
+				<h2><?php esc_html_e( 'Components', 's5' ); ?></h2>
+				<p><?php esc_html_e( 'The registered library — these are the only elements the canvas editor can drop onto a page. Enabling something here makes it available to non-dev authors; disabling removes it from their palette. Each ships with its own registered variants.', 's5' ); ?></p>
+			</div>
+			<?php if ( $can_add_components ) : ?>
+				<button type="button" class="btn btn--primary" data-s5-comp-new>
+					<i class="fa-solid fa-plus"></i> <?php esc_html_e( 'New Component', 's5' ); ?>
+				</button>
+			<?php endif; ?>
 		</div>
 
 		<div class="registered-note">

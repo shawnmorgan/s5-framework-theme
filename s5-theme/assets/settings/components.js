@@ -169,6 +169,56 @@
 			} );
 	}
 
+	// "New Component": ask for a name, create it server-side (mints a valid starter),
+	// then open the builder on it so the author edits real HTML immediately. The create
+	// route is collection-level (POST /components); the per-name route only edits.
+	function createComponent() {
+		// eslint-disable-next-line no-alert
+		var name = window.prompt(
+			'New component name (letters, numbers, - or _):\ne.g. pricing-card'
+		);
+		if ( name === null ) {
+			return; // cancelled.
+		}
+		name = String( name ).trim();
+		if ( ! name ) {
+			return;
+		}
+		fetch( restBase().replace( /\/$/, '' ), {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce || '' },
+			body: JSON.stringify( { name: name } ),
+		} )
+			.then( function ( r ) {
+				return r.json().then( function ( b ) {
+					return { status: r.status, body: b };
+				} );
+			} )
+			.then( function ( res ) {
+				if ( res.body && res.body.ok && res.body.name ) {
+					// Open the builder on the new component. A reload picks the new card up
+					// in the grid on next visit; opening the builder lets the author start now.
+					openBuilder( res.body.name );
+				} else {
+					var msg =
+						( res.body && res.body.diagnostics && res.body.diagnostics[ 0 ] && res.body.diagnostics[ 0 ].message ) ||
+						'Could not create the component.';
+					// eslint-disable-next-line no-alert
+					window.alert( msg );
+				}
+			} )
+			.catch( function () {
+				// eslint-disable-next-line no-alert
+				window.alert( 'Network error creating the component.' );
+			} );
+	}
+
+	var newBtn = root.querySelector( '[data-s5-comp-new]' );
+	if ( newBtn ) {
+		newBtn.addEventListener( 'click', createComponent );
+	}
+
 	// The card AND its pencil both carry data-s5-comp-open. Bind once per element but,
 	// on the card, ignore clicks that started on an inner control (pencil / switch) so
 	// the builder opens once — the pencil's own handler already opened it.
