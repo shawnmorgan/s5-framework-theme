@@ -55,6 +55,7 @@ SUITES=(
 	"tests/acceptance-step6.sh|Step 6 — media resolution"
 	"tests/acceptance-step8.sh|Step 8 — parts + generic dynamics (L&L)"
 	"tests/acceptance-templates.sh|Phase 1 — template hierarchy + S5 Dynamics v0 (single/index/archive/search/404)"
+	"tests/acceptance-styles.sh|Phase 3 — three-part Styles tab + editable element CSS (file + compiled bundle + guards)"
 	"tests/acceptance-step9.sh|Step 9 — baseline SEO/AEO ownership"
 	"tests/acceptance-step10.sh|Step 10 — frontend interactive islands"
 	"tests/acceptance-step11.sh|Step 11 — components (registry + copy-on-insert)"

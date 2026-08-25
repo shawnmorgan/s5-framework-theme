@@ -104,6 +104,12 @@ final class Settings {
 	public const ACTION_SAVE_CSS = 's5_save_css';
 
 	/**
+	 * Admin-post action: save one edited element STYLE rule (Styles tab, Element
+	 * styles part) + recompile the bundle.
+	 */
+	public const ACTION_SAVE_ELEMENT = 's5_save_element';
+
+	/**
 	 * The editable CSS files, keyed by the short name the form posts. Each maps to a
 	 * real file under site/styles/. This is the ALLOW-LIST — a save is refused for any
 	 * name not in here, so the surface can never write outside the design-system dir.
@@ -132,6 +138,7 @@ final class Settings {
 		add_action( 'admin_post_' . self::ACTION_SAVE_INTEGRATIONS, array( self::class, 'handle_save_integrations' ) );
 		add_action( 'admin_post_' . self::ACTION_SAVE_REDIRECTS, array( self::class, 'handle_save_redirects' ) );
 		add_action( 'admin_post_' . self::ACTION_SAVE_CSS, array( self::class, 'handle_save_css' ) );
+		add_action( 'admin_post_' . self::ACTION_SAVE_ELEMENT, array( self::class, 'handle_save_element' ) );
 	}
 
 	/**
@@ -364,6 +371,45 @@ final class Settings {
 			self::redirect_css( 'success', __( 'CSS saved and design system recompiled.', 's5' ) );
 		} catch ( \Throwable $e ) {
 			self::redirect_css( 'warning', __( 'CSS saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
+		}
+	}
+
+	/**
+	 * Handle an element-style edit (Styles tab → Element styles part): rewrite the
+	 * one registered element's rule in components.css, then recompile the bundle so
+	 * the change reaches the served site and the live specimen.
+	 *
+	 * The write goes through {@see ElementStyles::update_element} (surgical, validated,
+	 * allow-listed to the components layer), then the one recompile door
+	 * ({@see StyleBundle::build}) — identical discipline to token + CSS-layer saves.
+	 * Capability + Roles gated (settings.css — element styling is Developer-tier design
+	 * work, the same gate as raw CSS), nonce-checked.
+	 *
+	 * @return void
+	 */
+	public static function handle_save_element(): void {
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'settings.css' ) ) {
+			wp_die( esc_html__( 'You do not have permission to edit element styles.', 's5' ) );
+		}
+		check_admin_referer( self::ACTION_SAVE_ELEMENT );
+
+		$key = isset( $_POST['element'] ) ? sanitize_key( wp_unslash( (string) $_POST['element'] ) ) : '';
+
+		// Raw declarations by design (this IS stylesheet source). Only unslash — an HTML
+		// sanitizer would corrupt values like content:"\201C" or url(a[href]). Injection
+		// past the rule is blocked inside ElementStyles::update_element (no braces, no '<').
+		$css = isset( $_POST['declarations'] ) ? (string) wp_unslash( $_POST['declarations'] ) : ''; // phpcs:ignore WordPress.Security.ValidationSanitization.InputNotSanitized -- verbatim CSS declarations, developer-authored, validated + allow-listed in ElementStyles.
+
+		$res = ElementStyles::update_element( $key, $css );
+		if ( is_wp_error( $res ) ) {
+			self::redirect_screen( 'styleguide', 'error', $res->get_error_message() );
+		}
+
+		try {
+			StyleBundle::build();
+			self::redirect_screen( 'styleguide', 'success', __( 'Element style saved and design system recompiled.', 's5' ) );
+		} catch ( \Throwable $e ) {
+			self::redirect_screen( 'styleguide', 'warning', __( 'Element style saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
 		}
 	}
 
@@ -750,54 +796,100 @@ final class Settings {
 	private static function render_styleguide(): void {
 		$tokens   = Styles::read_tokens();
 		$can_edit = Roles::can( 'settings.styleguide_edit' );
+		// Element styling is Developer-tier design work — same gate as raw CSS editing.
+		$can_edit_elements = Roles::can( 'settings.css' );
 		?>
 		<div class="screen-head sg-screen-head">
 			<div>
-				<h2><?php esc_html_e( 'StyleGuide', 's5' ); ?></h2>
-				<p><?php esc_html_e( 'The design tokens live here — change one and every primitive built from it updates. Open the live specimen to see the real headings, buttons, and cards the site is built from.', 's5' ); ?></p>
+				<h2><?php esc_html_e( 'Styles', 's5' ); ?></h2>
+				<p><?php esc_html_e( 'The design system, in three layers: raw Tokens feed the Scales, and the Scales feed the Element styles. Edit a layer and every primitive built on it updates. Open the live specimen to see the real headings, buttons, and cards the site is built from.', 's5' ); ?></p>
 			</div>
 			<button type="button" class="btn btn--primary" data-s5-sg-view>
 				<i class="fa-solid fa-eye"></i> <?php esc_html_e( 'View Styleguide', 's5' ); ?>
 			</button>
 		</div>
 
-		<?php /* Token cards, full width — the specimen that used to sit beside them
-		 * (squeezing this column to ~340px, defect #3) now lives in the fullscreen
-		 * modal below, opened by the button above. */ ?>
-		<div class="sg-cards-full">
-			<?php /* FONTS — informational (families come from the token layer). */ ?>
-			<div class="card">
-				<div class="card-head"><i class="fa-solid fa-font"></i><h3><?php esc_html_e( 'Fonts', 's5' ); ?></h3><span class="card-note"><?php esc_html_e( 'family & source', 's5' ); ?></span></div>
-				<div class="card-body">
-					<div class="field">
-						<label class="field-label"><?php esc_html_e( 'Font Source', 's5' ); ?></label>
-						<div class="seg wide"><div class="seg-opt active"><?php esc_html_e( 'System', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Google Fonts', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Self-hosted', 's5' ); ?></div></div>
-						<p class="field-hint"><?php esc_html_e( 'Self-hosted keeps fonts on your infrastructure (no third-party requests).', 's5' ); ?></p>
-					</div>
-					<?php
-					$fonts = isset( $tokens['font'] ) ? $tokens['font'] : array();
-					foreach ( $fonts as $f ) :
-						?>
-						<div class="field">
-							<label class="field-label"><?php echo esc_html( ucwords( str_replace( array( '--s5-font-', '-' ), array( '', ' ' ), $f['name'] ) ) ); ?> <span class="opt"><?php echo esc_html( $f['name'] ); ?></span></label>
-							<input class="input" value="<?php echo esc_attr( $f['value'] ); ?>" style="font-family:var(--s5e-mono);font-size:11.5px" readonly>
-						</div>
-					<?php endforeach; ?>
+		<?php /* ============================ PART 1 · TOKENS ============================
+		 * Raw values (colors, fonts). The floor of the system — everything else
+		 * references these. Editable within contract (S5-ATOMIC-DESIGN-SPEC §4). */ ?>
+		<section class="sg-part" data-sg-part="tokens">
+			<div class="sg-part-head">
+				<span class="sg-part-num">1</span>
+				<div>
+					<h3 class="sg-part-title"><?php esc_html_e( 'Tokens', 's5' ); ?></h3>
+					<p class="sg-part-sub"><?php esc_html_e( 'Raw values — colors and fonts. The floor of the design system; everything below references these.', 's5' ); ?></p>
 				</div>
 			</div>
+			<div class="sg-cards-full">
+				<?php /* FONTS — informational (families come from the token layer). */ ?>
+				<div class="card">
+					<div class="card-head"><i class="fa-solid fa-font"></i><h3><?php esc_html_e( 'Fonts', 's5' ); ?></h3><span class="card-note"><?php esc_html_e( 'family & source', 's5' ); ?></span></div>
+					<div class="card-body">
+						<div class="field">
+							<label class="field-label"><?php esc_html_e( 'Font Source', 's5' ); ?></label>
+							<div class="seg wide"><div class="seg-opt active"><?php esc_html_e( 'System', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Google Fonts', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Self-hosted', 's5' ); ?></div></div>
+							<p class="field-hint"><?php esc_html_e( 'Self-hosted keeps fonts on your infrastructure (no third-party requests).', 's5' ); ?></p>
+						</div>
+						<?php
+						$fonts = isset( $tokens['font'] ) ? $tokens['font'] : array();
+						foreach ( $fonts as $f ) :
+							?>
+							<div class="field">
+								<label class="field-label"><?php echo esc_html( ucwords( str_replace( array( '--s5-font-', '-' ), array( '', ' ' ), $f['name'] ) ) ); ?> <span class="opt"><?php echo esc_html( $f['name'] ); ?></span></label>
+								<input class="input" value="<?php echo esc_attr( $f['value'] ); ?>" style="font-family:var(--s5e-mono);font-size:11.5px" readonly>
+							</div>
+						<?php endforeach; ?>
+					</div>
+				</div>
 
-			<?php
-			self::sg_color_card( __( 'Colors', 's5' ), isset( $tokens['color'] ) ? $tokens['color'] : array(), $can_edit );
-			self::sg_scale_card( __( 'Type Scale', 's5' ), isset( $tokens['text'] ) ? $tokens['text'] : array(), 'text', $can_edit );
-			self::sg_scale_card( __( 'Space Scale', 's5' ), isset( $tokens['space'] ) ? $tokens['space'] : array(), 'space', $can_edit );
-			self::sg_scale_card( __( 'Radius', 's5' ), isset( $tokens['radius'] ) ? $tokens['radius'] : array(), 'radius', $can_edit );
-			?>
-		</div>
+				<?php self::sg_color_card( __( 'Colors', 's5' ), isset( $tokens['color'] ) ? $tokens['color'] : array(), $can_edit ); ?>
+			</div>
+		</section>
+
+		<?php /* ============================ PART 2 · SCALES ============================
+		 * Type / spacing / radius presets that consume the tokens. The ladder the
+		 * element styles reach for as var(--s5-text-…) etc. */ ?>
+		<section class="sg-part" data-sg-part="scales">
+			<div class="sg-part-head">
+				<span class="sg-part-num">2</span>
+				<div>
+					<h3 class="sg-part-title"><?php esc_html_e( 'Scales', 's5' ); ?></h3>
+					<p class="sg-part-sub"><?php esc_html_e( 'Type, spacing and radius ladders built from the tokens. These are the values the element styles reach for.', 's5' ); ?></p>
+				</div>
+			</div>
+			<div class="sg-cards-full">
+				<?php
+				self::sg_scale_card( __( 'Type Scale', 's5' ), isset( $tokens['text'] ) ? $tokens['text'] : array(), 'text', $can_edit );
+				self::sg_scale_card( __( 'Space Scale', 's5' ), isset( $tokens['space'] ) ? $tokens['space'] : array(), 'space', $can_edit );
+				self::sg_scale_card( __( 'Radius', 's5' ), isset( $tokens['radius'] ) ? $tokens['radius'] : array(), 'radius', $can_edit );
+				?>
+			</div>
+		</section>
+
+		<?php /* ======================= PART 3 · ELEMENT STYLES =========================
+		 * The registered primitives (heading, button, eyebrow, card…) with their REAL
+		 * CSS rules, fully editable. This is the Developer control plane where the
+		 * closed vocabulary's actual declarations are authored (S5-ATOMIC-DESIGN §4/§5;
+		 * PRD §9 scopes "no free CSS" to the page canvas / Content level, not here). */ ?>
+		<section class="sg-part" data-sg-part="elements">
+			<div class="sg-part-head">
+				<span class="sg-part-num">3</span>
+				<div>
+					<h3 class="sg-part-title"><?php esc_html_e( 'Element styles', 's5' ); ?></h3>
+					<p class="sg-part-sub"><?php esc_html_e( 'The registered primitives and their real CSS. Edit any property — use var(--s5-…) to pull from the tokens and scales above. Saved edits recompile the site and every page that uses the element.', 's5' ); ?></p>
+				</div>
+			</div>
+			<div class="sg-elements">
+				<?php foreach ( ElementStyles::list_elements() as $el ) : ?>
+					<?php self::sg_element_card( $el, $can_edit_elements ); ?>
+				<?php endforeach; ?>
+			</div>
+		</section>
 
 		<div class="sg-modal" data-s5-sg-modal aria-hidden="true">
 			<div class="sg-modal-bar">
 				<button type="button" class="tpl-modal-back" data-s5-sg-close>
-					<i class="fa-solid fa-arrow-left"></i> <?php esc_html_e( 'Back to StyleGuide', 's5' ); ?>
+					<i class="fa-solid fa-arrow-left"></i> <?php esc_html_e( 'Back to Styles', 's5' ); ?>
 				</button>
 				<div class="tpl-modal-title"><i class="fa-solid fa-swatchbook"></i> <?php esc_html_e( 'Live Styleguide', 's5' ); ?></div>
 			</div>
@@ -806,6 +898,76 @@ final class Settings {
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * One Element-styles card: the primitive's label + selector, a live preview using
+	 * the real class, and (for Developers) an editable textarea of its actual CSS
+	 * declarations that posts to {@see self::handle_save_element}. Read-only viewers
+	 * see the rule as a static code block.
+	 *
+	 * @param array{key:string,label:string,selector:string,icon:string,sample:string,rule:string,defined:bool} $el       Element.
+	 * @param bool                                                                                               $can_edit Developer-tier.
+	 * @return void
+	 */
+	private static function sg_element_card( array $el, bool $can_edit ): void {
+		// The preview element uses the REAL class(es) so the live bundle styles it.
+		// '.btn--primary' → class="btn btn--primary"; '.page-hero_title' → that class.
+		$classes = self::selector_to_classes( $el['selector'] );
+		?>
+		<div class="card sg-el-card" data-sg-element="<?php echo esc_attr( $el['key'] ); ?>">
+			<div class="card-head">
+				<i class="fa-solid <?php echo esc_attr( $el['icon'] ); ?>"></i>
+				<h3><?php echo esc_html( $el['label'] ); ?></h3>
+				<span class="card-note sg-el-selector"><?php echo esc_html( $el['selector'] ); ?></span>
+				<?php if ( ! $el['defined'] ) : ?>
+					<span class="pill pill--muted"><?php esc_html_e( 'not yet defined', 's5' ); ?></span>
+				<?php endif; ?>
+			</div>
+			<div class="card-body">
+				<?php /* LIVE PREVIEW — the real class, styled by the compiled bundle. */ ?>
+				<div class="sg-el-preview">
+					<span class="<?php echo esc_attr( $classes ); ?>"><?php echo esc_html( $el['sample'] ); ?></span>
+				</div>
+
+				<?php if ( $can_edit ) : ?>
+					<form class="sg-el-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php wp_nonce_field( self::ACTION_SAVE_ELEMENT ); ?>
+						<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_ELEMENT ); ?>">
+						<input type="hidden" name="element" value="<?php echo esc_attr( $el['key'] ); ?>">
+						<label class="field-label sg-el-rulelabel">
+							<code><?php echo esc_html( $el['selector'] ); ?> {</code>
+						</label>
+						<textarea class="input sg-el-code" name="declarations" rows="<?php echo (int) max( 4, substr_count( $el['rule'], "\n" ) + 2 ); ?>" spellcheck="false" data-s5-css-editor><?php echo esc_textarea( $el['rule'] ); ?></textarea>
+						<div class="sg-el-rulelabel"><code>}</code></div>
+						<div class="sg-el-actions">
+							<button type="submit" class="btn btn--primary"><i class="fa-solid fa-floppy-disk"></i> <?php esc_html_e( 'Save & recompile', 's5' ); ?></button>
+							<span class="field-hint"><?php esc_html_e( 'Any CSS property. Use var(--s5-…) for tokens.', 's5' ); ?></span>
+						</div>
+					</form>
+				<?php else : ?>
+					<pre class="sg-el-readonly"><code><?php echo esc_html( $el['selector'] . " {\n" . $el['rule'] . "\n}" ); ?></code></pre>
+				<?php endif; ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Convert a single-rule selector into the space-separated class list a preview
+	 * element should carry so the compiled bundle styles it. A BEM modifier selector
+	 * ('.btn--primary') needs BOTH the base and the modifier ('btn btn--primary').
+	 *
+	 * @param string $selector CSS selector (e.g. '.btn--primary', '.page-hero_title').
+	 * @return string Space-separated class attribute value.
+	 */
+	private static function selector_to_classes( string $selector ): string {
+		$class = ltrim( $selector, '.' );
+		if ( false !== strpos( $class, '--' ) ) {
+			$base = substr( $class, 0, strpos( $class, '--' ) );
+			return $base . ' ' . $class;
+		}
+		return $class;
 	}
 
 	/**
