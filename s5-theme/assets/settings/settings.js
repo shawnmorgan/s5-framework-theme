@@ -271,35 +271,129 @@
 	/* ---- StyleGuide: token edit pencils are native <details> (no JS needed);
 	   the per-token form POSTs through the one-door token save. Nothing to bind. */
 
-	/* ---- Styles → Element styles: "New element" form reveal/hide. The form works
-	   without JS (it is a normal POST form); JS just keeps it collapsed until asked,
-	   and focuses the first field on open. */
+	/* ---- Styles → Elements: MODAL editing (same pattern as the Component Builder).
+	   A card's pencil (or clicking the preview) opens the element-editor modal filled
+	   from the card's data-sg-el; "New element" opens its own modal; "View Styleguide"
+	   opens the full specimen. All close on the X/Cancel, Esc, or a backdrop click. */
 	( function () {
-		var toggle = root.querySelector( '[data-s5-new-element-toggle]' );
-		var form = root.querySelector( '[data-s5-new-element-form]' );
-		if ( ! toggle || ! form ) {
-			return;
-		}
-		var cancel = form.querySelector( '[data-s5-new-element-cancel]' );
-		function open() {
-			form.hidden = false;
-			var first = form.querySelector( 'input[name="label"]' );
-			if ( first ) {
-				first.focus();
+		// Generic modal open/close with backdrop-click + Esc, matching cb-modal's .open.
+		function openModal( modal ) {
+			if ( ! modal ) {
+				return;
 			}
+			modal.classList.add( 'open' );
+			modal.setAttribute( 'aria-hidden', 'false' );
 		}
-		function close() {
-			form.hidden = true;
-		}
-		toggle.addEventListener( 'click', function () {
-			if ( form.hidden ) {
-				open();
-			} else {
-				close();
+		function closeModal( modal ) {
+			if ( ! modal ) {
+				return;
 			}
+			modal.classList.remove( 'open' );
+			modal.setAttribute( 'aria-hidden', 'true' );
+		}
+		function wireClose( modal, closeSelector ) {
+			if ( ! modal ) {
+				return;
+			}
+			modal.querySelectorAll( closeSelector ).forEach( function ( b ) {
+				b.addEventListener( 'click', function () {
+					closeModal( modal );
+				} );
+			} );
+			// Backdrop click: a click directly on the modal shell (not its inner content).
+			modal.addEventListener( 'mousedown', function ( e ) {
+				if ( e.target === modal ) {
+					closeModal( modal );
+				}
+			} );
+		}
+
+		var elModal = root.querySelector( '[data-s5-el-modal]' );
+		var newModal = root.querySelector( '[data-s5-new-element-modal]' );
+		var sgModal = root.querySelector( '[data-s5-sg-modal]' );
+
+		// Element-editor modal — fill from the clicked card, then open.
+		if ( elModal ) {
+			var nameEl = elModal.querySelector( '[data-s5-el-modal-name]' );
+			var selEl = elModal.querySelector( '[data-s5-el-modal-selector]' );
+			var openBrace = elModal.querySelector( '[data-s5-el-modal-open]' );
+			var keyInput = elModal.querySelector( '[data-s5-el-modal-key]' );
+			var codeEl = elModal.querySelector( '[data-s5-el-modal-code]' );
+
+			function openElement( card ) {
+				var data = {};
+				try {
+					data = JSON.parse( card.getAttribute( 'data-sg-el' ) || '{}' );
+				} catch ( e ) {
+					data = {};
+				}
+				if ( nameEl ) {
+					nameEl.textContent = data.label || '';
+				}
+				if ( selEl ) {
+					selEl.textContent = data.selector || '';
+				}
+				if ( openBrace ) {
+					openBrace.textContent = ( data.selector || '' ) + ' {';
+				}
+				if ( keyInput ) {
+					keyInput.value = data.key || '';
+				}
+				if ( codeEl ) {
+					codeEl.value = data.rule || '';
+				}
+				openModal( elModal );
+				if ( codeEl ) {
+					codeEl.focus();
+				}
+			}
+
+			root.querySelectorAll( '.sg-el-card' ).forEach( function ( card ) {
+				card.querySelectorAll( '[data-s5-el-open]' ).forEach( function ( trigger ) {
+					trigger.addEventListener( 'click', function () {
+						openElement( card );
+					} );
+				} );
+			} );
+			wireClose( elModal, '[data-s5-el-modal-close]' );
+		}
+
+		// New-element modal.
+		if ( newModal ) {
+			var newBtn = root.querySelector( '[data-s5-new-element]' );
+			if ( newBtn ) {
+				newBtn.addEventListener( 'click', function () {
+					openModal( newModal );
+					var first = newModal.querySelector( 'input[name="label"]' );
+					if ( first ) {
+						first.focus();
+					}
+				} );
+			}
+			wireClose( newModal, '[data-s5-new-element-close]' );
+		}
+
+		// Full-styleguide modal (View Styleguide button already exists as data-s5-sg-view).
+		if ( sgModal ) {
+			var viewBtn = root.querySelector( '[data-s5-sg-view]' );
+			if ( viewBtn ) {
+				viewBtn.addEventListener( 'click', function () {
+					openModal( sgModal );
+				} );
+			}
+			wireClose( sgModal, '[data-s5-sg-close]' );
+		}
+
+		// Esc closes whichever modal is open.
+		document.addEventListener( 'keydown', function ( e ) {
+			if ( 'Escape' !== e.key ) {
+				return;
+			}
+			[ elModal, newModal, sgModal ].forEach( function ( m ) {
+				if ( m && m.classList.contains( 'open' ) ) {
+					closeModal( m );
+				}
+			} );
 		} );
-		if ( cancel ) {
-			cancel.addEventListener( 'click', close );
-		}
 	}() );
 }() );

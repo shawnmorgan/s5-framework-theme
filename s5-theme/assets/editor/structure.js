@@ -136,6 +136,11 @@
 					select();
 				}
 			} );
+			// Right-click context menu: Edit · Duplicate · View component (dev) · Delete.
+			row.addEventListener( 'contextmenu', function ( e ) {
+				e.preventDefault();
+				openContextMenu( e.clientX, e.clientY, n, isContainer );
+			} );
 			if ( ! isContainer ) {
 				wireDrag( row, n, depth );
 			}
@@ -265,6 +270,138 @@
 		if ( node && rowsByNode[ node ] ) {
 			rowsByNode[ node ].classList.add( 'selected' );
 		}
+	}
+
+	/* --- right-click context menu (Edit · Duplicate · View component · Delete) --- */
+
+	var openMenu = null;
+
+	function closeContextMenu() {
+		if ( openMenu && openMenu.parentNode ) {
+			openMenu.parentNode.removeChild( openMenu );
+		}
+		openMenu = null;
+	}
+
+	function menuItem( label, onClick, opts ) {
+		var it = el( 'button', { type: 'button', class: 's5e-ctx-item' + ( opts && opts.danger ? ' s5e-ctx-danger' : '' ) }, label );
+		it.addEventListener( 'click', function () {
+			closeContextMenu();
+			onClick();
+		} );
+		return it;
+	}
+
+	function openContextMenu( x, y, n, isContainer ) {
+		closeContextMenu();
+		if ( ! n.node ) {
+			return;
+		}
+		var kind = n.kind || n.type || 'editable';
+		var isComponent = ( 'component' === kind );
+
+		var menu = el( 'div', { class: 's5e-ctx-menu', role: 'menu' } );
+
+		// Edit — select + focus the props panel (same as a click, then open Content).
+		menu.appendChild( menuItem( 'Edit', function () {
+			var w = frameWindow();
+			if ( w ) {
+				w.postMessage( { s5: 's5-select-node', node: n.node }, ORIGIN );
+			}
+		} ) );
+
+		// Duplicate — clone the node (server re-keys the copy), unless it is a locked
+		// container the operator can't restructure.
+		if ( ! isContainer ) {
+			menu.appendChild( menuItem( 'Duplicate', function () {
+				duplicateNode( n.node );
+			} ) );
+		}
+
+		// View component — Developer only, and only meaningful for a component node.
+		// Opens the Components screen (the builder) in a new tab.
+		if ( cfg.isDeveloper && isComponent && cfg.componentsUrl ) {
+			menu.appendChild( menuItem( 'View component', function () {
+				window.open( cfg.componentsUrl, '_blank', 'noopener' );
+			} ) );
+		}
+
+		// Delete — remove the node entirely. Containers (sections) are structural and
+		// not deletable from here (same reason they carry no drag grip).
+		if ( ! isContainer ) {
+			menu.appendChild( menuItem( 'Delete', function () {
+				deleteNode( n.node, n.label || n.node );
+			}, { danger: true } ) );
+		}
+
+		// Append INSIDE the editor root (where the --s5e-* tokens are scoped, via
+		// :where(.s5-editor)); a document.body mount renders transparent because the
+		// tokens don't resolve there.
+		( root || document.body ).appendChild( menu );
+		// Clamp into the viewport.
+		var mw = menu.offsetWidth || 180;
+		var mh = menu.offsetHeight || 120;
+		var px = Math.min( x, window.innerWidth - mw - 8 );
+		var py = Math.min( y, window.innerHeight - mh - 8 );
+		menu.style.left = Math.max( 4, px ) + 'px';
+		menu.style.top = Math.max( 4, py ) + 'px';
+		openMenu = menu;
+	}
+
+	// Dismiss the menu on any outside click, Escape, or scroll.
+	document.addEventListener( 'click', function ( e ) {
+		if ( openMenu && ! openMenu.contains( e.target ) ) {
+			closeContextMenu();
+		}
+	} );
+	document.addEventListener( 'keydown', function ( e ) {
+		if ( 'Escape' === e.key ) {
+			closeContextMenu();
+		}
+	} );
+
+	function postCanonicalOp( body, errMsg ) {
+		if ( ! cfg.saveUrl || ! body.node ) {
+			return;
+		}
+		shell.markDirty();
+		fetch( cfg.saveUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce || '' },
+			body: JSON.stringify( body ),
+		} )
+			.then( function ( r ) {
+				return r.json().then( function ( b ) {
+					return { status: r.status, body: b };
+				} );
+			} )
+			.then( function ( res ) {
+				if ( res.body && res.body.ok ) {
+					shell.markClean();
+					var w = frameWindow();
+					if ( w ) {
+						w.location.reload();
+					}
+				} else {
+					showReorderError( res.body || { message: errMsg } );
+				}
+			} )
+			.catch( function () {
+				showReorderError( { message: errMsg } );
+			} );
+	}
+
+	function duplicateNode( node ) {
+		postCanonicalOp( { mode: 'duplicate', node: node }, 'Could not duplicate — network error.' );
+	}
+
+	function deleteNode( node, label ) {
+		// eslint-disable-next-line no-alert
+		if ( ! window.confirm( 'Delete “' + label + '”? This removes it from the page.' ) ) {
+			return;
+		}
+		postCanonicalOp( { mode: 'delete', node: node }, 'Could not delete — network error.' );
 	}
 
 	window.addEventListener( 'message', function ( e ) {

@@ -66,9 +66,19 @@ final class Validator {
 	 * @param string              $html  HTML source.
 	 * @param array<string, true> $vocab Class vocabulary set (name => true).
 	 * @param string              $file  Filename for diagnostics (display only).
+	 * @param bool                $dev   Developer authoring (code lens). When true, an
+	 *                                   UNKNOWN CLASS is a WARNING, not an ERROR: the
+	 *                                   Developer defines the vocabulary, so a class the
+	 *                                   stylesheet does not know yet is a nudge ("not in
+	 *                                   the stylesheet yet"), not a wall. SECURITY rules
+	 *                                   (inline style, on* handlers, javascript: URLs,
+	 *                                   <script>) stay ERROR for EVERYONE — those are XSS,
+	 *                                   not vocabulary, and a Developer is not exempt.
+	 *                                   Defaults false so importer/marketer/client keep
+	 *                                   the hard closed-vocabulary gate.
 	 * @return array<int, array<string, mixed>> Findings; empty means clean.
 	 */
-	public static function validate( string $html, array $vocab, string $file = '' ): array {
+	public static function validate( string $html, array $vocab, string $file = '', bool $dev = false ): array {
 		$findings = array();
 
 		$parse_error = null;
@@ -107,7 +117,7 @@ final class Validator {
 				if ( '' === $class ) {
 					continue;
 				}
-				$finding = self::check_class( $class, $vocab, $html, $file );
+				$finding = self::check_class( $class, $vocab, $html, $file, $dev );
 				if ( null !== $finding ) {
 					$findings[] = $finding;
 				}
@@ -234,14 +244,33 @@ final class Validator {
 	 * @param array<string, true> $vocab Vocabulary set.
 	 * @param string              $html  Source (for line lookup).
 	 * @param string              $file  Filename.
+	 * @param bool                $dev   Developer authoring — unknown class is a WARNING.
 	 * @return array<string, mixed>|null Finding, or null if the class is clean.
 	 */
-	private static function check_class( string $class, array $vocab, string $html, string $file ): ?array {
+	private static function check_class( string $class, array $vocab, string $html, string $file, bool $dev = false ): ?array {
 		$in_vocab = isset( $vocab[ $class ] );
 
 		if ( ! $in_vocab ) {
-			// ERROR: not in the closed vocabulary. Offer a nearest match.
+			// Not in the closed vocabulary. For a MARKETER/CLIENT (and the importer) this
+			// is an ERROR — they compose from the developer-curated vocabulary and may not
+			// invent classes. For a DEVELOPER authoring in the code lens it is a WARNING:
+			// the developer DEFINES the vocabulary, so a not-yet-declared class is a nudge
+			// to add it to the stylesheet, never a wall. Message adapts to the audience.
 			$suggestion = self::nearest( $class, array_keys( $vocab ) );
+			if ( $dev ) {
+				return self::finding(
+					self::SEVERITY_WARNING,
+					self::RULE_UNKNOWN_CLASS,
+					$file,
+					self::line_of( $html, $class ),
+					$class,
+					sprintf( 'class "%s" is not in the theme stylesheet yet', $class ),
+					'define .' . $class . ' in the theme stylesheet (CSS tab) so pages that use it validate for every role',
+					sprintf( 'add .%s to the theme stylesheet to make it part of the design system', $class ),
+					$suggestion,
+					''
+				);
+			}
 			return self::finding(
 				self::SEVERITY_ERROR,
 				self::RULE_UNKNOWN_CLASS,

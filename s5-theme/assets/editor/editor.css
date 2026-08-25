@@ -715,5 +715,12 @@ body.s5-editor-fullscreen .s5-editor {
 .s5e-diagnostics{background:var(--s5e-danger-tint);border:1px solid var(--s5e-danger);border-radius:var(--s5e-radius-sm);padding:10px;margin-bottom:12px;}
 .s5e-diag{color:var(--s5e-danger);font-size:11.5px;font-family:var(--s5e-mono);}
 
+/* Structure-panel right-click context menu (Edit · Duplicate · View component · Delete). */
+.s5e-ctx-menu{position:fixed;z-index:200;min-width:172px;background:var(--s5e-bg-2,#1b1e26);border:1px solid var(--s5e-line,#2b2f3a);border-radius:8px;box-shadow:0 14px 40px rgba(0,0,0,.55);padding:5px;display:flex;flex-direction:column;}
+.s5e-ctx-item{display:block;width:100%;text-align:left;background:transparent;border:0;color:var(--s5e-text,#e6e8ee);font-size:13px;padding:8px 11px;border-radius:5px;cursor:pointer;}
+.s5e-ctx-item:hover,.s5e-ctx-item:focus{background:var(--s5e-accent-soft);color:var(--s5e-text);outline:none;}
+.s5e-ctx-danger{color:var(--s5e-danger);}
+.s5e-ctx-danger:hover,.s5e-ctx-danger:focus{background:rgba(214,54,56,.14);color:var(--s5e-danger);}
+
 /* Legacy parked hooks — never visible. */
 .s5e-legacy[hidden]{display:none !important;}

@@ -676,10 +676,31 @@ final class Rest {
 					return $canonical;
 				}
 				return self::persist_canonical( $post_id, $canonical );
+			case 'delete':
+				// R1: deleting a node is a structure-tree operation, same key as disable/
+				// reorder. (Disable soft-hides; delete removes the bytes entirely.)
+				if ( ! Roles::can( 'editor.structure' ) ) {
+					return new \WP_Error( 's5_role_structure', __( 'Your role cannot delete elements.', 's5' ), array( 'status' => 403 ) );
+				}
+				$canonical = self::build_canonical_from_delete( $post_id, $request );
+				if ( $canonical instanceof \WP_Error ) {
+					return $canonical;
+				}
+				return self::persist_canonical( $post_id, $canonical );
+			case 'duplicate':
+				// R1: duplicating a node is a structure-tree operation, same key.
+				if ( ! Roles::can( 'editor.structure' ) ) {
+					return new \WP_Error( 's5_role_structure', __( 'Your role cannot duplicate elements.', 's5' ), array( 'status' => 403 ) );
+				}
+				$canonical = self::build_canonical_from_duplicate( $post_id, $request );
+				if ( $canonical instanceof \WP_Error ) {
+					return $canonical;
+				}
+				return self::persist_canonical( $post_id, $canonical );
 			default:
 				return new \WP_Error(
 					's5_bad_mode',
-					__( 'Unknown save mode. Expected slots, canonical, insert, disable, class, reorder, or head.', 's5' ),
+					__( 'Unknown save mode. Expected slots, canonical, insert, disable, class, reorder, delete, duplicate, or head.', 's5' ),
 					array( 'status' => 400 )
 				);
 		}
@@ -702,8 +723,13 @@ final class Rest {
 			return new \WP_Error( 's5_vocab', $e->getMessage(), array( 'status' => 500 ) );
 		}
 
-		// SAME gate as import. ERROR => reject; canonical stays UNCHANGED.
-		$findings = Validator::validate( $canonical, $vocab, 'editor' );
+		// SAME gate as import, but ROLE-AWARE: a DEVELOPER authoring in the code lens
+		// defines the vocabulary, so an unknown class is a WARNING (proceeds), not an
+		// ERROR — the closed-vocabulary wall protects marketers/clients, not the dev who
+		// owns the stylesheet. Security rules (inline style, on*, javascript:, <script>)
+		// stay ERROR for everyone regardless of $dev. ERROR => reject; canonical UNCHANGED.
+		$dev      = ( 'developer' === Roles::role_for_user() );
+		$findings = Validator::validate( $canonical, $vocab, 'editor', $dev );
 		if ( Validator::has_errors( $findings ) ) {
 			return new \WP_REST_Response(
 				array(
@@ -1054,6 +1080,104 @@ final class Rest {
 		// leading-whitespace start, ahead of the anchor's existing gap.
 		$anchor_insert_at = self::leading_whitespace_start( $without, $anchor_start );
 		return substr( $without, 0, $anchor_insert_at ) . $moved_html . substr( $without, $anchor_insert_at );
+	}
+
+	/**
+	 * DELETE the node carrying data-node="$node" from canonical: cut its exact bytes
+	 * (plus its leading inter-tag whitespace, so no orphaned gap is left behind).
+	 * Byte-surgical, same philosophy as reorder. Refuses a locked (data-lock) node.
+	 *
+	 * Unlike `disable` (which soft-hides by setting data-disabled, keeping the node so
+	 * it can be re-enabled), delete removes the element and its subtree entirely.
+	 *
+	 * @param int              $post_id Page ID.
+	 * @param \WP_REST_Request $request Request. Param: `node`.
+	 * @param string|null      $source  Optional source canonical (template-part path).
+	 * @return string|\WP_Error New canonical, or an error.
+	 */
+	private static function build_canonical_from_delete( int $post_id, \WP_REST_Request $request, ?string $source = null ) {
+		$node = (string) $request->get_param( 'node' );
+		if ( '' === $node ) {
+			return new \WP_Error( 's5_no_node', __( 'No node supplied to delete.', 's5' ), array( 'status' => 400 ) );
+		}
+
+		$canonical = null !== $source ? $source : Storage::get_canonical_html( $post_id );
+		if ( '' === $canonical ) {
+			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		// A locked (data-lock) node — e.g. a component's internal structure — is not
+		// the operator's to remove. Same law reorder/insert enforce.
+		if ( ComponentInsert::anchor_is_locked( $canonical, $node ) ) {
+			return new \WP_Error( 's5_locked', __( 'Cannot delete a locked (data-lock) node.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		$span = self::find_node_span( $canonical, $node );
+		if ( null === $span ) {
+			return new \WP_Error(
+				's5_node_not_found',
+				sprintf( /* translators: %s: data-node id. */ __( 'Node "%s" not found in canonical.', 's5' ), $node ),
+				array( 'status' => 409 )
+			);
+		}
+
+		// Cut the node's bytes plus the leading whitespace gap before it, so the
+		// surrounding content closes up cleanly (no double blank line, no orphan gap).
+		$cut_start = self::leading_whitespace_start( $canonical, $span[0] );
+		return substr( $canonical, 0, $cut_start ) . substr( $canonical, $span[1] );
+	}
+
+	/**
+	 * DUPLICATE the node carrying data-node="$node": clone its exact bytes, re-key
+	 * every data-node in the clone to fresh page-unique ids ({@see ComponentInsert::rekey},
+	 * so the copy is independently addressable), and insert the copy immediately after
+	 * the original as its next sibling (carrying the original's leading-whitespace gap
+	 * as the separator). Byte-surgical; refuses a locked node.
+	 *
+	 * @param int              $post_id Page ID.
+	 * @param \WP_REST_Request $request Request. Param: `node`.
+	 * @param string|null      $source  Optional source canonical (template-part path).
+	 * @return string|\WP_Error New canonical, or an error.
+	 */
+	private static function build_canonical_from_duplicate( int $post_id, \WP_REST_Request $request, ?string $source = null ) {
+		$node = (string) $request->get_param( 'node' );
+		if ( '' === $node ) {
+			return new \WP_Error( 's5_no_node', __( 'No node supplied to duplicate.', 's5' ), array( 'status' => 400 ) );
+		}
+
+		$canonical = null !== $source ? $source : Storage::get_canonical_html( $post_id );
+		if ( '' === $canonical ) {
+			return new \WP_Error( 's5_no_canonical', __( 'Page has no canonical source.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		if ( ComponentInsert::anchor_is_locked( $canonical, $node ) ) {
+			return new \WP_Error( 's5_locked', __( 'Cannot duplicate a locked (data-lock) node.', 's5' ), array( 'status' => 409 ) );
+		}
+
+		$span = self::find_node_span( $canonical, $node );
+		if ( null === $span ) {
+			return new \WP_Error(
+				's5_node_not_found',
+				sprintf( /* translators: %s: data-node id. */ __( 'Node "%s" not found in canonical.', 's5' ), $node ),
+				array( 'status' => 409 )
+			);
+		}
+
+		// The original's own bytes (open→close), and the whitespace gap before it (which
+		// becomes the separator inserted between the original and its copy).
+		$element_html = substr( $canonical, $span[0], $span[1] - $span[0] );
+		$gap_start    = self::leading_whitespace_start( $canonical, $span[0] );
+		$gap          = substr( $canonical, $gap_start, $span[0] - $gap_start );
+
+		// Re-key every data-node in the clone to fresh page-unique ids so the copy is a
+		// distinct, independently editable element (no id collisions with the original).
+		$existing = ComponentInsert::existing_ids( $canonical );
+		$rekeyed  = ComponentInsert::rekey( $element_html, 'copy', $existing );
+
+		// Insert the copy right after the original's close tag, preceded by the same gap
+		// the original had — so the pair reads: original, gap, copy.
+		$insert_at = $span[1];
+		return substr( $canonical, 0, $insert_at ) . $gap . $rekeyed['markup'] . substr( $canonical, $insert_at );
 	}
 
 	/**

@@ -340,9 +340,9 @@ final class Settings {
 
 		try {
 			StyleBundle::build();
-			self::redirect_styleguide( 'success', __( 'Token updated and design system recompiled.', 's5' ) );
+			self::redirect_styleguide( 'success', __( 'Token updated. Your site has been updated.', 's5' ) );
 		} catch ( \Throwable $e ) {
-			self::redirect_styleguide( 'warning', __( 'Token saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
+			self::redirect_styleguide( 'warning', __( 'Token saved, but applying it to the site failed: ', 's5' ) . $e->getMessage() );
 		}
 	}
 
@@ -375,9 +375,9 @@ final class Settings {
 
 		try {
 			StyleBundle::build();
-			self::redirect_css( 'success', __( 'CSS saved and design system recompiled.', 's5' ) );
+			self::redirect_css( 'success', __( 'CSS saved. Your site has been updated.', 's5' ) );
 		} catch ( \Throwable $e ) {
-			self::redirect_css( 'warning', __( 'CSS saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
+			self::redirect_css( 'warning', __( 'CSS saved, but applying it to the site failed: ', 's5' ) . $e->getMessage() );
 		}
 	}
 
@@ -414,9 +414,9 @@ final class Settings {
 
 		try {
 			StyleBundle::build();
-			self::redirect_screen( 'styleguide', 'success', __( 'Element style saved and design system recompiled.', 's5' ) );
+			self::redirect_screen( 'styleguide', 'success', __( 'Element saved. Your site has been updated.', 's5' ) );
 		} catch ( \Throwable $e ) {
-			self::redirect_screen( 'styleguide', 'warning', __( 'Element style saved, but the recompile failed: ', 's5' ) . $e->getMessage() );
+			self::redirect_screen( 'styleguide', 'warning', __( 'Element saved, but applying it to the site failed: ', 's5' ) . $e->getMessage() );
 		}
 	}
 
@@ -447,9 +447,9 @@ final class Settings {
 
 		try {
 			StyleBundle::build();
-			self::redirect_screen( 'styleguide', 'success', __( 'Element registered and design system recompiled.', 's5' ) );
+			self::redirect_screen( 'styleguide', 'success', __( 'Element added. Your site has been updated.', 's5' ) );
 		} catch ( \Throwable $e ) {
-			self::redirect_screen( 'styleguide', 'warning', __( 'Element registered, but the recompile failed: ', 's5' ) . $e->getMessage() );
+			self::redirect_screen( 'styleguide', 'warning', __( 'Element added, but applying it to the site failed: ', 's5' ) . $e->getMessage() );
 		}
 	}
 
@@ -849,60 +849,70 @@ final class Settings {
 			</button>
 		</div>
 
-		<?php /* ============================ PART 1 · TOKENS ============================
-		 * Raw values (colors, fonts). The floor of the system — everything else
-		 * references these. Editable within contract (S5-ATOMIC-DESIGN-SPEC §4). */ ?>
+		<?php /* ======================= PART 1 · DESIGN TOKENS ==========================
+		 * Raw values (colors, fonts) as ONE full-width card of labeled bands — no more
+		 * odd-count 2-column cards. The floor of the system (S5-ATOMIC-DESIGN §4). */ ?>
 		<section class="sg-part" data-sg-part="tokens">
 			<div class="sg-part-head">
 				<span class="sg-part-num">1</span>
 				<div>
-					<h3 class="sg-part-title"><?php esc_html_e( 'Tokens', 's5' ); ?></h3>
-					<p class="sg-part-sub"><?php esc_html_e( 'Raw values — colors and fonts. The floor of the design system; everything below references these.', 's5' ); ?></p>
+					<h3 class="sg-part-title"><?php esc_html_e( 'Design Tokens', 's5' ); ?></h3>
+					<p class="sg-part-sub"><?php esc_html_e( 'The raw values everything else is built from — colors and fonts.', 's5' ); ?></p>
 				</div>
 			</div>
-			<div class="sg-cards-full">
-				<?php /* FONTS — informational (families come from the token layer). */ ?>
-				<div class="card">
-					<div class="card-head"><i class="fa-solid fa-font"></i><h3><?php esc_html_e( 'Fonts', 's5' ); ?></h3><span class="card-note"><?php esc_html_e( 'family & source', 's5' ); ?></span></div>
-					<div class="card-body">
-						<div class="field">
-							<label class="field-label"><?php esc_html_e( 'Font Source', 's5' ); ?></label>
-							<div class="seg wide"><div class="seg-opt active"><?php esc_html_e( 'System', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Google Fonts', 's5' ); ?></div><div class="seg-opt"><?php esc_html_e( 'Self-hosted', 's5' ); ?></div></div>
-							<p class="field-hint"><?php esc_html_e( 'Self-hosted keeps fonts on your infrastructure (no third-party requests).', 's5' ); ?></p>
-						</div>
-						<?php
-						$fonts = isset( $tokens['font'] ) ? $tokens['font'] : array();
-						foreach ( $fonts as $f ) :
-							?>
-							<div class="field">
-								<label class="field-label"><?php echo esc_html( ucwords( str_replace( array( '--s5-font-', '-' ), array( '', ' ' ), $f['name'] ) ) ); ?> <span class="opt"><?php echo esc_html( $f['name'] ); ?></span></label>
-								<input class="input" value="<?php echo esc_attr( $f['value'] ); ?>" style="font-family:var(--s5e-mono);font-size:11.5px" readonly>
+			<div class="card">
+				<?php /* COLORS band — swatch grid. */ ?>
+				<div class="sg-band">
+					<div class="sg-band-label"><?php esc_html_e( 'Colors', 's5' ); ?><span class="hint"><?php esc_html_e( 'Brand & UI palette', 's5' ); ?></span></div>
+					<div class="sg-swatches">
+						<?php foreach ( ( isset( $tokens['color'] ) ? $tokens['color'] : array() ) as $t ) : ?>
+							<?php if ( $can_edit ) : ?>
+								<?php self::sg_swatch( $t, true ); ?>
+							<?php else : ?>
+								<?php self::sg_swatch( $t, false ); ?>
+							<?php endif; ?>
+						<?php endforeach; ?>
+					</div>
+				</div>
+				<?php /* FONTS band. */ ?>
+				<div class="sg-band">
+					<div class="sg-band-label"><?php esc_html_e( 'Fonts', 's5' ); ?><span class="hint"><?php esc_html_e( 'Families & source', 's5' ); ?></span></div>
+					<div class="sg-fonts">
+						<?php foreach ( ( isset( $tokens['font'] ) ? $tokens['font'] : array() ) as $f ) : ?>
+							<div class="sg-font-item">
+								<div class="sg-font-k"><?php echo esc_html( $f['name'] ); ?></div>
+								<div class="sg-font-v"><?php echo esc_html( $f['value'] ); ?></div>
 							</div>
 						<?php endforeach; ?>
 					</div>
 				</div>
-
-				<?php self::sg_color_card( __( 'Colors', 's5' ), isset( $tokens['color'] ) ? $tokens['color'] : array(), $can_edit ); ?>
 			</div>
 		</section>
 
-		<?php /* ============================ PART 2 · SCALES ============================
-		 * Type / spacing / radius presets that consume the tokens. The ladder the
-		 * element styles reach for as var(--s5-text-…) etc. */ ?>
+		<?php /* ==================== PART 2 · SIZE & SPACING PRESETS =====================
+		 * Type / spacing / radius ladders as ONE full-width card of bands, each row a
+		 * REAL visual (type rendered, space bars, radius corners). No orphan card. */ ?>
 		<section class="sg-part" data-sg-part="scales">
 			<div class="sg-part-head">
 				<span class="sg-part-num">2</span>
 				<div>
-					<h3 class="sg-part-title"><?php esc_html_e( 'Scales', 's5' ); ?></h3>
-					<p class="sg-part-sub"><?php esc_html_e( 'Type, spacing and radius ladders built from the tokens. These are the values the element styles reach for.', 's5' ); ?></p>
+					<h3 class="sg-part-title"><?php esc_html_e( 'Size & Spacing Presets', 's5' ); ?></h3>
+					<p class="sg-part-sub"><?php esc_html_e( 'Type, spacing and radius ladders built from the tokens — the values the elements reach for.', 's5' ); ?></p>
 				</div>
 			</div>
-			<div class="sg-cards-full">
-				<?php
-				self::sg_scale_card( __( 'Type Scale', 's5' ), isset( $tokens['text'] ) ? $tokens['text'] : array(), 'text', $can_edit );
-				self::sg_scale_card( __( 'Space Scale', 's5' ), isset( $tokens['space'] ) ? $tokens['space'] : array(), 'space', $can_edit );
-				self::sg_scale_card( __( 'Radius', 's5' ), isset( $tokens['radius'] ) ? $tokens['radius'] : array(), 'radius', $can_edit );
-				?>
+			<div class="card">
+				<div class="sg-band">
+					<div class="sg-band-label"><?php esc_html_e( 'Type Scale', 's5' ); ?><span class="hint"><?php esc_html_e( 'Font sizes', 's5' ); ?></span></div>
+					<?php self::sg_scale_band( isset( $tokens['text'] ) ? $tokens['text'] : array(), 'text', $can_edit ); ?>
+				</div>
+				<div class="sg-band">
+					<div class="sg-band-label"><?php esc_html_e( 'Space Scale', 's5' ); ?><span class="hint"><?php esc_html_e( 'Spacing ladder', 's5' ); ?></span></div>
+					<?php self::sg_scale_band( isset( $tokens['space'] ) ? $tokens['space'] : array(), 'space', $can_edit ); ?>
+				</div>
+				<div class="sg-band">
+					<div class="sg-band-label"><?php esc_html_e( 'Radius', 's5' ); ?><span class="hint"><?php esc_html_e( 'Corner rounding', 's5' ); ?></span></div>
+					<?php self::sg_scale_band( isset( $tokens['radius'] ) ? $tokens['radius'] : array(), 'radius', $can_edit ); ?>
+				</div>
 			</div>
 		</section>
 
@@ -915,24 +925,109 @@ final class Settings {
 			<div class="sg-part-head">
 				<span class="sg-part-num">3</span>
 				<div>
-					<h3 class="sg-part-title"><?php esc_html_e( 'Element styles', 's5' ); ?></h3>
-					<p class="sg-part-sub"><?php esc_html_e( 'The registered primitives and their real CSS. Edit any property — use var(--s5-…) to pull from the tokens and scales above. Saved edits recompile the site and every page that uses the element.', 's5' ); ?></p>
+					<h3 class="sg-part-title"><?php esc_html_e( 'Elements', 's5' ); ?></h3>
+					<p class="sg-part-sub"><?php esc_html_e( 'The finished primitives your pages use. Each shows how it really renders — tune one and every page that uses it updates.', 's5' ); ?></p>
 				</div>
 				<?php if ( $can_edit_elements ) : ?>
-					<button type="button" class="btn btn--primary sg-new-el-toggle" data-s5-new-element-toggle>
+					<button type="button" class="btn btn--primary" data-s5-new-element>
 						<i class="fa-solid fa-plus"></i> <?php esc_html_e( 'New element', 's5' ); ?>
 					</button>
 				<?php endif; ?>
 			</div>
 
-			<?php if ( $can_edit_elements ) : ?>
-				<?php /* NEW ELEMENT form — hidden until "New element" is clicked (JS toggles
-				 * [hidden]); works without JS too (it is a normal form, just visible). */ ?>
-				<form class="card sg-new-el-form" data-s5-new-element-form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" hidden>
+			<div class="sg-elements">
+				<?php foreach ( ElementStyles::list_elements() as $el ) : ?>
+					<?php self::sg_element_card( $el, $can_edit_elements ); ?>
+				<?php endforeach; ?>
+			</div>
+		</section>
+
+		<?php if ( $can_edit_elements ) : ?>
+			<?php self::sg_element_modal(); ?>
+			<?php self::sg_new_element_modal(); ?>
+		<?php endif; ?>
+
+		<?php /* FULL STYLEGUIDE modal — every token, preset and element in one live
+		 * specimen (Finsweet Client-First style reference). Opened by "View Styleguide";
+		 * closes on the X, Esc, or a click on the backdrop (data-s5-sg-close). */ ?>
+		<div class="sg-modal cb-modal" data-s5-sg-modal aria-hidden="true">
+			<header class="cb-top">
+				<div class="cb-top-l">
+					<button type="button" class="cb-back" data-s5-sg-close><i class="fa-solid fa-arrow-left"></i> <?php esc_html_e( 'Back to Styles', 's5' ); ?></button>
+					<span class="cb-slug mono"><?php esc_html_e( 'Live Styleguide', 's5' ); ?></span>
+				</div>
+				<div class="cb-top-r">
+					<button type="button" class="cb-icon" data-s5-sg-close title="<?php esc_attr_e( 'Close', 's5' ); ?>"><i class="fa-solid fa-xmark"></i></button>
+				</div>
+			</header>
+			<div class="sg-modal-scroll">
+				<?php self::sg_full_styleguide( $tokens ); ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * The shared element-editor MODAL (same shell as the Component Builder cb-modal).
+	 * A card's pencil opens it via JS, filling the selector heading + the CSS textarea
+	 * from the card's data-sg-el; Save posts the existing ACTION_SAVE_ELEMENT form.
+	 *
+	 * @return void
+	 */
+	private static function sg_element_modal(): void {
+		?>
+		<div class="cb-modal sg-el-modal" data-s5-el-modal aria-hidden="true">
+			<header class="cb-top">
+				<div class="cb-top-l">
+					<button type="button" class="cb-back" data-s5-el-modal-close><i class="fa-solid fa-arrow-left"></i> <?php esc_html_e( 'All elements', 's5' ); ?></button>
+					<span class="cb-name" data-s5-el-modal-name></span>
+					<span class="cb-slug mono" data-s5-el-modal-selector></span>
+				</div>
+				<div class="cb-top-r">
+					<button type="button" class="cb-icon" data-s5-el-modal-close title="<?php esc_attr_e( 'Close', 's5' ); ?>"><i class="fa-solid fa-xmark"></i></button>
+				</div>
+			</header>
+			<div class="sg-el-modal-body">
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-s5-el-modal-form>
+					<?php wp_nonce_field( self::ACTION_SAVE_ELEMENT ); ?>
+					<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_ELEMENT ); ?>">
+					<input type="hidden" name="element" value="" data-s5-el-modal-key>
+					<div class="sg-el-rulelabel"><code data-s5-el-modal-open>{</code></div>
+					<textarea class="input sg-el-code" name="declarations" rows="14" spellcheck="false" data-s5-el-modal-code></textarea>
+					<div class="sg-el-rulelabel"><code>}</code></div>
+					<div class="sg-el-actions">
+						<button type="submit" class="btn btn--primary"><?php esc_html_e( 'Save', 's5' ); ?></button>
+						<button type="button" class="btn btn--ghost" data-s5-el-modal-close><?php esc_html_e( 'Cancel', 's5' ); ?></button>
+						<span class="field-hint"><?php echo wp_kses_post( __( 'Any CSS property · use <code>var(--s5-…)</code> for tokens', 's5' ) ); ?></span>
+					</div>
+				</form>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * The "New element" MODAL (same cb-modal shell). Opened by the "New element" button.
+	 *
+	 * @return void
+	 */
+	private static function sg_new_element_modal(): void {
+		?>
+		<div class="cb-modal sg-el-modal" data-s5-new-element-modal aria-hidden="true">
+			<header class="cb-top">
+				<div class="cb-top-l">
+					<button type="button" class="cb-back" data-s5-new-element-close><i class="fa-solid fa-arrow-left"></i> <?php esc_html_e( 'All elements', 's5' ); ?></button>
+					<span class="cb-name"><?php esc_html_e( 'New element', 's5' ); ?></span>
+				</div>
+				<div class="cb-top-r">
+					<button type="button" class="cb-icon" data-s5-new-element-close title="<?php esc_attr_e( 'Close', 's5' ); ?>"><i class="fa-solid fa-xmark"></i></button>
+				</div>
+			</header>
+			<div class="sg-el-modal-body">
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<?php wp_nonce_field( self::ACTION_NEW_ELEMENT ); ?>
 					<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_NEW_ELEMENT ); ?>">
-					<div class="card-head"><i class="fa-solid fa-plus"></i><h3><?php esc_html_e( 'Register a new element', 's5' ); ?></h3></div>
-					<div class="card-body sg-new-el-grid">
+					<div class="sg-new-el-grid">
 						<div class="field">
 							<label class="field-label"><?php esc_html_e( 'Name', 's5' ); ?></label>
 							<input class="input" name="label" placeholder="<?php esc_attr_e( 'Badge', 's5' ); ?>" required>
@@ -949,33 +1044,91 @@ final class Settings {
 						</div>
 						<div class="field sg-new-el-css">
 							<label class="field-label"><?php esc_html_e( 'Starting CSS', 's5' ); ?> <span class="opt"><?php esc_html_e( 'optional', 's5' ); ?></span></label>
-							<textarea class="input sg-el-code" name="declarations" rows="4" spellcheck="false" placeholder="display: inline-block;&#10;padding: .2em .6em;&#10;border-radius: var(--s5-radius-sm);"></textarea>
+							<textarea class="input sg-el-code" name="declarations" rows="6" spellcheck="false" placeholder="display: inline-block;&#10;padding: .2em .6em;&#10;border-radius: var(--s5-radius-sm);"></textarea>
 						</div>
 						<div class="sg-el-actions">
 							<button type="submit" class="btn btn--primary"><i class="fa-solid fa-check"></i> <?php esc_html_e( 'Register element', 's5' ); ?></button>
-							<button type="button" class="btn btn--ghost" data-s5-new-element-cancel><?php esc_html_e( 'Cancel', 's5' ); ?></button>
+							<button type="button" class="btn btn--ghost" data-s5-new-element-close><?php esc_html_e( 'Cancel', 's5' ); ?></button>
 						</div>
 					</div>
 				</form>
-			<?php endif; ?>
+			</div>
+		</div>
+		<?php
+	}
 
-			<div class="sg-elements">
-				<?php foreach ( ElementStyles::list_elements() as $el ) : ?>
-					<?php self::sg_element_card( $el, $can_edit_elements ); ?>
+	/**
+	 * The FULL styleguide specimen for the modal: every token, preset and element in one
+	 * live, scrollable document (Client-First reference). Read-only showcase — editing
+	 * stays on the cards/CSS tab; this is the "see the whole system at a glance" view.
+	 *
+	 * @param array<string, array<int, array{name:string,value:string}>> $tokens Token groups.
+	 * @return void
+	 */
+	private static function sg_full_styleguide( array $tokens ): void {
+		?>
+		<div class="sg-guide">
+			<h2 class="sg-guide-h"><?php esc_html_e( 'Style Guide', 's5' ); ?></h2>
+
+			<section class="sg-guide-sec">
+				<h3><?php esc_html_e( 'Colors', 's5' ); ?></h3>
+				<div class="sg-guide-swatches">
+					<?php foreach ( ( isset( $tokens['color'] ) ? $tokens['color'] : array() ) as $t ) : ?>
+						<div class="sg-guide-swatch">
+							<span class="sw" style="background:<?php echo esc_attr( $t['value'] ); ?>"></span>
+							<span class="nm"><?php echo esc_html( str_replace( '--s5-color-', '', $t['name'] ) ); ?></span>
+							<span class="vr"><?php echo esc_html( $t['value'] ); ?></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+
+			<section class="sg-guide-sec">
+				<h3><?php esc_html_e( 'Typography', 's5' ); ?></h3>
+				<?php foreach ( ( isset( $tokens['text'] ) ? $tokens['text'] : array() ) as $t ) : ?>
+					<div class="sg-guide-type" style="font-size:<?php echo esc_attr( $t['value'] ); ?>">
+						<?php echo esc_html( str_replace( '--s5-text-', '', $t['name'] ) ); ?> — <?php esc_html_e( 'The quick brown fox jumps over the lazy dog', 's5' ); ?>
+					</div>
 				<?php endforeach; ?>
-			</div>
-		</section>
+			</section>
 
-		<div class="sg-modal" data-s5-sg-modal aria-hidden="true">
-			<div class="sg-modal-bar">
-				<button type="button" class="tpl-modal-back" data-s5-sg-close>
-					<i class="fa-solid fa-arrow-left"></i> <?php esc_html_e( 'Back to Styles', 's5' ); ?>
-				</button>
-				<div class="tpl-modal-title"><i class="fa-solid fa-swatchbook"></i> <?php esc_html_e( 'Live Styleguide', 's5' ); ?></div>
-			</div>
-			<div class="sg-modal-stage">
-				<?php self::sg_specimen(); ?>
-			</div>
+			<section class="sg-guide-sec">
+				<h3><?php esc_html_e( 'Spacing', 's5' ); ?></h3>
+				<?php foreach ( ( isset( $tokens['space'] ) ? $tokens['space'] : array() ) as $t ) : ?>
+					<div class="sg-guide-space">
+						<span class="k"><?php echo esc_html( str_replace( '--s5-space-', '', $t['name'] ) ); ?></span>
+						<span class="bar" style="width:<?php echo (int) max( 4, min( 320, self::largest_rem( $t['value'] ) * 40 ) ); ?>px"></span>
+						<span class="v"><?php echo esc_html( $t['value'] ); ?></span>
+					</div>
+				<?php endforeach; ?>
+			</section>
+
+			<section class="sg-guide-sec">
+				<h3><?php esc_html_e( 'Radius', 's5' ); ?></h3>
+				<div class="sg-guide-radii">
+					<?php foreach ( ( isset( $tokens['radius'] ) ? $tokens['radius'] : array() ) as $t ) : ?>
+						<div class="sg-guide-radius">
+							<span class="box" style="border-radius:<?php echo esc_attr( $t['value'] ); ?>"></span>
+							<span class="k"><?php echo esc_html( str_replace( '--s5-radius-', '', $t['name'] ) ); ?> · <?php echo esc_html( $t['value'] ); ?></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+
+			<section class="sg-guide-sec">
+				<h3><?php esc_html_e( 'Elements', 's5' ); ?></h3>
+				<div class="sg-guide-elements">
+					<?php foreach ( ElementStyles::list_elements() as $el ) : ?>
+						<?php $classes = self::selector_to_classes( $el['selector'] ); $tag = self::sg_preview_tag( $el['key'] ); ?>
+						<div class="sg-guide-el">
+							<div class="ex">
+								<<?php echo esc_html( $tag ); ?> class="<?php echo esc_attr( $classes ); ?>"><?php echo esc_html( $el['sample'] ); ?></<?php echo esc_html( $tag ); ?>>
+							</div>
+							<span class="lbl"><?php echo esc_html( $el['label'] ); ?> <code><?php echo esc_html( $el['selector'] ); ?></code></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
 		</div>
 		<?php
 	}
@@ -994,43 +1147,71 @@ final class Settings {
 		// The preview element uses the REAL class(es) so the live bundle styles it.
 		// '.btn--primary' → class="btn btn--primary"; '.page-hero_title' → that class.
 		$classes = self::selector_to_classes( $el['selector'] );
+		// Choose a preview tag that reads correctly for the primitive (a heading looks
+		// like a heading, a button like a button) rather than everything in a <span>.
+		$tag = self::sg_preview_tag( $el['key'] );
 		?>
-		<div class="card sg-el-card" data-sg-element="<?php echo esc_attr( $el['key'] ); ?>">
-			<div class="card-head">
-				<i class="fa-solid <?php echo esc_attr( $el['icon'] ); ?>"></i>
-				<h3><?php echo esc_html( $el['label'] ); ?></h3>
-				<span class="card-note sg-el-selector"><?php echo esc_html( $el['selector'] ); ?></span>
-				<?php if ( ! $el['defined'] ) : ?>
-					<span class="pill pill--muted"><?php esc_html_e( 'not yet defined', 's5' ); ?></span>
-				<?php endif; ?>
+		<?php
+		// Same card pattern as a component (comp-card): preview, then a meta row with a
+		// PENCIL that opens the editor MODAL + an enable/disable TOGGLE. No inline editor
+		// (that accordion pushed sibling cards around) — editing happens in the modal,
+		// exactly like the Component Builder. Data attrs feed the modal via JS.
+		$json = wp_json_encode(
+			array(
+				'key'      => $el['key'],
+				'label'    => $el['label'],
+				'selector' => $el['selector'],
+				'rule'     => $el['rule'],
+			)
+		);
+		?>
+		<div class="card sg-el-card" data-sg-element="<?php echo esc_attr( $el['key'] ); ?>" data-sg-el='<?php echo esc_attr( (string) $json ); ?>'>
+			<div class="sg-el-preview"<?php echo $can_edit ? ' data-s5-el-open' : ''; ?>>
+				<<?php echo esc_html( $tag ); ?> class="<?php echo esc_attr( $classes ); ?>"><?php echo esc_html( $el['sample'] ); ?></<?php echo esc_html( $tag ); ?>>
 			</div>
-			<div class="card-body">
-				<?php /* LIVE PREVIEW — the real class, styled by the compiled bundle. */ ?>
-				<div class="sg-el-preview">
-					<span class="<?php echo esc_attr( $classes ); ?>"><?php echo esc_html( $el['sample'] ); ?></span>
-				</div>
 
+			<div class="sg-el-meta">
+				<span class="sg-el-ico"><i class="fa-solid <?php echo esc_attr( $el['icon'] ); ?>"></i></span>
+				<span class="sg-el-id">
+					<span class="sg-el-name"><?php echo esc_html( $el['label'] ); ?></span>
+					<span class="sg-el-selector"><?php echo esc_html( $el['selector'] ); ?></span>
+				</span>
+				<?php if ( ! $el['defined'] ) : ?>
+					<span class="pill pill--muted"><?php esc_html_e( 'not defined', 's5' ); ?></span>
+				<?php endif; ?>
 				<?php if ( $can_edit ) : ?>
-					<form class="sg-el-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-						<?php wp_nonce_field( self::ACTION_SAVE_ELEMENT ); ?>
-						<input type="hidden" name="action" value="<?php echo esc_attr( self::ACTION_SAVE_ELEMENT ); ?>">
-						<input type="hidden" name="element" value="<?php echo esc_attr( $el['key'] ); ?>">
-						<label class="field-label sg-el-rulelabel">
-							<code><?php echo esc_html( $el['selector'] ); ?> {</code>
-						</label>
-						<textarea class="input sg-el-code" name="declarations" rows="<?php echo (int) max( 4, substr_count( $el['rule'], "\n" ) + 2 ); ?>" spellcheck="false" data-s5-css-editor><?php echo esc_textarea( $el['rule'] ); ?></textarea>
-						<div class="sg-el-rulelabel"><code>}</code></div>
-						<div class="sg-el-actions">
-							<button type="submit" class="btn btn--primary"><i class="fa-solid fa-floppy-disk"></i> <?php esc_html_e( 'Save & recompile', 's5' ); ?></button>
-							<span class="field-hint"><?php esc_html_e( 'Any CSS property. Use var(--s5-…) for tokens.', 's5' ); ?></span>
-						</div>
-					</form>
-				<?php else : ?>
-					<pre class="sg-el-readonly"><code><?php echo esc_html( $el['selector'] . " {\n" . $el['rule'] . "\n}" ); ?></code></pre>
+					<button type="button" class="sg-el-open" data-s5-el-open title="<?php esc_attr_e( 'Edit element', 's5' ); ?>"><i class="fa-solid fa-pen"></i></button>
+					<button type="button" class="switch on" role="switch" aria-checked="true" title="<?php esc_attr_e( 'Enable / disable', 's5' ); ?>"><span class="knob"></span></button>
 				<?php endif; ?>
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * The HTML tag a preview should use so a primitive renders as what it IS
+	 * (a heading as a heading, a button as a link-button, etc.) instead of a
+	 * generic span. Unknown/custom elements fall back to a neutral span.
+	 *
+	 * @param string $key Registered element key.
+	 * @return string Tag name (already safe — chosen from a fixed set).
+	 */
+	private static function sg_preview_tag( string $key ): string {
+		switch ( $key ) {
+			case 'heading':
+				return 'h3';
+			case 'lede':
+			case 'price':
+				return 'p';
+			case 'button':
+			case 'button-primary':
+			case 'button-ghost':
+				return 'a';
+			case 'card':
+				return 'div';
+			default:
+				return 'span';
+		}
 	}
 
 	/**
@@ -1048,6 +1229,104 @@ final class Settings {
 			return $base . ' ' . $class;
 		}
 		return $class;
+	}
+
+	/**
+	 * One colour swatch for the Design Tokens band: chip + name + var, with the inline
+	 * edit form (the existing sg_edit_form) when the developer can edit.
+	 *
+	 * @param array{name:string,value:string} $t        Colour token.
+	 * @param bool                             $can_edit Developer-tier.
+	 * @return void
+	 */
+	private static function sg_swatch( array $t, bool $can_edit ): void {
+		?>
+		<div class="sg-swatch">
+			<span class="chip" style="background:<?php echo esc_attr( $t['value'] ); ?>"></span>
+			<span class="meta">
+				<span class="nm"><?php echo esc_html( str_replace( '--s5-color-', '', $t['name'] ) ); ?></span><br>
+				<span class="vr"><?php echo esc_html( $t['name'] ); ?></span>
+			</span>
+			<?php if ( $can_edit ) : ?>
+				<?php self::sg_edit_form( $t['name'], $t['value'] ); ?>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * A scale band (type / space / radius): one row per step, each with a REAL visual —
+	 * type rendered at size, a space bar, or a radius corner — plus the value and inline
+	 * edit form. Replaces the old boxed scale card so section 2 is one banded card.
+	 *
+	 * @param array<int, array{name:string,value:string}> $tokens Scale tokens.
+	 * @param string                                       $kind   'text' | 'space' | 'radius'.
+	 * @param bool                                         $can_edit Developer-tier.
+	 * @return void
+	 */
+	/**
+	 * The largest rem magnitude in a token value expression, e.g. from
+	 * "clamp(0.25rem, 0.24rem + 0.11vw, 0.75rem)" returns 0.75. Falls back to a bare
+	 * numeric parse for simple values. Used to size the space-scale bars faithfully.
+	 *
+	 * @param string $value Token value.
+	 * @return float
+	 */
+	private static function largest_rem( string $value ): float {
+		$max = 0.0;
+		if ( preg_match_all( '/([0-9]*\.?[0-9]+)rem/', $value, $m ) ) {
+			foreach ( $m[1] as $n ) {
+				$max = max( $max, (float) $n );
+			}
+			return $max;
+		}
+		// No rem in the expression: fall back to the largest px value (÷16 to a rem-
+		// equivalent so px-based design systems still get proportional bars), else the
+		// bare numeric parse. Guarantees a sane, non-zero magnitude for any token unit.
+		if ( preg_match_all( '/([0-9]*\.?[0-9]+)px/', $value, $mp ) ) {
+			foreach ( $mp[1] as $n ) {
+				$max = max( $max, (float) $n );
+			}
+			return $max / 16.0;
+		}
+		return (float) $value;
+	}
+
+	private static function sg_scale_band( array $tokens, string $kind, bool $can_edit ): void {
+		if ( empty( $tokens ) ) {
+			echo '<p class="field-hint">' . esc_html__( 'No tokens declared.', 's5' ) . '</p>';
+			return;
+		}
+		echo '<div class="sg-scale-list">';
+		foreach ( $tokens as $t ) {
+			$key = str_replace( array( '--s5-text-', '--s5-space-', '--s5-radius-' ), '', $t['name'] );
+			echo '<div class="sg-scale-row">';
+			echo '<span class="sg-scale-key">' . esc_html( $key ) . '</span>';
+			if ( 'text' === $kind ) {
+				printf(
+					'<span class="sg-scale-demo" style="font-size:%s">%s</span>',
+					esc_attr( $t['value'] ),
+					esc_html__( 'The quick brown fox', 's5' )
+				);
+			} elseif ( 'space' === $kind ) {
+				// Values are clamp(min, pref, max) — a bare (float) cast reads 0, which is
+				// why every bar collapsed to the same minimum. Pull the LARGEST rem in the
+				// expression (the clamp max, the token's nominal size) and scale that.
+				$rem = self::largest_rem( $t['value'] );
+				$px  = (int) max( 6, min( 260, $rem * 34 ) );
+				printf( '<span class="sg-scale-demo"><span class="sg-space-bar" style="width:%dpx"></span></span>', (int) $px );
+			} else {
+				printf( '<span class="sg-scale-demo"><span class="sg-radius-demo" style="border-radius:%s"></span></span>', esc_attr( $t['value'] ) );
+			}
+			echo '<span class="sg-scale-val">' . esc_html( $t['value'] ) . '</span>';
+			if ( $can_edit ) {
+				self::sg_edit_form( $t['name'], $t['value'] );
+			} else {
+				echo '<span></span>';
+			}
+			echo '</div>';
+		}
+		echo '</div>';
 	}
 
 	/**
@@ -1913,7 +2192,7 @@ final class Settings {
 
 		<div class="vocab-note">
 			<i class="fa-solid fa-triangle-exclamation"></i>
-			<div><?php echo wp_kses_post( __( '<strong>Every layer is editable.</strong> Saving recompiles the bundle. The <strong>Classes</strong> layer is the closed vocabulary the validator enforces on page save — keep class names in lockstep with what pages actually use.', 's5' ) ); ?></div>
+			<div><?php echo wp_kses_post( __( '<strong>Every layer is editable.</strong> Saving applies your changes to the live site. The <strong>Classes</strong> layer is the closed vocabulary the validator enforces on page save — keep class names in lockstep with what pages actually use.', 's5' ) ); ?></div>
 		</div>
 		<?php
 	}

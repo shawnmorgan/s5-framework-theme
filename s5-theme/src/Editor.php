@@ -88,6 +88,10 @@ final class Editor {
 		// Entry points into the editor.
 		add_filter( 'page_row_actions', array( self::class, 'add_row_action' ), 10, 2 );
 		add_action( 'admin_bar_menu', array( self::class, 'add_admin_bar_link' ), 100 );
+		// The prominent in-editor button (the "Edit with Bricks" pattern): a big, obvious
+		// CTA right under the title on the classic edit-post screen, so the canvas is one
+		// click away WITHOUT leaving the edit screen for the pages list.
+		add_action( 'edit_form_after_title', array( self::class, 'render_edit_screen_button' ) );
 
 		// Pages-list integration (Phase A2, "Bricks pattern").
 		// An "S5" post-state badge on framework pages.
@@ -339,6 +343,62 @@ final class Editor {
 	}
 
 	/**
+	 * Print a prominent "Edit in S5 Canvas" button on the classic edit-post screen,
+	 * right under the title (WP's `edit_form_after_title` hook) — the "Edit with
+	 * Bricks" pattern. This is the fix for "I have to leave the edit screen and go
+	 * back to the pages list to reach the canvas": from any framework page's WP edit
+	 * screen, one obvious click opens the S5 canvas.
+	 *
+	 * Shown only for framework pages (the canvas edits framework-page canonical HTML)
+	 * and only to a role that can open the editor. A NON-framework page shows a quieter
+	 * "Open in S5 Canvas" that adopts it into the framework on first canvas save.
+	 *
+	 * @param \WP_Post $post The post being edited.
+	 * @return void
+	 */
+	public static function render_edit_screen_button( $post ): void {
+		if ( ! ( $post instanceof \WP_Post ) ) {
+			return;
+		}
+		if ( ! current_user_can( self::CAPABILITY ) || ! Roles::can( 'editor.open' ) ) {
+			return;
+		}
+		// Only pages are canvas-editable in v1 (posts render via templates, not the
+		// canvas). Keep the button off post types the canvas cannot open.
+		if ( 'page' !== $post->post_type ) {
+			return;
+		}
+		// Only FRAMEWORK pages (those with S5 canonical HTML) open in the canvas — a
+		// plain WP page has no canonical, so the canvas would be blank. Same predicate
+		// the row action / admin-bar link / block-editor redirect all gate on: the button
+		// appears exactly where the canvas actually works, and nowhere it would dead-end.
+		if ( ! Storage::is_framework_page( (int) $post->ID ) ) {
+			return;
+		}
+
+		$url   = self::editor_url( (int) $post->ID );
+		$label = __( 'Edit in S5 Canvas', 's5' );
+		$sub   = __( 'Edit this page visually in the S5 canvas editor.', 's5' );
+		?>
+		<div class="s5-edit-cta-bar">
+			<a class="s5-edit-cta-btn" href="<?php echo esc_url( $url ); ?>">
+				<span class="dashicons dashicons-layout" aria-hidden="true"></span>
+				<?php echo esc_html( $label ); ?>
+			</a>
+			<span class="s5-edit-cta-sub"><?php echo esc_html( $sub ); ?></span>
+		</div>
+		<style>
+			.s5-edit-cta-bar{display:flex;align-items:center;gap:14px;margin:12px 0 4px;padding:14px 16px;background:#f0f6fc;border:1px solid #c5d9ed;border-left:4px solid #2271b1;border-radius:6px;}
+			.s5-edit-cta-btn{display:inline-flex;align-items:center;gap:8px;background:#2271b1;color:#fff;font-weight:600;font-size:14px;line-height:1;padding:11px 20px;border-radius:5px;text-decoration:none;box-shadow:0 1px 2px rgba(0,0,0,.12);}
+			.s5-edit-cta-btn:hover,.s5-edit-cta-btn:focus{background:#135e96;color:#fff;}
+			.s5-edit-cta-btn .dashicons{width:18px;height:18px;font-size:18px;}
+			.s5-edit-cta-sub{color:#50575e;font-size:13px;}
+			@media (max-width:600px){.s5-edit-cta-bar{flex-direction:column;align-items:flex-start;}}
+		</style>
+		<?php
+	}
+
+	/**
 	 * Style the "Edit with S5" admin-bar node as a filled button so it reads as
 	 * the obvious primary action, not another plain text link among many.
 	 *
@@ -500,6 +560,10 @@ final class Editor {
 				'components' => self::components_for_palette(),
 				'bundleUrl'  => StyleBundle::url(),
 				'styleAxes'  => ControlsManifest::ui_axes(),
+				// Structure-panel context menu: whether this user is a Developer (gates the
+				// "View component" action) and the Components screen URL it links to.
+				'isDeveloper'  => ( 'developer' === Roles::role_for_user() ),
+				'componentsUrl' => Settings::screen_url( 'components' ),
 				// FontAwesome URL so overlay.js can load the glyph font INTO the preview
 				// iframe (same-origin), matching the mockup's selection-chrome icons.
 				'faUrl'      => constant( 'S5\\S5_PLUGIN_URL' ) . 'assets/vendor/fontawesome/css/all.min.css',

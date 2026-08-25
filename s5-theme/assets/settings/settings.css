@@ -345,8 +345,9 @@
 .s5set .sg-card{padding:16px;border:1px solid var(--s5-color-line);border-radius:var(--s5-radius-md);background:var(--s5-color-surface-alt);}
 .s5set .sg-card h4{margin-bottom:5px;font-size:var(--s5-text-md);}
 .s5set .sg-card p{font-size:var(--s5-text-sm);}
-.s5set .sg-swatches{display:flex;gap:0;border-radius:var(--s5-radius-md);overflow:hidden;border:1px solid var(--s5-color-line);}
-.s5set .sg-swatch{flex:1;height:56px;display:flex;align-items:flex-end;padding:6px;font-size:10px;color:#fff;font-family:var(--s5e-mono);text-shadow:0 1px 2px rgba(0,0,0,.4);}
+/* NOTE: the .sg-swatches / .sg-swatch design lives further down (banded Design Tokens
+   section, ~line 625). The old bordered flex-strip rules here were superseded and
+   were leaking a light border box; intentionally not redefining them here. */
 .s5set .sg-badges{display:flex;gap:8px;flex-wrap:wrap;}
 .s5set .badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;}
 .s5set .badge--success{background:rgba(42,157,92,.15);color:#1d7a45;}
@@ -606,38 +607,122 @@
  * existing .card + .sg-cards-full grid; these rules add the numbered part sections
  * and the Element-styles editor cards.
  * =========================================================================== */
-.s5set .sg-part{margin:0 0 34px;}
-.s5set .sg-part-head{display:flex;align-items:flex-start;gap:14px;margin:0 0 16px;padding-bottom:12px;border-bottom:1px solid var(--s5e-line);}
-.s5set .sg-part-num{flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--s5e-accent-soft);color:var(--s5e-accent);font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px;}
+.s5set .sg-part{margin:0 0 40px;}
+.s5set .sg-part-head{display:flex;align-items:center;gap:12px;margin:0 0 16px;padding-bottom:0;border-bottom:0;}
+.s5set .sg-part-num{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:var(--s5e-accent-soft);color:var(--s5e-accent);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
 .s5set .sg-part-title{font-size:15px;font-weight:700;margin:0;color:var(--s5e-text);}
-.s5set .sg-part-sub{font-size:12px;color:var(--s5e-text-dim);margin:2px 0 0;max-width:70ch;}
+.s5set .sg-part-sub{font-size:12px;color:var(--s5e-text-dim);margin:1px 0 0;max-width:78ch;}
 
-/* Element-styles grid: roomy cards (the editor needs width), one per primitive. */
-.s5set .sg-elements{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;}
-.s5set .sg-el-card{display:flex;flex-direction:column;}
+/* SECTIONS 1 & 2 are ONE full-width card each, split into labeled horizontal BANDS
+ * (no more odd-count 2-column cards with a lonely orphan). */
+.s5set .sg-cards-full{display:block;}
+.s5set .sg-band{display:grid;grid-template-columns:170px 1fr;gap:22px;padding:18px 22px;border-top:1px solid var(--s5e-line-soft);}
+.s5set .sg-band:first-child{border-top:0;}
+.s5set .sg-band-label{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--s5e-text-faint);padding-top:2px;}
+.s5set .sg-band-label .hint{display:block;font-weight:400;text-transform:none;letter-spacing:0;color:var(--s5e-text-faint);margin-top:5px;font-size:11px;}
+@media (max-width:760px){.s5set .sg-band{grid-template-columns:1fr;gap:12px;}}
+
+/* Colors → 3-column swatch grid inside the band (no outer border box; more room). */
+.s5set .sg-swatches{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media (max-width:900px){.s5set .sg-swatches{grid-template-columns:repeat(2,1fr);}}
+.s5set .sg-swatch{display:flex;align-items:center;gap:12px;background:var(--s5e-bg-2);border:1px solid var(--s5e-line-soft);border-radius:var(--s5e-radius-md);padding:11px 13px;}
+.s5set .sg-swatch .chip{width:34px;height:34px;border-radius:7px;flex:0 0 auto;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);}
+.s5set .sg-swatch .meta{min-width:0;flex:1;}
+.s5set .sg-swatch .nm{font-size:13px;font-weight:600;}
+.s5set .sg-swatch .vr{font-family:var(--s5e-mono);font-size:10px;color:var(--s5e-text-faint);}
+
+/* Fonts inside the band */
+.s5set .sg-fonts{display:flex;flex-direction:column;gap:10px;}
+.s5set .sg-font-item{background:var(--s5e-bg-2);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);padding:9px 11px;}
+.s5set .sg-font-k{font-family:var(--s5e-mono);font-size:10.5px;color:var(--s5e-text-faint);margin-bottom:4px;}
+.s5set .sg-font-v{font-family:var(--s5e-mono);font-size:12px;color:var(--s5e-text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* Scale rows with REAL visuals (type rendered, space bars, radius corners) */
+.s5set .sg-scale-list{display:flex;flex-direction:column;}
+.s5set .sg-scale-row{display:grid;grid-template-columns:120px 1fr auto auto;align-items:center;gap:16px;padding:8px 0;border-top:1px solid var(--s5e-line-soft);}
+.s5set .sg-scale-row:first-child{border-top:0;}
+.s5set .sg-scale-key{font-family:var(--s5e-mono);font-size:11px;color:var(--s5e-text-dim);}
+.s5set .sg-scale-demo{color:var(--s5e-text);white-space:nowrap;overflow:hidden;line-height:1.1;}
+.s5set .sg-space-bar{display:inline-block;height:10px;background:var(--s5e-accent);border-radius:2px;vertical-align:middle;}
+.s5set .sg-radius-demo{display:inline-block;width:32px;height:32px;background:var(--s5e-bg-3);border:1px solid var(--s5e-accent);vertical-align:middle;}
+.s5set .sg-scale-val{font-family:var(--s5e-mono);font-size:11px;color:var(--s5e-text-faint);text-align:right;}
+.s5set .sg-scale-edit{color:var(--s5e-text-faint);cursor:pointer;}
+.s5set .sg-scale-edit:hover{color:var(--s5e-accent);}
+
+/* ============ SECTION 3 · ELEMENTS — preview-first cards ============ */
+.s5set .sg-elements{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.s5set .sg-el-card{display:flex;flex-direction:column;padding:0;overflow:hidden;}
+
+/* preview LEADS the card — a real light "site" surface where the primitive renders
+ * as itself; it is the hero of the card, not an afterthought. */
+.s5set .sg-el-preview{background:#fff;color:#1e1e1e;padding:24px 20px;min-height:104px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--s5e-line);text-align:center;}
+/* Force a legible ink on the light preview surface. Some primitives (.page-hero_title,
+ * .card) set no color and would otherwise inherit the admin's dim/near-white text and
+ * vanish on white. The real front-end inherits body ink; mirror that here so the
+ * preview reads truthfully. */
+.s5set .sg-el-preview,
+.s5set .sg-el-preview *{color:#1e1e1e;}
+.s5set .sg-el-preview a{cursor:default;}
+.s5set .sg-el-preview .btn--primary,
+.s5set .sg-el-preview .btn--primary *{color:#fff;}
+
+.s5set .sg-el-preview[data-s5-el-open]{cursor:pointer;}
+/* meta row mirrors the component card: icon · name/selector · pencil · toggle */
+.s5set .sg-el-meta{display:flex;align-items:center;gap:10px;padding:12px 14px;}
+.s5set .sg-el-ico{width:26px;height:26px;border-radius:6px;background:var(--s5e-accent-soft);color:var(--s5e-accent);display:flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto;}
+.s5set .sg-el-id{display:flex;flex-direction:column;min-width:0;}
+.s5set .sg-el-name{font-size:13px;font-weight:600;color:var(--s5e-text);}
 .s5set .sg-el-selector{font-family:var(--s5e-mono);font-size:11px;color:var(--s5e-text-faint);}
-.s5set .sg-el-card .pill--muted{margin-left:6px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:2px 7px;border-radius:4px;background:var(--s5e-bg-3);color:var(--s5e-text-faint);}
+.s5set .sg-el-card .pill--muted{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;padding:2px 7px;border-radius:4px;background:var(--s5e-bg-3);color:var(--s5e-text-faint);}
+.s5set .sg-el-open{margin-left:auto;width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:transparent;border:1px solid var(--s5e-line);border-radius:6px;color:var(--s5e-text-dim);cursor:pointer;flex:0 0 auto;}
+.s5set .sg-el-open:hover{border-color:var(--s5e-accent);color:var(--s5e-text);}
 
-/* Live preview — the real class, styled by the compiled bundle, on a neutral stage. */
-.s5set .sg-el-preview{background:#fff;color:#111;border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md,8px);padding:16px;margin:0 0 12px;min-height:56px;display:flex;align-items:center;gap:10px;overflow:auto;}
-
-/* The CSS editor: monospace textarea framed as a rule body between the selector
- * heading and the closing brace, so it reads like editing the actual rule. */
+/* ELEMENT-EDITOR + NEW-ELEMENT modals: reuse the Component Builder cb-modal shell.
+   Just a single scrollable body (not the 3-pane builder). */
+.s5set .sg-el-modal .sg-el-modal-body{flex:1;overflow:auto;padding:22px;max-width:820px;width:100%;margin:0 auto;}
 .s5set .sg-el-rulelabel{margin:0;}
 .s5set .sg-el-rulelabel code{font-family:var(--s5e-mono);font-size:12px;color:var(--s5e-text-dim);}
-.s5set textarea.sg-el-code{width:100%;font-family:var(--s5e-mono);font-size:12px;line-height:1.55;background:var(--s5e-canvas,#111318);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm,6px);color:var(--s5e-text);padding:10px 12px;margin:4px 0;resize:vertical;tab-size:2;}
+.s5set textarea.sg-el-code{width:100%;font-family:var(--s5e-mono);font-size:13px;line-height:1.6;background:var(--s5e-bg);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm);color:var(--s5e-text);padding:11px 13px;margin:5px 0;resize:vertical;tab-size:2;}
 .s5set textarea.sg-el-code:focus{outline:none;border-color:var(--s5e-accent);box-shadow:0 0 0 2px var(--s5e-accent-soft);}
-.s5set .sg-el-actions{display:flex;align-items:center;gap:12px;margin-top:8px;}
-.s5set .sg-el-actions .field-hint{margin:0;}
-.s5set .sg-el-readonly{background:var(--s5e-canvas,#111318);border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-sm,6px);padding:10px 12px;overflow:auto;}
-.s5set .sg-el-readonly code{font-family:var(--s5e-mono);font-size:12px;color:var(--s5e-text-dim);white-space:pre;}
+.s5set .sg-el-actions{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap;}
+.s5set .sg-el-actions .field-hint{margin:0;font-size:12px;color:var(--s5e-text-faint);}
+.s5set .sg-el-actions .field-hint code{font-family:var(--s5e-mono);}
+.s5set .cb-name{font-size:14px;font-weight:600;color:var(--s5e-text);}
 
-/* "New element" — the toggle sits in the part head (pushed right); the form is a
- * full-width card that reveals above the element grid. */
-.s5set .sg-part-head{position:relative;}
-.s5set .sg-new-el-toggle{margin-left:auto;align-self:center;}
-.s5set .sg-new-el-form{margin:0 0 16px;}
-.s5set .sg-new-el-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.s5set .sg-new-el-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
 .s5set .sg-new-el-grid .sg-new-el-css{grid-column:1 / -1;}
 .s5set .sg-new-el-grid .sg-el-actions{grid-column:1 / -1;}
 @media (max-width:720px){.s5set .sg-new-el-grid{grid-template-columns:1fr;}}
+
+/* FULL STYLEGUIDE modal — scrollable body + a clean specimen (Client-First style). */
+/* The styleguide modal now uses the cb-modal full-bleed shell — override the older
+   narrow/centered .sg-modal positioning (left:50%/width:70%) so it fills the screen. */
+.s5set .sg-modal.cb-modal{left:0;right:0;width:auto;transform:none;border-left:0;border-right:0;box-shadow:none;}
+.s5set .sg-modal.cb-modal .sg-modal-scroll{flex:1;overflow:auto;background:var(--s5e-bg);}
+.s5set .sg-guide{max-width:920px;margin:0 auto;padding:36px 28px 60px;}
+.s5set .sg-guide-h{font-size:26px;font-weight:700;margin:0 0 26px;color:var(--s5e-text);}
+.s5set .sg-guide-sec{margin:0 0 40px;}
+.s5set .sg-guide-sec>h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--s5e-text-faint);margin:0 0 16px;padding-bottom:8px;border-bottom:1px solid var(--s5e-line);}
+.s5set .sg-guide-swatches{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+@media (max-width:720px){.s5set .sg-guide-swatches{grid-template-columns:repeat(2,1fr);}}
+.s5set .sg-guide-swatch{display:flex;flex-direction:column;gap:7px;}
+.s5set .sg-guide-swatch .sw{height:64px;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25);}
+.s5set .sg-guide-swatch .nm{font-size:13px;font-weight:600;color:var(--s5e-text);}
+.s5set .sg-guide-swatch .vr{font-family:var(--s5e-mono);font-size:11px;color:var(--s5e-text-faint);}
+.s5set .sg-guide-type{color:var(--s5e-text);margin:0 0 12px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.s5set .sg-guide-space{display:flex;align-items:center;gap:16px;padding:7px 0;}
+.s5set .sg-guide-space .k{font-family:var(--s5e-mono);font-size:12px;color:var(--s5e-text-dim);width:44px;}
+.s5set .sg-guide-space .bar{height:14px;background:var(--s5e-accent);border-radius:3px;}
+.s5set .sg-guide-space .v{font-family:var(--s5e-mono);font-size:11px;color:var(--s5e-text-faint);margin-left:auto;}
+.s5set .sg-guide-radii{display:flex;flex-wrap:wrap;gap:22px;}
+.s5set .sg-guide-radius{display:flex;flex-direction:column;align-items:center;gap:8px;}
+.s5set .sg-guide-radius .box{width:56px;height:56px;background:var(--s5e-bg-3);border:1px solid var(--s5e-accent);}
+.s5set .sg-guide-radius .k{font-family:var(--s5e-mono);font-size:11px;color:var(--s5e-text-faint);}
+.s5set .sg-guide-elements{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;}
+@media (max-width:720px){.s5set .sg-guide-elements{grid-template-columns:1fr;}}
+.s5set .sg-guide-el{border:1px solid var(--s5e-line);border-radius:var(--s5e-radius-md);overflow:hidden;}
+.s5set .sg-guide-el .ex{background:#fff;color:#1e1e1e;padding:26px 20px;display:flex;align-items:center;justify-content:center;min-height:96px;}
+.s5set .sg-guide-el .ex *{color:#1e1e1e;}
+.s5set .sg-guide-el .ex .btn--primary,.s5set .sg-guide-el .ex .btn--primary *{color:#fff;}
+.s5set .sg-guide-el .lbl{display:block;padding:10px 14px;font-size:12px;color:var(--s5e-text-dim);}
+.s5set .sg-guide-el .lbl code{font-family:var(--s5e-mono);font-size:11px;color:var(--s5e-text-faint);}
