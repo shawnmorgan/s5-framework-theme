@@ -1,0 +1,75 @@
+# S5 acceptance gate.
+#
+# The repo already has a strong 24-suite gate (tests/run-all.sh) — it just only
+# ever ran when someone remembered to run it locally. The 2026-08-26 audit found
+# a privilege escalation, five XSS bypasses and a silent data-loss bug that ALL
+# shipped through that gate while it was green, because nothing enforced it on
+# the way in. This runs it on every push and PR instead.
+#
+# The suite drives wp-env (Docker), which is available on ubuntu-latest runners.
+name: Acceptance gate
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same branch makes the in-flight run obsolete.
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Full acceptance suite
+    runs-on: ubuntu-latest
+    # The full 24-suite run boots WordPress, imports the corpus and drives a
+    # browser; it is slow by nature. Generous, but bounded so a hang cannot burn
+    # the whole runner budget.
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Cheap, fast failures first: a syntax error should not cost a WordPress boot.
+      - name: PHP syntax check (all theme sources)
+        run: |
+          find s5-theme/src s5-theme/cli tests -name '*.php' -print0 \
+            | xargs -0 -n1 php -l
+
+      - name: JS syntax check (editor assets)
+        run: |
+          for f in s5-theme/assets/editor/*.js; do
+            node --check "$f" || exit 1
+          done
+
+      # Playwright drives the real-browser suites (roles-login, viewport matrix).
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the acceptance gate
+        run: npm test
+
+      # Screenshots and any artifacts the browser suites leave behind make a
+      # failure diagnosable without re-running locally.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gate-artifacts-${{ github.run_id }}
+          path: |
+            docs/demo-walkthrough/
+            docs/ui-fidelity/
+            /tmp/s5-*.png
+          if-no-files-found: ignore
+          retention-days: 7
