@@ -22,7 +22,9 @@
 	var cfg = window.S5Editor || {};
 
 	var stage = root.querySelector( '[data-s5-stage]' );
-	var dirtyEl = root.querySelector( '[data-s5-dirty]' );
+	// NB: no cached [data-s5-dirty] reference here — it lives inside the Save
+	// button, whose innerHTML panel.js rewrites, which detaches any held node.
+	// Use dirtyDot() below, which re-queries. (audit H2)
 	var updateBtn = root.querySelector( '[data-s5-update]' );
 
 	var state = {
@@ -34,21 +36,56 @@
 
 	/* --- dirty state (helpers for later items) --------------------------- */
 
+	// The dirty dot lives INSIDE the Save button, and panel.js rewrites that
+	// button's innerHTML/textContent around a save ("Saving…", then restore). A
+	// reference captured once at init is therefore detached the first time that
+	// happens, and every later markDirty() would style an orphaned node while the
+	// real dot stayed hidden for the rest of the session (audit H2). Re-query on
+	// every use so we always address the node currently in the DOM.
+	function dirtyDot() {
+		return root.querySelector( '[data-s5-dirty]' );
+	}
+
+	// Probe registered by panel.js (registerPendingEdits): true while slot edits are
+	// staged that ONLY the Save button can flush. See markClean().
+	var pendingEditsProbe = null;
+
+	function hasPendingEdits() {
+		try {
+			return !! ( pendingEditsProbe && pendingEditsProbe() );
+		} catch ( e ) {
+			return false;
+		}
+	}
+
 	function markDirty() {
 		state.dirty = true;
 		// The dirty-dot is the mockup's .dirty-dot (inline display toggle).
-		if ( dirtyEl ) {
-			dirtyEl.style.display = 'inline-block';
+		var dot = dirtyDot();
+		if ( dot ) {
+			dot.style.display = 'inline-block';
 		}
 		if ( updateBtn ) {
 			updateBtn.disabled = false;
 		}
 	}
 
+	// Clear the dirty state. AUDIT H1: this is called by the auto-saving structure
+	// ops (structure.js delete/duplicate, styleaxes.js class swap) once THEIR save
+	// succeeds — but it is a GLOBAL flag, and panel.js's staged slot edits live in a
+	// separate buffer it does not touch. Clearing unconditionally therefore disabled
+	// Save while the user's typing was still buffered, and left state.dirty false so
+	// beforeunload stayed silent: the edit was lost with no warning at all. So: if
+	// slot edits are still staged, the editor genuinely IS still dirty. Say so.
 	function markClean() {
+		if ( hasPendingEdits() ) {
+			markDirty();
+			return;
+		}
 		state.dirty = false;
-		if ( dirtyEl ) {
-			dirtyEl.style.display = 'none';
+		var dot = dirtyDot();
+		if ( dot ) {
+			dot.style.display = 'none';
 		}
 		if ( updateBtn ) {
 			updateBtn.disabled = true;
@@ -289,6 +326,40 @@
 		} );
 	}
 
+	// A tiny transient toast for confirmations ("Updated", etc.). Appears bottom-right,
+	// auto-dismisses. The editor had no success feedback at all, so a save looked like
+	// it did nothing even when it worked.
+	// Toasts share ONE fixed-position stack. Appending each toast at the same
+	// right/bottom anchor made two within the dismiss window render exactly
+	// superimposed — an unreadable smear (audit M7). A flex column lets them
+	// stack instead, and keeps the fixed positioning in one place.
+	var toastStack = null;
+
+	function toast( msg, kind ) {
+		if ( ! toastStack || ! toastStack.parentNode ) {
+			toastStack = document.createElement( 'div' );
+			toastStack.className = 's5e-toast-stack';
+			root.appendChild( toastStack );
+		}
+		var t = document.createElement( 'div' );
+		t.className = 's5e-toast' + ( 'error' === kind ? ' s5e-toast--error' : '' );
+		t.setAttribute( 'role', 'status' );
+		t.setAttribute( 'aria-live', 'polite' );
+		t.textContent = msg;
+		toastStack.appendChild( t );
+		// Force a reflow so the enter transition runs, then show.
+		void t.offsetWidth;
+		t.classList.add( 'is-in' );
+		setTimeout( function () {
+			t.classList.remove( 'is-in' );
+			setTimeout( function () {
+				if ( t.parentNode ) {
+					t.parentNode.removeChild( t );
+				}
+			}, 220 );
+		}, 2000 );
+	}
+
 	window.S5EditorShell = {
 		state: state,
 		config: cfg,
@@ -296,6 +367,14 @@
 		markClean: markClean,
 		showProps: showProps,
 		showPalette: showPalette,
+		toast: toast,
+		// panel.js owns the staged-slot-edit buffer; it registers a probe here so the
+		// SHARED markClean() (called by the auto-saving structure ops) can refuse to
+		// disable Save while those edits are still unflushed. See markClean().
+		registerPendingEdits: function ( fn ) {
+			pendingEditsProbe = ( 'function' === typeof fn ) ? fn : null;
+		},
+		hasPendingEdits: hasPendingEdits,
 		getPreviewFrame: function () {
 			return root.querySelector( '[data-s5-preview]' );
 		},

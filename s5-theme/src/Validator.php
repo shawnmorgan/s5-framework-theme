@@ -42,6 +42,54 @@ final class Validator {
 	public const RULE_EVENT_HANDLER = 's5.attr.event-handler';
 	public const RULE_JS_URL        = 's5.attr.javascript-url';
 	public const RULE_SCRIPT_TAG    = 's5.html.script-tag';
+	public const RULE_SRCDOC        = 's5.attr.srcdoc';
+
+	/**
+	 * Attributes whose value a browser resolves as a URL, and which therefore can
+	 * carry an executable scheme. Checked bare, so namespaced forms (`xlink:href`)
+	 * match too. Audit C2: the rule used to cover only href/src, leaving
+	 * `formaction` and `xlink:href` as proven-executable holes.
+	 *
+	 * @var array<int, string>
+	 */
+	private const URL_ATTRIBUTES = array(
+		'href',
+		'src',
+		'formaction',
+		'action',
+		'poster',
+		'data',
+		'background',
+		'cite',
+		'longdesc',
+		'usemap',
+		'profile',
+		'manifest',
+	);
+
+	/**
+	 * Schemes that execute script when a browser follows the URL.
+	 *
+	 * `data:` is deliberately NOT a blanket entry: `data:image/png;base64,...` and
+	 * `data:image/svg+xml,...` are legitimate inline-asset idioms, and rejecting
+	 * them wholesale would be exactly the false-positive friction this validator
+	 * has been bitten by before. Only the renderable-document media types are
+	 * dangerous (they navigate into an attacker-authored page), so those are
+	 * matched separately by DANGEROUS_DATA_TYPES below.
+	 *
+	 * @var array<int, string>
+	 */
+	private const DANGEROUS_SCHEMES = array( 'javascript', 'vbscript' );
+
+	/**
+	 * `data:` media types that a browser will parse as a scripting document.
+	 * `data:image/svg+xml` is included: SVG is a document format and can carry
+	 * <script>, so it executes when navigated to (it does NOT execute inside a
+	 * plain <img>, but this rule cannot assume the element).
+	 *
+	 * @var array<int, string>
+	 */
+	private const DANGEROUS_DATA_TYPES = array( 'text/html', 'application/xhtml', 'image/svg' );
 
 	/**
 	 * ENUMERATED inline-style exceptions — the ONLY places a `style=` attribute
@@ -176,34 +224,74 @@ final class Validator {
 			}
 		}
 
-		// --- javascript: URLs in href/src (script injection via a URL, not an
-		// attribute name) -- same security gap class as the on* check above: a
-		// closed vocabulary means nothing if <a href="javascript:..."> or an
-		// <img src="javascript:..."> can still execute script.
-		foreach ( $xpath->query( '//*[@href or @src]' ) as $node ) {
+		// --- script-bearing URLs in ANY url-valued attribute (script injection via a
+		// URL, not an attribute name) -- same security gap class as the on* check
+		// above: a closed vocabulary means nothing if a URL can still execute script.
+		//
+		// AUDIT C2: this rule previously scanned ONLY href/src, and only with
+		// `stripos( ltrim( $val ), 'javascript:' )`. Other url-valued attributes were
+		// unguarded and PROVEN to execute in a real browser -- `formaction` on a
+		// <button> and `xlink:href` on an SVG <a>. And because `ltrim()` strips only
+		// LEADING whitespace, a control character EMBEDDED in the scheme
+		// ("java\tscript:", "java\nscript:") slipped through, while browsers strip
+		// those bytes and execute the URL anyway.
+		//
+		// Both halves are closed here: the attribute list is the full url-valued set,
+		// and the value is normalized (entities decoded, all C0/space bytes removed)
+		// before the scheme comparison -- so the check sees what the BROWSER will see
+		// rather than what the author typed.
+		foreach ( $xpath->query( '//*' ) as $node ) {
 			if ( ! ( $node instanceof \DOMElement ) ) {
 				continue;
 			}
-			foreach ( array( 'href', 'src' ) as $attr_name ) {
-				if ( ! $node->hasAttribute( $attr_name ) ) {
+			foreach ( $node->attributes as $attr ) {
+				$attr_name = strtolower( (string) $attr->nodeName );
+				// Match the bare name and any namespaced form (xlink:href, xml:href).
+				$bare = $attr_name;
+				if ( false !== strpos( $bare, ':' ) ) {
+					$bare = substr( $bare, strrpos( $bare, ':' ) + 1 );
+				}
+				if ( ! in_array( $bare, self::URL_ATTRIBUTES, true ) ) {
 					continue;
 				}
-				$val = (string) $node->getAttribute( $attr_name );
-				if ( 0 !== stripos( ltrim( $val ), 'javascript:' ) ) {
+				$scheme = self::dangerous_scheme( (string) $attr->nodeValue );
+				if ( '' === $scheme ) {
 					continue;
 				}
 				$findings[] = self::finding(
 					self::SEVERITY_ERROR,
 					self::RULE_JS_URL,
 					$file,
-					self::line_of( $html, $attr_name . '="' . $val ),
-					$attr_name . '="' . $val . '"',
-					'javascript: URL in ' . $attr_name . '= is prohibited on <' . strtolower( $node->nodeName ) . '>',
-					'no javascript: URLs — links/sources are real paths or URLs only',
+					self::line_of( $html, $attr_name . '=' ),
+					$attr_name . '="' . (string) $attr->nodeValue . '"',
+					$scheme . ': URL in ' . $attr_name . '= is prohibited on <' . strtolower( $node->nodeName ) . '>',
+					'no script-bearing URLs — links/sources are real paths or URLs only',
 					'replace with a real URL; wire interactivity through a registered component or island instead',
 					''
 				);
 			}
+		}
+
+		// --- srcdoc= -- a full HTML document smuggled inside an attribute. Its
+		// content is parsed as markup by the browser but is opaque to every rule
+		// above (the <script> sweep below sees an attribute VALUE, not a script
+		// element), so an entire document -- scripts included -- rode in unchecked.
+		// PROVEN to execute. There is no sanctioned authoring use for it here.
+		foreach ( $xpath->query( '//*[@srcdoc]' ) as $node ) {
+			if ( ! ( $node instanceof \DOMElement ) ) {
+				continue;
+			}
+			$findings[] = self::finding(
+				self::SEVERITY_ERROR,
+				self::RULE_SRCDOC,
+				$file,
+				self::line_of( $html, 'srcdoc=' ),
+				'srcdoc="…"',
+				'srcdoc= is prohibited on <' . strtolower( $node->nodeName ) . '>',
+				'no inline iframe documents — embed a real URL, or use a registered component',
+				'remove srcdoc and point src= at a real URL instead',
+				''
+			);
 		}
 
 		// --- <script> injected mid-body -- outside the framework's own asset
@@ -394,10 +482,69 @@ final class Validator {
 	 * @param array<int, string> $vocab Vocabulary class names.
 	 * @return string Suggestion, or '' if none is close.
 	 */
+	/**
+	 * Name the dangerous URL scheme a value resolves to, or '' when it is safe.
+	 *
+	 * Normalizes the way a BROWSER does before comparing, which is the whole point:
+	 * an author-typed value and the value the browser acts on are not the same
+	 * string. Two normalizations, both of which were live bypasses (audit C2):
+	 *
+	 *   1. HTML entities are decoded — `java&#115;cript:` is `javascript:`.
+	 *   2. ALL C0 control bytes and spaces are stripped THROUGHOUT the value, not
+	 *      just trimmed from the front — browsers ignore TAB/LF/CR anywhere inside
+	 *      the scheme, so `java\tscript:` navigates exactly like `javascript:`.
+	 *      The previous `ltrim()` only handled leading whitespace.
+	 *
+	 * The comparison is then a case-insensitive prefix test against the scheme
+	 * allowlist's inverse: a bare `javascript` with no colon is inert, so the colon
+	 * is required.
+	 *
+	 * @param string $value Raw attribute value.
+	 * @return string Scheme name ('javascript', 'vbscript', 'data'), or '' if safe.
+	 */
+	private static function dangerous_scheme( string $value ): string {
+		// Decode entities first: the DOM already decodes most, but a double-encoded
+		// value (`&amp;#115;`) survives one pass, so decode until it stabilizes.
+		$decoded = $value;
+		for ( $i = 0; $i < 3; $i++ ) {
+			$next = html_entity_decode( $decoded, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+			if ( $next === $decoded ) {
+				break;
+			}
+			$decoded = $next;
+		}
+		// Strip every C0 control byte and space, anywhere in the value.
+		$normalized = preg_replace( '/[\x00-\x20]+/', '', $decoded );
+		if ( null === $normalized || '' === $normalized ) {
+			return '';
+		}
+		foreach ( self::DANGEROUS_SCHEMES as $scheme ) {
+			if ( 0 === stripos( $normalized, $scheme . ':' ) ) {
+				return $scheme;
+			}
+		}
+		// data: only when the media type is a renderable document (see the constant).
+		if ( 0 === stripos( $normalized, 'data:' ) ) {
+			$type = substr( $normalized, 5 );
+			foreach ( self::DANGEROUS_DATA_TYPES as $bad ) {
+				if ( 0 === stripos( $type, $bad ) ) {
+					return 'data';
+				}
+			}
+		}
+		return '';
+	}
+
 	private static function nearest( string $class, array $vocab ): string {
 		$best      = '';
 		$best_dist = PHP_INT_MAX;
 		foreach ( $vocab as $candidate ) {
+			// Audit L2: the documented contract is a MAP (class => true), so callers
+			// pass `array_keys()`. A list-shaped vocab would yield int candidates and
+			// fatal in levenshtein(); skip defensively rather than crash the save.
+			if ( ! is_string( $candidate ) ) {
+				continue;
+			}
 			$d = levenshtein( $class, $candidate );
 			if ( $d < $best_dist ) {
 				$best_dist = $d;

@@ -356,7 +356,12 @@ final class Rest {
 		} catch ( \RuntimeException $e ) {
 			return new \WP_Error( 's5_vocab', $e->getMessage(), array( 'status' => 500 ) );
 		}
-		$findings = Validator::validate( $canonical, $vocab, 'template:' . $name );
+		// Role-aware, same as the page save door (audit M3): a Developer DEFINES the
+		// vocabulary, so a not-yet-declared class is a WARNING here rather than the
+		// hard wall the closed vocabulary presents to marketers/clients. Security
+		// rules stay ERROR for everyone regardless — see Validator's own docblock.
+		$dev      = ( 'developer' === Roles::role_for_user() );
+		$findings = Validator::validate( $canonical, $vocab, 'template:' . $name, $dev );
 		if ( Validator::has_errors( $findings ) ) {
 			return new \WP_REST_Response(
 				array(
@@ -551,7 +556,20 @@ final class Rest {
 		} catch ( \RuntimeException $e ) {
 			return new \WP_Error( 's5_vocab', $e->getMessage(), array( 'status' => 500 ) );
 		}
-		$findings = Validator::validate( $html, $vocab, 'component:' . $name );
+		// AUDIT H4: this endpoint deliberately ignores any `css` payload (CSS is
+		// read-only here), then validated the HTML against a vocabulary compiled
+		// from the bundle. If the component's own style.css declared a class the
+		// bundle had not picked up yet, correct markup was rejected 422 as an
+		// "unknown class" with no hint that the CSS door was the one to use. Fold
+		// the component's OWN on-disk classes into its vocabulary: they are real,
+		// declared, and already sitting in the file being validated against.
+		foreach ( array_keys( Stylesheet::parse_classes( $existing_css ) ) as $own_class ) {
+			$vocab[ $own_class ] = true;
+		}
+
+		// Role-aware, same as the page save door (audit M3).
+		$dev      = ( 'developer' === Roles::role_for_user() );
+		$findings = Validator::validate( $html, $vocab, 'component:' . $name, $dev );
 		if ( Validator::has_errors( $findings ) ) {
 			return new \WP_REST_Response(
 				array(
@@ -613,6 +631,24 @@ final class Rest {
 			return new \WP_Error( 's5_not_framework_page', __( 'Not a framework page.', 's5' ), array( 'status' => 404 ) );
 		}
 
+		// PER-OBJECT authorization (audit C1). `can_save()` proves only that the caller
+		// may use the editor AT ALL: it checks the SITE-WIDE `edit_posts` capability
+		// plus the role matrix's `editor.open`. Neither says anything about THIS post.
+		// Without the check below, any `edit_posts` holder — a Contributor, who cannot
+		// edit a published page in wp-admin — could rewrite EVERY framework page on the
+		// site through this door. Worse, `Compiler::write_post_content_raw()` suspends
+		// kses for the write, so that content would also bypass the `unfiltered_html`
+		// restriction their role normally carries. WordPress's `edit_post` meta-cap is
+		// the authority on "may this user edit THIS post" (it resolves post status,
+		// authorship and post-type caps); defer to it rather than re-deriving the rule.
+		if ( ! current_user_can( 'edit_post', $post_id ) ) {
+			return new \WP_Error(
+				's5_cannot_edit_post',
+				__( 'You are not allowed to edit this page.', 's5' ),
+				array( 'status' => 403 )
+			);
+		}
+
 		$mode = (string) $request->get_param( 'mode' );
 
 		switch ( $mode ) {
@@ -623,6 +659,13 @@ final class Rest {
 				}
 				return self::save_head( $post_id, $request );
 			case 'slots':
+				// R1 (audit H3): editing text/link/image slots IS the Content grant. The
+				// matrix key `editor.content` existed but was never enforced here, so a
+				// role the admin had denied Content still saved slots by POSTing directly
+				// — hidden in the UI, not blocked at the door. Both, now.
+				if ( ! Roles::can( 'editor.content' ) ) {
+					return new \WP_Error( 's5_role_content', __( 'Your role cannot edit content.', 's5' ), array( 'status' => 403 ) );
+				}
 				$canonical = self::build_canonical_from_slots( $post_id, $request );
 				if ( $canonical instanceof \WP_Error ) {
 					return $canonical;
@@ -661,6 +704,12 @@ final class Rest {
 				}
 				return self::persist_canonical( $post_id, $canonical );
 			case 'class':
+				// R1 (audit H3): an axis class-swap IS the Style grant. Same gap as
+				// `slots` above — `editor.style` existed in the matrix and was enforced
+				// nowhere, so denying Style hid the tab without closing the door.
+				if ( ! Roles::can( 'editor.style' ) ) {
+					return new \WP_Error( 's5_role_style', __( 'Your role cannot edit styles.', 's5' ), array( 'status' => 403 ) );
+				}
 				$canonical = self::build_canonical_from_class_swap( $post_id, $request );
 				if ( $canonical instanceof \WP_Error ) {
 					return $canonical;
@@ -1469,6 +1518,28 @@ final class Rest {
 	 * @param string $attr      Attribute name for attribute-style writes (link/img).
 	 * @return string|\WP_Error
 	 */
+	/**
+	 * Make square brackets inert so authored text cannot become a shortcode.
+	 *
+	 * AUDIT M1. `esc_html()` escapes `< > & " '` but NOT `[` or `]`, so a plain
+	 * TEXT slot could carry `[gallery]`. `Compiler::needs_dynamic_pass()` matches
+	 * that very pattern, flips the page to dynamic, and `templates/canvas.php`
+	 * then runs `do_shortcode()` on the fragment for EVERY visitor — turning a
+	 * text field into a server-side template-execution surface reachable by the
+	 * lowest-privilege editing role. The Validator never saw it, because bracket
+	 * text is not markup.
+	 *
+	 * Encoding the brackets keeps the glyphs visible and byte-stable through the
+	 * round-trip harness while making them non-matching for the shortcode regex.
+	 * Sanctioned dynamics (`<s5-field>`, L&L) are ELEMENTS and are unaffected.
+	 *
+	 * @param string $value Already-escaped slot content.
+	 * @return string Same text with brackets encoded.
+	 */
+	private static function neutralize_shortcodes( string $value ): string {
+		return str_replace( array( '[', ']' ), array( '&#91;', '&#93;' ), $value );
+	}
+
 	private static function write_slot( string $canonical, string $node, string $type, string $value, string $attr ) {
 		$processor = new \WP_HTML_Tag_Processor( $canonical );
 
@@ -1490,14 +1561,28 @@ final class Rest {
 
 		switch ( $type ) {
 			case 'text':
-				return self::replace_inner( $canonical, $node, esc_html( $value ) );
+				return self::replace_inner( $canonical, $node, self::neutralize_shortcodes( esc_html( $value ) ) );
 
 			case 'rich':
 				$safe = wp_kses( $value, self::RICH_ALLOWED );
-				return self::replace_inner( $canonical, $node, $safe );
+				return self::replace_inner( $canonical, $node, self::neutralize_shortcodes( $safe ) );
 
 			case 'link':
-				$processor->set_attribute( 'href', esc_url_raw( $value ) );
+				// attr="target" is the Open-in control (audit M4); anything else is
+				// the href itself. Kept as two exclusive branches so a target edit
+				// never rewrites the href, and vice versa.
+				if ( 'target' === $attr ) {
+					if ( '_blank' === $value ) {
+						$processor->set_attribute( 'target', '_blank' );
+						// Never hand an opener to a cross-origin tab.
+						$processor->set_attribute( 'rel', 'noopener noreferrer' );
+					} else {
+						$processor->remove_attribute( 'target' );
+						$processor->remove_attribute( 'rel' );
+					}
+				} else {
+					$processor->set_attribute( 'href', esc_url_raw( $value ) );
+				}
 				return $processor->get_updated_html();
 
 			case 'img':

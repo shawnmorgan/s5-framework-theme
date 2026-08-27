@@ -81,6 +81,20 @@ final class Styles {
 		if ( '' === $value || preg_match( '/[;{}<]/', $value ) ) {
 			return new \WP_Error( 's5_token_value', __( 'Invalid token value.', 's5' ), array( 'status' => 400 ) );
 		}
+		// AUDIT M2: the structural check above stops a breakout, but this door must
+		// also enforce the same VALUE policy as the element-CSS door
+		// (ElementStyles::validate_declarations) — both write into the very same
+		// compiled bundle, and a "one door" architecture that applies two different
+		// rules to one artifact is only as strong as its weakest door.
+		if ( preg_match( '/(?:javascript|vbscript|data)\s*:/i', $value )
+			|| preg_match( '/expression\s*\(/i', $value )
+			|| preg_match( '/(?:behavior|-moz-binding)\s*:/i', $value ) ) {
+			return new \WP_Error(
+				's5_token_value',
+				__( 'Token values cannot contain script-bearing CSS.', 's5' ),
+				array( 'status' => 400 )
+			);
+		}
 
 		// The token must already exist (we only EDIT declared tokens, never add here).
 		$known = false;

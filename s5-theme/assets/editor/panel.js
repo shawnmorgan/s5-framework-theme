@@ -55,8 +55,15 @@
 		return node;
 	}
 
+	// Stage one slot edit. The buffer key must identify the SLOT, not just the node:
+	// a single node can own several independently-editable slots (an <a> has both a
+	// text/href edit and a target edit; an <img> has alt and src). Keying by node id
+	// alone made the last edit silently evict the earlier one on the same element.
+	// Keying by node+type+attr coalesces repeat edits to the SAME slot (the intended
+	// behavior while typing) without cross-slot collisions.
 	function stage( node, type, value, attr ) {
-		slotEdits[ node ] = { node: node, type: type, value: value, attr: attr || '' };
+		var key = node + '|' + type + '|' + ( attr || '' );
+		slotEdits[ key ] = { node: node, type: type, value: value, attr: attr || '' };
 		shell.markDirty();
 		sendToFrame( { s5: 's5-patch', node: node, type: type, value: value, attr: attr || '' } );
 	}
@@ -153,10 +160,23 @@
 			} );
 			panelBody.appendChild( field( 'Link', link ) );
 
-			// Open-in segmented control (Same/New tab) — presentational (mockup ships it).
+			// Open-in segmented control (Same/New tab). AUDIT M4: this shipped as inert
+			// markup with no handler, sitting between two fields that DO save — so a
+			// user could pick "New tab", hit Save, get "Updated", and have the choice
+			// silently discarded. It stages a `target` edit like any other slot now.
 			var openIn = el( 'div', { class: 'seg wide' } );
-			openIn.appendChild( el( 'div', { class: 'seg-opt active' }, 'Same tab' ) );
-			openIn.appendChild( el( 'div', { class: 'seg-opt' }, 'New tab' ) );
+			var isBlank = ( '_blank' === ( sel.target || '' ) );
+			var sameOpt = el( 'div', { class: 'seg-opt' + ( isBlank ? '' : ' active' ) }, 'Same tab' );
+			var blankOpt = el( 'div', { class: 'seg-opt' + ( isBlank ? ' active' : '' ) }, 'New tab' );
+			[ [ sameOpt, '' ], [ blankOpt, '_blank' ] ].forEach( function ( pair ) {
+				pair[ 0 ].addEventListener( 'click', function () {
+					sameOpt.classList.toggle( 'active', '' === pair[ 1 ] );
+					blankOpt.classList.toggle( 'active', '_blank' === pair[ 1 ] );
+					stage( sel.node, 'link', pair[ 1 ], 'target' );
+				} );
+			} );
+			openIn.appendChild( sameOpt );
+			openIn.appendChild( blankOpt );
 			panelBody.appendChild( field( 'Open in', openIn ) );
 		} else if ( 'img' === type ) {
 			// Media field: thumbnail + library link + name (mockup .media-field).
@@ -305,11 +325,11 @@
 				if ( res.body && res.body.ok ) {
 					reloadPreview();
 				} else {
-					showDiagnostics( res.body && res.body.diagnostics );
+					showDiagnostics( diagnosticsFor( res ) );
 				}
 			} )
 			.catch( function () {
-				showDiagnostics( [ { message: 'Network error disabling the element.' } ] );
+				showDiagnostics( [ { severity: 'error', message: 'Network error disabling the element.' } ] );
 			} );
 	}
 
@@ -322,16 +342,77 @@
 
 	/* --- Update: POST staged slot edits to the ONE save door ------------- */
 
+	// Let the shell see whether unflushed slot edits exist, so the SHARED
+	// markClean() (called by auto-saving structure ops) cannot disable Save and
+	// silence beforeunload while the user's typing is still buffered (audit H1).
+	if ( shell.registerPendingEdits ) {
+		shell.registerPendingEdits( function () {
+			return Object.keys( slotEdits ).length > 0;
+		} );
+	}
+
+	// The Save button's label is a TEXT NODE beside the dirty dot, and the dot is a
+	// child ELEMENT of that same button. Rewriting the button's innerHTML (or its
+	// textContent) destroys and re-parses that subtree, which detached the dot the
+	// shell tracks and killed the indicator for the rest of the session (audit H2).
+	// So never touch the button's markup: swap ONLY the label text node and leave
+	// the dot element itself untouched, in place.
+	var saveLabelText = 'Save';
+	if ( updateBtn ) {
+		// Cache the resting label so the restored word is the theme's own
+		// translated string rather than a hardcoded English one.
+		var initialLabel = ( updateBtn.textContent || '' ).trim();
+		if ( initialLabel ) {
+			saveLabelText = initialLabel;
+		}
+	}
+
+	// Replace only the button's label text, preserving every child element.
+	function setSaveLabel( text ) {
+		if ( ! updateBtn ) {
+			return;
+		}
+		var replaced = false;
+		Array.prototype.slice.call( updateBtn.childNodes ).forEach( function ( n ) {
+			if ( 3 !== n.nodeType ) { // not a TEXT_NODE
+				return;
+			}
+			if ( ! replaced ) {
+				n.nodeValue = ' ' + text;
+				replaced = true;
+			} else {
+				n.nodeValue = '';
+			}
+		} );
+		if ( ! replaced ) {
+			updateBtn.appendChild( document.createTextNode( ' ' + text ) );
+		}
+	}
+
+	function restoreSaveButton() {
+		setSaveLabel( saveLabelText );
+	}
+
 	function doSave() {
 		var edits = Object.keys( slotEdits ).map( function ( k ) {
 			return slotEdits[ k ];
 		} );
-		if ( ! edits.length || ! cfg.saveUrl ) {
+		// Nothing staged (e.g. structure edits already auto-saved) → give feedback
+		// instead of a dead click, and don't POST an empty change.
+		if ( ! edits.length ) {
+			shell.toast( 'Nothing to save.' );
+			return;
+		}
+		// A missing save endpoint used to return silently here — the exact dead
+		// click this feedback exists to remove (audit L1). Say so instead.
+		if ( ! cfg.saveUrl ) {
+			shell.toast( 'Cannot save — no save endpoint configured.', 'error' );
 			return;
 		}
 
+		clearDiagnostics();
 		updateBtn.disabled = true;
-		updateBtn.textContent = 'Saving…';
+		setSaveLabel( 'Saving…' );
 
 		fetch( cfg.saveUrl, {
 			method: 'POST',
@@ -348,20 +429,25 @@
 				} );
 			} )
 			.then( function ( res ) {
-				updateBtn.textContent = 'Update';
 				if ( res.body && res.body.ok ) {
+					// Clear the buffer BEFORE markClean(): the shell now asks whether
+					// edits are still staged and re-dirties itself if they are (H1).
 					slotEdits = {};
+					restoreSaveButton();
 					shell.markClean();
+					shell.toast( 'Updated' );
 					reloadPreview();
-				} else {
-					showDiagnostics( res.body && res.body.diagnostics );
-					updateBtn.disabled = false;
+					return;
 				}
+				// Rejected. Keep slotEdits so the user can fix and retry.
+				restoreSaveButton();
+				updateBtn.disabled = false;
+				showDiagnostics( diagnosticsFor( res ) );
 			} )
 			.catch( function () {
-				updateBtn.textContent = 'Update';
+				restoreSaveButton();
 				updateBtn.disabled = false;
-				showDiagnostics( [ { severity: 'error', message: 'Network error saving.' } ] );
+				showDiagnostics( [ { severity: 'error', message: 'Network error saving. Your changes are still here — try again.' } ] );
 			} );
 	}
 
@@ -374,7 +460,47 @@
 		}
 	}
 
+	// Turn a rejected response into something the operator can act on. AUDIT M6:
+	// this used to pass `res.body.diagnostics` straight through, so a rejection
+	// that carries no diagnostics array — a 403 from an expired nonce is the
+	// common one, and it IS valid JSON — rendered a "Save rejected" header with
+	// zero lines under it. An empty box tells the user nothing. Map the status
+	// codes we actually emit to a real sentence, and always return >=1 line.
+	function diagnosticsFor( res ) {
+		var body = res && res.body;
+		var diags = ( body && body.diagnostics ) || [];
+		if ( diags.length ) {
+			return diags;
+		}
+		var status = ( res && res.status ) || 0;
+		var msg = ( body && ( body.message || body.code ) ) || '';
+		if ( 403 === status ) {
+			// Either the nonce aged out (12h) or the role/capability check refused.
+			msg = msg || 'Not permitted.';
+			msg += ' If you have had this tab open a long time, reload the page and try again.';
+		} else if ( 404 === status ) {
+			msg = msg || 'This page is no longer available to the editor.';
+		} else if ( status >= 500 ) {
+			msg = msg || 'The server failed while saving. Your changes are still here.';
+		} else if ( ! msg ) {
+			msg = 'The server rejected the save without giving a reason' +
+				( status ? ' (HTTP ' + status + ')' : '' ) + '.';
+		}
+		return [ { severity: 'error', message: msg } ];
+	}
+
+	// AUDIT M5: diagnostics used to be prepended with nothing ever removing the
+	// previous box, so N failed saves stacked N identical panels. One box at a time.
+	function clearDiagnostics() {
+		panelBody.querySelectorAll( '.s5e-diagnostics' ).forEach( function ( b ) {
+			if ( b.parentNode ) {
+				b.parentNode.removeChild( b );
+			}
+		} );
+	}
+
 	function showDiagnostics( diags ) {
+		clearDiagnostics();
 		var box = el( 'div', { class: 's5e-diagnostics' } );
 		box.appendChild( el( 'div', { class: 'field-label' }, 'Save rejected' ) );
 		( diags || [] ).forEach( function ( d ) {

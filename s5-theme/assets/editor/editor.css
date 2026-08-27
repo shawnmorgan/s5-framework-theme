@@ -722,5 +722,13 @@ body.s5-editor-fullscreen .s5-editor {
 .s5e-ctx-danger{color:var(--s5e-danger);}
 .s5e-ctx-danger:hover,.s5e-ctx-danger:focus{background:rgba(214,54,56,.14);color:var(--s5e-danger);}
 
+/* Transient confirmation toast ("Updated"). Bottom-right, slides up, auto-dismisses.
+   The STACK owns the fixed position so simultaneous toasts sit one above the other;
+   they used to share one anchor and rendered exactly superimposed. */
+.s5e-toast-stack{position:fixed;right:20px;bottom:20px;z-index:300;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none;}
+.s5e-toast{background:var(--s5e-brand,#25d366);color:#04220f;font-weight:600;font-size:13px;padding:11px 18px;border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.4);opacity:0;transform:translateY(10px);transition:opacity .2s,transform .2s;pointer-events:none;}
+.s5e-toast.is-in{opacity:1;transform:translateY(0);}
+.s5e-toast--error{background:var(--s5e-danger,#d63638);color:#fff;}
+
 /* Legacy parked hooks — never visible. */
 .s5e-legacy[hidden]{display:none !important;}

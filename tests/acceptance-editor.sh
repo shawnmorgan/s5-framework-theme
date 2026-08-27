@@ -121,6 +121,51 @@ echo "$PROBE_OUT" | grep -q 'TOKENS_OK=YES'          || fail "Style tab token re
 pass "design tokens parsed live from the declared token files"
 
 # ---------------------------------------------------------------------------
+# AUDIT 2026-08-26 regression guards. Every check below corresponds to a defect
+# that shipped through a fully GREEN gate — which is precisely why they are here.
+# See AUDIT-2026-08-26.md for each finding's proof and reproduction.
+# ---------------------------------------------------------------------------
+info "8/8  Audit regression guards (authz · URL schemes · shortcode · roles · client)…"
+
+# C1 — the save door must apply WordPress's per-object edit_post cap, not just
+# the site-wide edit_posts capability. A Contributor rewrote every framework
+# page before this landed.
+echo "$PROBE_OUT" | grep -q 'SEC_PRIVESC_BLOCKED=YES' \
+	|| fail "PRIVILEGE ESCALATION: a contributor (denied edit_post by WP) saved through the door"
+
+# C2 — the javascript:/vbscript:/data: rule must cover every url-valued
+# attribute, and must normalize entities + embedded control characters first.
+echo "$PROBE_OUT" | grep -q 'SEC_URL_ATTRS_REJECTED=YES' \
+	|| fail "XSS: a script-bearing URL attribute (formaction/srcdoc/xlink/ctrl-char/entity/data) reached canonical"
+
+# ...without becoming a false-positive machine on correct authoring.
+echo "$PROBE_OUT" | grep -q 'SEC_URL_NO_FALSE_POSITIVE=YES' \
+	|| fail "REGRESSION: legitimate links (relative/absolute/mailto/target/data:image) were rejected"
+
+# M1 — a plain TEXT slot must never become a shortcode execution surface.
+echo "$PROBE_OUT" | grep -q 'SEC_SHORTCODE_INERT=YES' \
+	|| fail "SHORTCODE INJECTION: [shortcode] typed in a text slot stayed live in canonical"
+
+# H3 — hidden AND blocked: the matrix keys must actually gate their modes.
+echo "$PROBE_OUT" | grep -q 'ROLE_GATES_WIRED=YES' \
+	|| fail "mode:slots / mode:class are not gated by editor.content / editor.style"
+
+# M2 — both CSS-writing doors enforce the same value policy on one bundle.
+echo "$PROBE_OUT" | grep -q 'TOKEN_VALUE_POLICY=YES' \
+	|| fail "token door accepted script-bearing CSS the element door rejects"
+
+# H1/H2 — the editor client's save contract (static guards; cheap, and they
+# would have caught both editor defects).
+echo "$PROBE_OUT" | grep -q 'EDITOR_CLIENT_CONTRACT=YES' \
+	|| fail "editor client contract broken (pending-edit guard, dot re-query, or toast wiring)"
+
+# A8 — structure modes had ZERO coverage at any layer; delete is irreversible.
+echo "$PROBE_OUT" | grep -q 'STRUCTURE_MODES_OK=YES' \
+	|| fail "structure mode (duplicate) did not round-trip through the save door"
+
+pass "audit guards: authz · URL schemes · shortcode inert · role gates · token policy · client contract · structure modes"
+
+# ---------------------------------------------------------------------------
 # 7. Restore corpus to source; declarations round-trip byte-clean.
 # ---------------------------------------------------------------------------
 info "8/8  Restore corpus; declarations round-trip byte-clean…"
