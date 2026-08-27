@@ -8,9 +8,9 @@ and **no companion plugin** — S5 ships as a single WordPress theme.
 
 ## Source of truth — read these first
 
-1. [`Agent-Native-WordPress-One-Sheet-v1.md`](./Agent-Native-WordPress-One-Sheet-v1.md) — thesis and positioning.
-2. [`PRD-Agent-Native-WordPress-Framework-v1_5.md`](./PRD-Agent-Native-WordPress-Framework-v1_5.md) — approved architecture.
-3. [`BUILD-ORDER-Agent-Native-WP-v1.md`](./BUILD-ORDER-Agent-Native-WP-v1.md) — step-by-step execution sheet.
+1. [`S5-Theme-One-Sheet-v2.md`](./framework%20theme%20files/S5-Theme-One-Sheet-v2.md) — thesis and positioning.
+2. [`PRD-Agent-Native-WordPress-Framework-v1_6.md`](./framework%20theme%20files/PRD-Agent-Native-WordPress-Framework-v1_6.md) — approved architecture (supersedes v1.5).
+3. [`S5-AMIN-HANDOFF-v0.1.md`](./framework%20theme%20files/S5-AMIN-HANDOFF-v0.1.md) — current execution handoff.
 4. [`DECISIONS.md`](./DECISIONS.md) — every judgment call made along the way, with the why.
 5. [`DEMO.md`](./DEMO.md) — a live click-script for the editor, and the real-site install path.
 
